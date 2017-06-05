@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow title="上传图片文件..." creationComplete="titlewindow1_creationCompleteHandler(event)" close="titlewindow1_closeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="500" height="430">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.FilenameUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import flashx.textLayout.formats.TextDecoration;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			private static var instance:WinUploadPicture=null;
+			private var callFunction:Function=null;
+			private var isUploading:Boolean=false;
+			private var isBrowsed:Boolean=false;
+			private var params:Object=null;
+
+			private var fileRef:FileReference=new FileReference();
+			private var fileFilter:FileFilter=new FileFilter("图片文件(*.jpg,*.jpeg,*.png", "*.jpg;*.jpeg;*.png");
+			[Bindable]
+			private var pictureTypes:ArrayCollection=null;
+			[Bindable]
+			private var categoryIndex:int=-1;
+
+
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			public static function execute(callFunction:Function, params:Object):void
+			{
+				if (instance == null)
+				{
+					instance=new WinUploadPicture();
+				}
+				instance.isBrowsed=false;
+				instance.isUploading=false;
+				instance.params=params;
+				instance.pictureTypes=params.pictureTypes;
+				instance.categoryIndex=params.selectedIndex;
+				if (instance.textInputFileName)
+				{
+					instance.textFileDescript.text="";
+					instance.textInputFileName.text="";
+					instance.textURL.text="";
+					instance.imgPicture.source=null;
+				}
+				instance.callFunction=callFunction;
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(instance);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function btnUpload_clickHandler(event:MouseEvent):void
+			{
+				if (!isBrowsed)
+				{
+					labelProgress.text="请首先选择需要上传的图片";
+					return;
+				}
+				if (isUploading)
+					return;
+
+				isUploading=true;
+				labelProgress.text="开始上传附件...";
+				params.href=StringUtils.trim(textURL.text);
+				params.descript=StringUtils.trim(textFileDescript.text);
+				params.category=comboboxType.selectedItem;
+				params.o = "uploadPicture";
+				AjaxUtils.uploadFile("../client/attachment_ex", "pic", fileRef.name, fileRef.data, function(text:String):void
+				{
+					labelProgress.text="成功上传图片。";
+					isBrowsed=false;
+					isUploading=false;
+					textFileDescript.text="";
+					textInputFileName.text="";
+					imgPicture.source=null;
+					var json:Object=JSON.parse(text);
+					if (json.r)
+						callFunction(json);
+					else
+						labelProgress.text="上传图片失败";
+					textURL.text="";
+				}, function(c:int, t:int):void
+				{
+					labelProgress.text="文件上传中 进度(" + int(c * 100 / t) + "%)";
+				}, function(event:Event):void
+				{
+					labelProgress.text="上传图片失败";
+					isBrowsed=false;
+					isUploading=false;
+					textFileDescript.text="";
+					textInputFileName.text="";
+					textURL.text="";
+					imgPicture.source=null;
+				}, params);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function btnBrowseClick(event:MouseEvent):void
+			{
+				fileRef.browse([fileFilter]);
+			}
+
+			protected function titlewindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				fileRef.addEventListener(Event.SELECT, function(event:Event):void
+				{
+					var fileExt:String=FilenameUtils.getFileExt(fileRef.name).toLowerCase();
+					if (ArrayUtils.indexOf(["jpg", "jpeg", "png"], fileExt) == -1)
+					{
+						labelProgress.text="不支持的图像文件.";
+					}
+					else if (fileRef.size > 50 * 1024 * 1024)
+					{
+						labelProgress.text="图像文件太大，系统最多支持上传50M的文件.";
+					}
+					else
+					{
+						textInputFileName.text=fileRef.name;
+						textFileDescript.text=FilenameUtils.getFileBaseName(fileRef.name);
+						fileRef.load();
+					}
+				});
+				fileRef.addEventListener(Event.COMPLETE, function(event:Event):void
+				{
+					if (fileRef.size != 0)
+					{
+						imgPicture.source=fileRef.data;
+						isBrowsed=true;
+					}
+					else
+					{
+						labelProgress.text="无效文件.";
+					}
+				});
+			}
+
+			protected function comboboxType_creationCompleteHandler(event:FlexEvent):void
+			{
+				comboboxType.textInput.editable=false;
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+
+	</fx:Declarations>
+
+	<s:HGroup top="5" left="5" right="5" gap="-1" height="28" verticalAlign="middle">
+		<s:Label paddingRight="4" text="选择文件"/>
+		<s:TextInput editable="false" id="textInputFileName" width="100%"/>
+		<s:Button id="btnBrowse" click="btnBrowseClick(event)" height="{textInputFileName.height}" label="浏览" width="{textInputFileName.height}"/>
+		<s:Label text="类别" paddingLeft="4" paddingRight="4"/>
+		<s:ComboBox selectedIndex="{categoryIndex}" creationComplete="comboboxType_creationCompleteHandler(event)" width="120" id="comboboxType" dataProvider="{pictureTypes}"/>
+	</s:HGroup>
+
+	<s:HGroup top="40" left="5" right="5" gap="-1" height="28" verticalAlign="middle">
+		<s:Label paddingRight="4" text="文件描述"/>
+		<s:TextInput id="textFileDescript" width="100%"/>
+	</s:HGroup>
+
+	<s:HGroup top="75" left="5" right="5" bottom="78" gap="-1" verticalAlign="top">
+		<s:Label paddingRight="4" text="图片预览"/>
+		<s:BorderContainer width="100%" height="100%" borderVisible="true" borderColor="0xCCCCCC">
+			<s:Image id="imgPicture" width="100%" height="100%" backgroundColor="0xF5F5F5"/>
+		</s:BorderContainer>
+	</s:HGroup>
+
+	<s:HGroup left="5" right="5" bottom="45" gap="-1" height="28" verticalAlign="middle">
+		<s:Label paddingRight="4" text="点击打开"/>
+		<s:TextInput id="textURL" width="100%"/>
+	</s:HGroup>
+
+	<s:Line width="100%" left="0" right="0" bottom="40" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#000000"/>
+		</s:stroke>
+	</s:Line>
+	<s:Label text="正在上传..." id="labelProgress" left="5" bottom="10" right="160"/>
+	<s:Button label="关闭" click="{titlewindow1_closeHandler(null)}" id="btnClose" right="5" bottom="5" height="30" width="70"/>
+	<s:Button label="上传" click="btnUpload_clickHandler(event)" id="btnClear" right="80" bottom="5" height="30" width="70"/>
+</s:TitleWindow>

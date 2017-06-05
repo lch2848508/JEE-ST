@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Grid paddingLeft="-1" paddingRight="-1" paddingBottom="-1" horizontalGap="5" verticalGap="5" creationComplete="grid1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:utils="com.estudio.flex.utils.*" width="100%" height="100%">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+
+			private var months:Array=null;
+
+			protected function grid1_creationCompleteHandler(event:FlexEvent):void
+			{
+				months=[this.M_1, this.M_2, this.M_3, this.M_4, this.M_5, this.M_6, this.M_7, this.M_8, this.M_9, this.M_10, this.M_11, this.M_12];
+			}
+
+			//获取天数列表
+			public function getDays():Array
+			{
+				var result:Array=[];
+				for (var i:int=0; i < 12; i++)
+				{
+					var month:MonthPanel=months[i] as MonthPanel;
+					result.push(month.getDays());
+				}
+				return result;
+			}
+
+			//设置天数
+			public function setDays(days):void
+			{
+				for (var i:int=0; i < 12; i++)
+				{
+					var month:MonthPanel=months[i] as MonthPanel;
+					month.selectedDays(days[i]);
+				}
+			}
+
+			public function setYear(year):void
+			{
+				for (var i=0; i < 12; i++)
+				{
+					months[i].setYearAndMonth(year, i + 1);
+				}
+			}
+
+			public function selectOrUnSelectDay(tag:int):void
+			{
+				for (var i:int=0; i < 12; i++)
+				{
+					var month:MonthPanel=months[i] as MonthPanel;
+					if (tag == 0)
+						month.selectWeek([0]);
+					else if (tag == 1)
+						month.selectWeek([6]);
+					else if (tag == 2)
+						month.unSelectWeek([0]);
+					else if (tag == 3)
+						month.unSelectWeek([6]);
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:GridRow width="100%" height="100%">
+		<mx:GridItem width="100%" height="100%">
+			<s:Group x="0" y="0" height="100%" width="100%">
+				<s:Label x="0" y="0" color="0xFF0000" fontSize="120" fontWeight="bold" height="100%" width="100%" text="1" verticalAlign="middle" textAlign="center">
+				</s:Label>
+				<utils:MonthPanel x="0" y="0" id="M_1" width="100%" height="100%">
+				</utils:MonthPanel>
+			</s:Group>
+		</mx:GridItem>
+		<mx:GridItem width="100%" height="100%">
+			<s:Group x="0" y="0" height="100%" width="100%">
+				<s:Label x="0" y="0" color="0xFF0000" fontSize="120" fontWeight="bold" height="100%" width="100%" text="2" verticalAlign="middle" textAlign="center">
+				</s:Label>
+				<utils:MonthPanel id="M_2" width="100%" height="100%" x="0" y="0">
+				</utils:MonthPanel>
+			</s:Group>
+		</mx:GridItem>
+		<mx:GridItem width="100%" height="100%">
+			<s:Group x="0" y="0" height="100%" width="100%">
+				<s:Label x="0" y="0" color="0xFF0000" fontSize="120" fontWeight="bold" height="100%" width="100%" text="3" verticalAlign="middle" textAlign="center">
+				</s:Label>
+				<utils:MonthPanel id="M_3" width="100%" height="100%" x="0" y="0">
+				</utils:MonthPanel>
+			</s:Group>
+		</mx:GridItem>
+		<mx:GridItem width="100%" height="100%">
+			<s:Group x="0" y="0" height="100%" width="100%">
+				<s:Label x="0" y="0" color="0xFF0000" fontSize="120" fontWeight="bold" height="100%" width="100%" text="4" verticalAlign="middle" textAlign="center">
+				</s:Label>
+				<utils:MonthPanel id="M_4" width="100%" height="100%" x="0" y="0">
+				</utils:MonthPanel>
+			</s:Group>
+		</mx:GridItem>
+	</mx:GridRow>
+	<mx:GridRow width="100%" height="100%">
+		<mx:GridItem width="100%" height="100%">
+			<s:Group x="0" y="0" height="100%" width="100%">
+				<s:Label x="0" y="0" color="0xFF0000" fontSize="120" fontWeight="bold" height="100%" width="100%" text="5" verticalAlign="middle" textAlign="center">
+				</s:Label>
+				<utils:MonthPanel id="M_5" width="100%" height="100%" x="0" y="0">
+				</utils:MonthPanel>
+			</s:Group>
+		</mx:GridItem>
+		<mx:GridItem width="100%" height="100%">
+			<s:Group x="0" y="0" height="100%" width="100%">
+				<s:Label x="0" y="0" color="0xFF0000" fontSize="120" fontWeight="bold" height="100%" width="100%" text="6" verticalAlign="middle" textAlign="center">
+
+				</s:Label>
+				<utils:MonthPanel id="M_6" width="100%" height="100%" x="0" y="0">
+				</utils:MonthPanel>
+			</s:Group>
+		</mx:GridItem>
+		<mx:GridItem width="100%" height="100%">
+			<s:Group x="0" y="0" height="100%" width="100%">
+				<s:Label x="0" y="0" color="0xFF0000" fontSize="120" fontWeight="bold" height="100%" width="100%" text="7" verticalAlign="middle" textAlign="center">
+
+				</s:Label>
+				<utils:MonthPanel id="M_7" width="100%" height="100%" x="0" y="0">
+				</utils:MonthPanel>
+			</s:Group>
+		</mx:GridItem>
+		<mx:GridItem width="100%" height="100%">
+			<s:Group x="0" y="0" height="100%" width="100%">
+				<s:Label x="0" y="0" color="0xFF0000" fontSize="120" fontWeight="bold" height="100%" width="100%" text="8" verticalAlign="middle" textAlign="center">
+
+				</s:Label>
+				<utils:MonthPanel id="M_8" width="100%" height="100%" x="0" y="0">
+				</utils:MonthPanel>
+			</s:Group>
+		</mx:GridItem>
+	</mx:GridRow>
+	<mx:GridRow width="100%" height="100%">
+		<mx:GridItem width="100%" height="100%">
+			<s:Group x="0" y="0" height="100%" width="100%">
+				<s:Label x="0" y="0" color="0xFF0000" fontSize="120" fontWeight="bold" height="100%" width="100%" text="9" verticalAlign="middle" textAlign="center">
+
+				</s:Label>
+				<utils:MonthPanel id="M_9" width="100%" height="100%" x="0" y="0">
+				</utils:MonthPanel>
+			</s:Group>
+		</mx:GridItem>
+		<mx:GridItem width="100%" height="100%">
+			<s:Group x="0" y="0" height="100%" width="100%">
+				<s:Label x="0" y="0" color="0xFF0000" fontSize="120" fontWeight="bold" height="100%" width="100%" text="10" verticalAlign="middle" textAlign="center">
+				</s:Label>
+				<utils:MonthPanel id="M_10" width="100%" height="100%" x="0" y="0">
+				</utils:MonthPanel>
+			</s:Group>
+		</mx:GridItem>
+		<mx:GridItem width="100%" height="100%">
+			<s:Group x="0" y="0" height="100%" width="100%">
+				<s:Label x="0" y="0" color="0xFF0000" fontSize="120" fontWeight="bold" height="100%" width="100%" text="11" verticalAlign="middle" textAlign="center">
+
+				</s:Label>
+				<utils:MonthPanel id="M_11" width="100%" height="100%" x="0" y="0">
+				</utils:MonthPanel>
+			</s:Group>
+		</mx:GridItem>
+		<mx:GridItem width="100%" height="100%">
+			<s:Group x="0" y="0" height="100%" width="100%">
+				<s:Label x="0" y="0" color="0xFF0000" fontSize="120" fontWeight="bold" height="100%" width="100%" text="12" verticalAlign="middle" textAlign="center">
+
+				</s:Label>
+				<utils:MonthPanel id="M_12" width="100%" height="100%" x="0" y="0">
+				</utils:MonthPanel>
+			</s:Group>
+		</mx:GridItem>
+	</mx:GridRow>
+</mx:Grid>

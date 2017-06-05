@@ -1,0 +1,1132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:UIComponent xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:ns="http://www.esri.com/2008/ags">
+	<fx:Declarations>
+		<!-- 从后台服务器获取数据 -->
+		<s:RemoteObject concurrency="multiple" destination="WebGISService" requestTimeout="60" endpoint="../../messagebroker/amf" id="WebGISService">
+			<s:method name="getTrafficTableName" fault="eventeRemoteObjectMethodFail(event)" result="webGisServiceGetTrafficTableNameResultHandler(event)"/>
+			<s:method name="getTrafficHeaderData" fault="eventeRemoteObjectMethodFail(event)" result="webGisServiceGetTrafficHeaderDataResultHandler(event)"/>
+			<s:method name="getTrafficDataRecords" fault="eventeRemoteObjectMethodFail(event)" result="webGisServiceGetTrafficDataRecordsResultHandler(event)"/>
+			<s:method name="getAppConfig" fault="eventeRemoteObjectMethodFail(event)" result="webGisServiceGetAppConfigResultHandler(event)"/>
+			<s:method name="getAppConfigByName" fault="eventeRemoteObjectMethodFail(event)" result="webGisServiceGetAppConfigResultHandler(event)"/>
+			<s:method name="identify" fault="eventeRemoteObjectMethodFail(event)" result="webGisIdentifyResultHandle(event)"/>
+			<s:method name="search" fault="eventeRemoteObjectMethodFail(event)" result="webGisSearchResultHandle(event)"/>
+			<s:method name="searchEx" fault="eventeRemoteObjectMethodFail(event)" result="webGisSearchResultHandle(event)"/>
+			<s:method name="getDistrictFeature" fault="eventeRemoteObjectMethodFail(event)" result="webGISGetDistrictFeatureHandle(event)"/>
+			<s:method name="getFeatureProperty" fault="eventeRemoteObjectMethodFail(event)" result="webGisGetFeaturePropertyHandle(event)"/>
+			<s:method name="getFeaturesProperty" fault="eventeRemoteObjectMethodFail(event)" result="webGisGetFeaturesPropertyHandle(event)"/>
+			<s:method name="getMapCenterInDistrict" fault="eventeRemoteObjectMethodFail(event)" result="webGisgetMapCenterInDistrict(event)"/>
+			<s:method name="getCompareSchema" fault="eventeRemoteObjectMethodFail(event)" result="getCompareSchemaHandle(event)"/>
+			<s:method name="newCompareSchema" fault="eventeRemoteObjectMethodFail(event)" result="newCompareSchemaHandle(event)"/>
+			<s:method name="deleteCompareSchema" fault="eventeRemoteObjectMethodFail(event)" result="deleteCompareSchemaHandle(event)"/>
+			<s:method name="getCompareSchemaConfig" fault="eventeRemoteObjectMethodFail(event)" result="getCompareSchemaConfigHandle(event)"/>
+			<s:method name="getMapShareConfig" fault="eventeRemoteObjectMethodFail(event)" result="getMapShareConfigHandle(event)"/>
+			<s:method name="getMapFavorite" fault="eventeRemoteObjectMethodFail(event)" result="getMapFavoriteHandle(event)"/>
+			<s:method name="newMapFavorite" fault="eventeRemoteObjectMethodFail(event)" result="newMapFavoriteHandle(event)"/>
+			<s:method name="deleteMapFavorite" fault="eventeRemoteObjectMethodFail(event)" result="deleteMapFavoriteHandle(event)"/>
+			<s:method name="getMapFavoriteConfig" fault="eventeRemoteObjectMethodFail(event)" result="getMapFavoriteConfigHandle(event)"/>
+			<s:method name="spatialSearch" fault="eventeRemoteObjectMethodFail(event)" result="spatialSearchHandle(event)"/>
+			<s:method name="spatialAnaly" fault="eventeRemoteObjectMethodFail(event)" result="spatialAnalyHandle(event)"/>
+			<s:method name="getServerOrLayerInfo" fault="eventeRemoteObjectMethodFail(event)" result="getServerOrLayerInfoHandle(event)"/>
+			<s:method name="getLayerFeatures" fault="eventeRemoteObjectMethodFail(event)" result="getLayerFeaturesHandle(event)"/>
+			<s:method name="exportLayerFeature2File" fault="eventeRemoteObjectMethodFail(event)" result="exportLayerFeature2FileHandle(event)"/>
+			<s:method name="exportServerOrLayerFeature2File" fault="eventeRemoteObjectMethodFail(event)" result="exportServerOrLayerFeature2FileHandle(event)"/>
+			<s:method name="getMapAreaNavigatorFeatures" fault="eventeRemoteObjectMethodFail(event)" result="getMapAreaNavigatorFeaturesHandle(event)"/>
+			<s:method name="getStatisticTree" fault="eventeRemoteObjectMethodFail(event)" result="getStatisticTreeHandle(event)"/>
+			<s:method name="getStatisticData" fault="eventeRemoteObjectMethodFail(event)" result="getStatisticDataHandle(event)"/>
+			<s:method name="getScaleLayerFeatures" fault="eventeRemoteObjectMethodFail(event)" result="getScaleLayerFeaturesHandle(event)"/>
+			<s:method name="addUserMarker" fault="eventeRemoteObjectMethodFail(event)" result="addUserMarkerHandle(event)"/>
+			<s:method name="updateUserMarker" fault="eventeRemoteObjectMethodFail(event)" result="updateUserMarkerHandle(event)"/>
+			<s:method name="deleteUserMarker" fault="eventeRemoteObjectMethodFail(event)" result="deleteUserMarkerHandle(event)"/>
+			<s:method name="getUserMarker" fault="eventeRemoteObjectMethodFail(event)" result="getUserMarkerHandle(event)"/>
+
+			<s:method name="getMISLayers" fault="eventeRemoteObjectMethodFail(event)" result="getMISLayersHandle(event)"/>
+			<s:method name="getMISLayerRecords" fault="eventeRemoteObjectMethodFail(event)" result="getMISLayerRecordsHandle(event)"/>
+
+			<s:method name="getSpecialLayers" fault="eventeRemoteObjectMethodFail(event)" result="getSpecialLayersHandle(event)"/>
+			<s:method name="getSpecialLayerDetails" fault="eventeRemoteObjectMethodFail(event)" result="getSpecialLayerDetailsHandle(event)"/>
+			
+			<s:method name="getSpecialMisLayers" fault="eventeRemoteObjectMethodFail(event)" result="getSpecialMisLayersHandle(event)"/>
+
+			<s:method name="getQueryLayers" fault="eventeRemoteObjectMethodFail(event)" result="getQueryLayersHandle(event)"/>
+			<s:method name="getLayerTreeItemAbstractContent" fault="eventeRemoteObjectMethodFail(event)" result="getLayerTreeItemAbstractContentHandle(event)"/>
+			<s:method name="executeMethod" fault="eventeRemoteObjectMethodFail(event)" result="executeMethodHandle(event)"/>
+
+			<s:method name="getFeatureExtProperty" fault="eventeRemoteObjectMethodFail(event)" result="webGisGetFeatureExtPropertyHandle(event)"/>
+			<s:method name="saveLayerFeatureExtProperty" fault="eventeRemoteObjectMethodFail(event)" result="webGisSaveLayerFeatureExtPropertyHandle(event)"/>
+
+			<s:method name="spatialSearchByGJXL" fault="eventeRemoteObjectMethodFail(event)" result="spatialSearchByGJXLHandle(event)"/>
+			<s:method name="projectMileage" fault="eventeRemoteObjectMethodFail(event)" result="projectMileageHandle(event)"/>
+		</s:RemoteObject>
+
+		<!-- 长度符号化 -->
+		<ns:InfoSymbol id="myInfoSymbol">
+			<ns:infoRenderer>
+				<fx:Component>
+					<s:DataRenderer>
+						<s:Label paddingBottom="3" paddingLeft="3" paddingRight="3" paddingTop="3" text="{data.distance}"/>
+					</s:DataRenderer>
+				</fx:Component>
+			</ns:infoRenderer>
+		</ns:InfoSymbol>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.SpatialReference;
+			import com.esri.ags.Units;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Multipoint;
+			import com.esri.ags.geometry.Polygon;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.ArcGISTiledMapServiceLayer;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.layers.Layer;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.tasks.GeometryService;
+			import com.esri.ags.tasks.supportClasses.AreasAndLengthsParameters;
+			import com.esri.ags.tasks.supportClasses.BufferParameters;
+			import com.esri.ags.tasks.supportClasses.CalculationType;
+			import com.esri.ags.tasks.supportClasses.LengthsParameters;
+			import com.esri.ags.tasks.supportClasses.ProjectParameters;
+			import com.esri.ags.utils.WebMercatorUtil;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.map.WebGISUtils;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.CursorBookmark;
+			import mx.controls.Text;
+			import mx.core.FlexGlobals;
+			import mx.managers.CursorManager;
+			import mx.rpc.AsyncResponder;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.InvokeEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			//import com.adobe.serialization.json.JSON;
+			public var MAP_WKID:String="";
+
+			private var getTrafficTableNameCallFunction:Function=null;
+			private var getTrafficHeaderDataCallFunction:Function=null;
+			private var getTrafficDataRecordsCallFunction:Function=null;
+			private var getAppConfigCallFunction:Function=null;
+			private var identifyCallFunction:Function=null;
+			private var searchCallFunction:Function=null;
+			private var getFeatureCallFunction:Function=null;
+			private var getFeaturesCallFunction:Function=null;
+			private var getMapCenterInDistrictCallFunction:Function=null;
+			private var getCompareSchemaCallFunction:Function=null;
+			private var newCompareSchemaCallFunction:Function=null;
+			private var deleteCompareSchemaCallFunction:Function=null;
+			private var getCompareSchemaConfigCallFunction:Function=null;
+			private var getMapFavoriteCallFunction:Function=null;
+			private var newMapFavoriteCallFunction:Function=null;
+			private var deleteMapFavoriteCallFunction:Function=null;
+			private var getMapFavoriteConfigCallFunction:Function=null;
+			private var spatialSearchCallFunction:Function=null;
+			private var spatialAnalyCallFunction:Function=null;
+			private var getServerOrLayerInfoCallFunction:Function=null;
+			private var getLayerFeaturesHandleCallFunction:Function=null;
+			private var exportLayerFeature2FileCallFunction:Function=null;
+			private var exportServerOrLayerFeature2FileCallFunction:Function=null;
+			private var getMapAreaNavigatorFeaturesCallFunction:Function=null;
+			private var getStatisticTreeCallFunction:Function=null;
+			private var getStatisticDataCallFunction:Function=null;
+			private var getStatisticDataErrorCallFunction:Function=null;
+			private var getScaleLayerFeaturesCallFunction:Function=null;
+			private var getDistrictFeatureCallFunction:Function=null;
+			private var addUserMarkerCallFunction:Function=null;
+			private var updateUserMarkerCallFunction:Function=null;
+			private var deleteUserMarkerCallFunction:Function=null;
+			private var getUserMarkerCallFunction:Function=null;
+			private var getMISLayersCallFunction:Function=null;
+			private var getMISLayerRecordsCallFunction:Function=null;
+			private var getSpecialLayersCallFunction:Function=null;
+			private var getSpecialMisLayersCallFunction:Function=null;
+			private var getSpecialLayerDetailsCallFunction:Function=null;
+			private var getQueryLayersCallFunction:Function=null;
+			private var getLayerTreeItemAbstractContentCallFunction:Function=null;
+			private var getMapShareConfigCallFunction:Function=null;
+			private var executeMethodCallFunction:Function=null;
+			
+			private var spatialSearchByGJXLCallFunction:Function=null;
+			private var projectMileageCallFunction:Function=null;
+
+			public var USER_ID:Number=-1;
+			public var APP_ID:Number=-1;
+			public var geometryService:GeometryService=null;
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			//获取配置
+			public function getAppConfig(appId:Number, userId:Number, callFunction:Function):void
+			{
+				getAppConfigCallFunction=callFunction;
+				WebGISService.getAppConfig(appId, userId, -1, -1);
+				this.USER_ID=userId;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			//获取配置
+			public function getAppConfigByName(appName:String, userId:Number, callFunction:Function):void
+			{
+				getAppConfigCallFunction=callFunction;
+				WebGISService.getAppConfigByName(appName, userId, -1, -1);
+				this.USER_ID=userId;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			//分享地图
+			public function newMapShare(state:Number,pId:Number, type:int, caption:String, config:String):void
+			{
+				WebGISService.newMapShare(state,APP_ID, USER_ID, pId, type, caption, config);
+			}
+			
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			public function getMapShareConfig(state:Number, callFunction:Function):void
+			{
+				getMapShareConfigCallFunction=callFunction;
+				WebGISService.getMapShareConfig(state);
+			}
+			
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function getMapShareConfigHandle(event:ResultEvent):void
+			{
+				var fun:Function=getMapShareConfigCallFunction;
+				var json:Object=null;
+				if (fun != null && !StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r)
+					fun(json);
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			//识别
+			public function identify(geometry:Geometry, layerAndServerIds:Array, resolution:Number, callFunction:Function):void
+			{
+				identifyCallFunction=callFunction;
+				var layerIds:Array=layerAndServerIds[0];
+				var serverIds:Array=layerAndServerIds[1];
+				if (layerIds.length + serverIds.length != 0)
+				{
+					if (layerIds.length == 0)
+						layerIds.push(-1);
+					if (serverIds.length == 0)
+						serverIds.push(-1);
+					var params:Object={userId: USER_ID, resolution: resolution, geometry: geometry, layerIds: layerIds, serverIds: serverIds, geometryType: geometry.type};
+					WebGISService.identify(JSON.stringify(params));
+				}
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			//查询
+			public function search(text:String, layerAndServerIds:Array, geometry:Geometry, geometryUid:String, callFunction:Function):void
+			{
+				searchCallFunction=callFunction;
+				var layerIds:Array=layerAndServerIds[0];
+				var serverIds:Array=layerAndServerIds[1];
+				if (layerIds.length + serverIds.length != 0)
+				{
+					CursorManager.setBusyCursor();
+					if (layerIds.length == 0)
+						layerIds.push(-1);
+					if (serverIds.length == 0)
+						serverIds.push(-1);
+					var params:Object={userId: USER_ID, text: text, layerIds: layerIds, serverIds: serverIds, geometryUid: geometryUid, geometry: geometry, geometryType: (geometry != null) ? geometry.type : ""};
+					WebGISService.search(JSON.stringify(params));
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function searchEx(layerId:String, params:String, callFunction:Function):void
+			{
+				CursorManager.setBusyCursor();
+				searchCallFunction=callFunction;
+				WebGISService.searchEx(USER_ID, layerId, params);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			//获取实体
+			public function getFeature(layerId:String, objectId:String, callFunction:Function=null):void
+			{
+				getFeatureCallFunction=callFunction;
+				WebGISService.getFeatureProperty(layerId, objectId);
+			}
+
+			public function getFeatures(layerId:String, objectIds:Array, callFunction:Function=null):void
+			{
+				getFeaturesCallFunction=callFunction;
+				WebGISService.getFeaturesProperty(layerId, objectIds.join(","));
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////
+			//获取区域导航当前位置ID
+			public function getMapCenterInDistrict(geometry:Geometry, cityIds:Array, callFunction:Function):void
+			{
+				getMapCenterInDistrictCallFunction=callFunction;
+				var params:Object={geometryType: geometry.type, geometry: geometry, ids: cityIds.join(",")}
+				this.WebGISService.getMapCenterInDistrict(JSON.stringify(params));
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			public function getServerOrLayerInfo(isServer:Boolean, objectId:String, callFunction:Function):void
+			{
+				CursorManager.setBusyCursor();
+				getServerOrLayerInfoCallFunction=callFunction;
+				WebGISService.getServerOrLayerInfo(JSON.stringify({isServer: isServer, objectId: objectId}));
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			protected function webGisgetMapCenterInDistrict(event:ResultEvent):void
+			{
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getMapCenterInDistrictCallFunction != null)
+					getMapCenterInDistrictCallFunction(json);
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			public function getTrafficTableName(lineName:String,startMileage:String ,callFunction:Function):void
+			{
+				getTrafficTableNameCallFunction=callFunction;
+				WebGISService.getTrafficTableName(lineName,startMileage);
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			protected function webGisServiceGetTrafficTableNameResultHandler(event:ResultEvent):void
+			{
+				var arr:Array;
+				var tmp:Array=[];
+				//var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && getTrafficTableNameCallFunction != null)
+				{
+					arr=(event.result).split(",");
+					
+					arr.forEach(function(item:*,idx:int,arr:Array):void{
+						if(tmp.indexOf(item)==-1)
+						{
+							tmp.push(item);
+						}
+					});
+				}
+				getTrafficTableNameCallFunction(tmp);
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			public function getTrafficHeaderData(selectedTable:String ,callFunction:Function):void
+			{
+				getTrafficHeaderDataCallFunction=callFunction;
+				WebGISService.getTrafficHeaderData(selectedTable);
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			protected function webGisServiceGetTrafficHeaderDataResultHandler(event:ResultEvent):void
+			{
+				var json:*=null;
+				//var ac:ArrayCollection=null;
+				if (!StringUtils.isEmpty(event.result as String) && getTrafficHeaderDataCallFunction != null)
+				{
+					json=JSON.parse(event.result as String);
+				}
+				getTrafficHeaderDataCallFunction(json);
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			public function getTrafficDataRecords(startMileage:String,lineName:String,selectedTable:String ,callFunction:Function):void
+			{
+				getTrafficDataRecordsCallFunction=callFunction;
+				WebGISService.getTrafficDataRecords(startMileage,lineName,selectedTable);
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			protected function webGisServiceGetTrafficDataRecordsResultHandler(event:ResultEvent):void
+			{
+				var json:*=null;
+				if (!StringUtils.isEmpty(event.result as String) && getTrafficDataRecordsCallFunction != null)	
+					json=JSON.parse(event.result as String);
+				getTrafficDataRecordsCallFunction(json);
+			}
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			protected function webGisServiceGetAppConfigResultHandler(event:ResultEvent):void
+			{
+				var str:String=event.result as String;
+				var config:Object=null;
+				if (StringUtils.isEmpty(str) || !(config=JSON.parse(str)).r)
+					return;
+				MAP_WKID=config.wkid;
+				this.APP_ID=config.appId;
+				if (getAppConfigCallFunction != null)
+					getAppConfigCallFunction(config);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function webGisIdentifyResultHandle(event:ResultEvent):void
+			{
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && identifyCallFunction != null)
+					identifyCallFunction(json);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//显示查询结果 地图上高亮
+			protected function webGisGetFeaturePropertyHandle(event:ResultEvent):void
+			{
+				var json:Object=null;
+				var record:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getFeatureCallFunction != null)
+					getFeatureCallFunction(json);
+			}
+
+			protected function webGisGetFeaturesPropertyHandle(event:ResultEvent):void
+			{
+				var json:Object=null;
+				var record:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getFeaturesCallFunction != null)
+					getFeaturesCallFunction(json);
+			}
+			
+			//显示查询结果 地图上高亮
+			protected function webGISGetDistrictFeatureHandle(event:ResultEvent):void
+			{
+				var json:Object=null;
+				var record:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getDistrictFeatureCallFunction != null)
+					getDistrictFeatureCallFunction(json);
+				CursorManager.removeBusyCursor();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function webGisSearchResultHandle(event:ResultEvent):void
+			{
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && searchCallFunction != null)
+					searchCallFunction(json);
+				CursorManager.removeBusyCursor();
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////
+			protected function eventeRemoteObjectMethodFail(event:FaultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function getCompareSchema(callFunction:Function):void
+			{
+				getCompareSchemaCallFunction=callFunction;
+				WebGISService.getCompareSchema(APP_ID, USER_ID);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function newCompareSchema(pId:Number, type:int, caption:String, config:String, callFunction:Function):void
+			{
+				newCompareSchemaCallFunction=callFunction;
+				WebGISService.newCompareSchema(APP_ID, USER_ID, pId, type, caption, config);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function deleteCompareSchema(id:Number, callFunction:Function):void
+			{
+				deleteCompareSchemaCallFunction=callFunction;
+				WebGISService.deleteCompareSchema(id);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function getCompareSchemaConfig(id:Number, callFunction:Function):void
+			{
+				getCompareSchemaConfigCallFunction=callFunction;
+				WebGISService.getCompareSchemaConfig(id);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function getCompareSchemaHandle(event:ResultEvent):void
+			{
+				var fun:Function=getCompareSchemaCallFunction;
+				var json:Object=null;
+				if (fun != null && !StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r)
+					fun(json);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function newCompareSchemaHandle(event:ResultEvent):void
+			{
+				var fun:Function=newCompareSchemaCallFunction;
+				var json:Object=null;
+				if (fun != null && !StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r)
+					fun(json);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function deleteCompareSchemaHandle(event:ResultEvent):void
+			{
+				var fun:Function=deleteCompareSchemaCallFunction;
+				var json:Object=null;
+				if (fun != null && !StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r)
+					fun(json);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function getCompareSchemaConfigHandle(event:ResultEvent):void
+			{
+				var fun:Function=getCompareSchemaConfigCallFunction;
+				var json:Object=null;
+				if (fun != null && !StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r)
+					fun(json);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function getMapFavorite(callFunction:Function):void
+			{
+				getMapFavoriteCallFunction=callFunction;
+				WebGISService.getMapFavorite(APP_ID, USER_ID);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function newMapFavorite(pId:Number, type:int, caption:String, config:String, callFunction:Function):void
+			{
+				newMapFavoriteCallFunction=callFunction;
+				WebGISService.newMapFavorite(APP_ID, USER_ID, pId, type, caption, config);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function deleteMapFavorite(id:Number, callFunction:Function):void
+			{
+				deleteMapFavoriteCallFunction=callFunction;
+				WebGISService.deleteMapFavorite(id);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function getMapFavoriteConfig(id:Number, callFunction:Function):void
+			{
+				getMapFavoriteConfigCallFunction=callFunction;
+				WebGISService.getMapFavoriteConfig(id);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function getMapFavoriteHandle(event:ResultEvent):void
+			{
+				var fun:Function=getMapFavoriteCallFunction;
+				var json:Object=null;
+				if (fun != null && !StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r)
+					fun(json);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function newMapFavoriteHandle(event:ResultEvent):void
+			{
+				var fun:Function=newMapFavoriteCallFunction;
+				var json:Object=null;
+				if (fun != null && !StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r)
+					fun(json);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function deleteMapFavoriteHandle(event:ResultEvent):void
+			{
+				var fun:Function=deleteMapFavoriteCallFunction;
+				var json:Object=null;
+				if (fun != null && !StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r)
+					fun(json);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function getMapFavoriteConfigHandle(event:ResultEvent):void
+			{
+				var fun:Function=getMapFavoriteConfigCallFunction;
+				var json:Object=null;
+				if (fun != null && !StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r)
+					fun(json);
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var projectCallFunction:Function=null;
+			
+			public function project(geometry:Geometry, toWkid:int, callFunction:Function):void
+			{
+				projectCallFunction=callFunction;
+				var projectParams:ProjectParameters=new ProjectParameters();
+				projectParams.outSpatialReference=new SpatialReference(toWkid);
+				projectParams.geometries=[geometry];
+				geometryService.project(projectParams, new AsyncResponder(function(result:Object, token:Object):void
+				{
+					if (projectCallFunction != null)
+						projectCallFunction(result[0]);
+				}, function(errorInfo:Object, token:Object):void
+				{
+				}, null));
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			//测量面积
+			public function areaAndLength(geometry:Geometry, layer:GraphicsLayer):void
+			{
+				var baseLayer:Object=layer.map.layers.source[0] as Layer;
+				var areaAndLengthParam:AreasAndLengthsParameters=new AreasAndLengthsParameters();
+				areaAndLengthParam.lengthUnit=GeometryService.UNIT_METER;
+				areaAndLengthParam.areaUnit=GeometryService.UNIT_SQUARE_METERS;
+				areaAndLengthParam.calculationType=CalculationType.GEODESIC;
+				areaAndLengthParam.polygons=[geometry];
+				geometryService.areasAndLengths(areaAndLengthParam, new AsyncResponder(function(result:Object, token:Object):void
+				{
+					var area:Number=result.areas[0];
+					var length:Number=result.lengths[0];
+					var areaStr:String=(area > 1000000) ? Math.round(area / 10000) / 100 + "k㎡" : Math.round(area) + "㎡";
+					var lengthStr:String=(length > 1000) ? Math.round(length / 10) / 100 + "km" : Math.round(length) + "m";
+					geometryService.labelPoints([geometry], new AsyncResponder(function(result:Object, token:Object):void
+					{
+						var g:Graphic=new Graphic();
+						g.geometry=result[0];
+						var tf:TextFormat=new TextFormat("YaHei Consolas Hybrid,微软雅黑", 12, 0x41423A);
+						g.symbol=new TextSymbol("面积:" + areaStr + "\n周长:" + lengthStr, null, 0xFFFFFF, 1, true, 0x41423A, true, 0xD8DACC, "middle", 0, 0, 0, tf);
+						layer.add(g);
+					}, function(errorInfo:Object, token:Object):void
+					{
+						var g:Graphic=new Graphic();
+						g.geometry=(geometry as Polygon).getPoint(0, 0);
+						var tf:TextFormat=new TextFormat("YaHei Consolas Hybrid,微软雅黑", 12, 0x41423A);
+						g.symbol=new TextSymbol("面积:" + areaStr + "\n周长:" + lengthStr, null, 0xFFFFFF, 1, true, 0x41423A, true, 0xD8DACC, "middle", 0, 0, 0, tf);
+						layer.add(g);
+					}, null));
+				}, function(errorInfo:Object, token:Object):void
+				{
+				}, null));
+			}
+
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			//常量距离
+			public function length(geometry:Geometry, layer:GraphicsLayer):void
+			{
+				var line:Polyline=geometry as Polyline;
+				var baseLayer:Object=layer.map.layers.source[0] as Layer;
+				var isDegress:Boolean=baseLayer.hasOwnProperty("units") && baseLayer.units == Units.DECIMAL_DEGREES;
+				var totalLength:Number=0;
+				for (var i:int=1; i < line.paths[0].length; i++)
+				{
+					var p1:MapPoint=line.getPoint(0, i - 1);
+					var p2:MapPoint=line.getPoint(0, i);
+					var length:Number=WebGISUtils.getDistance(p1, p2, isDegress);
+
+
+					totalLength+=length;
+					var lengthStr:String="";
+					if (totalLength > 1000)
+						lengthStr=Math.round(totalLength / 10) / 100 + "km";
+					else
+						lengthStr=Math.round(totalLength) + "m";
+					var labelPoint:MapPoint=line.getPoint(0, i);
+					var myAttributes:Object={distance: lengthStr};
+					var g:Graphic=new Graphic(labelPoint, myInfoSymbol, myAttributes);
+					layer.add(g);
+				}
+			}
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			private var bufferCallFunction:Function=null;
+
+			public function buffer(geometry:Geometry, distance:Number, callFunction:Function):void
+			{
+				bufferCallFunction=callFunction;
+				if (distance == 0)
+				{
+					if (bufferCallFunction != null)
+						bufferCallFunction(geometry);
+					return;
+				}
+				var baseLayer:Object=FlexGlobals.topLevelApplication.map.layers.source[0] as Layer;
+				var isDegress:Boolean=(baseLayer.hasOwnProperty("units") && baseLayer.units == Units.DECIMAL_DEGREES);
+				var newGeometry:Geometry=isDegress ? WebMercatorUtil.geographicToWebMercator(geometry) : geometry
+				var bufferParams:BufferParameters=new BufferParameters();
+				bufferParams.geometries=[newGeometry];
+				bufferParams.distances=[distance];
+				bufferParams.unit=GeometryService.UNIT_METER;
+				geometryService.buffer(bufferParams, new AsyncResponder(function(result:Object, token:Object):void
+				{
+					if (bufferCallFunction != null)
+					{
+						bufferCallFunction(isDegress ? WebMercatorUtil.webMercatorToGeographic(result[0]) : result[0]);
+					}
+				}, function(errorInfo:Object, token:Object):void
+				{
+				}, null));
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			//buffer方法重载
+			private var bufferCalBufFunction:Function=null;
+			private var areaAndLengthMultiplePointFunction=null;
+			public function buffer4Multiple(result:Object, distance:Number, callFunction:Function):void
+			{
+//				var geometrys:Array=[];
+				bufferCalBufFunction=callFunction;
+				
+				var baseLayer:Object=FlexGlobals.topLevelApplication.map.layers.source[0] as Layer;
+				var isDegress:Boolean=(baseLayer.hasOwnProperty("units") && baseLayer.units == Units.DECIMAL_DEGREES);
+				var mulPoints:Multipoint=new Multipoint();
+				var newMulPoints:Geometry=new Geometry();
+				for(var i:int=0;i<result.records.length;i++){
+					var record:Object=result.records[i];
+					var geometry:Geometry=Geometry.fromJSON(record.geometry);
+					if(geometry.type=="esriGeometryPoint"){
+						var point:MapPoint=new MapPoint(record.geometry.x,record.geometry.y,new SpatialReference(4326));
+						mulPoints.addPoint(point);
+					}
+				}
+				newMulPoints=isDegress ? WebMercatorUtil.geographicToWebMercator(mulPoints) : mulPoints;
+				var bufferParams:BufferParameters=new BufferParameters();
+				bufferParams.geometries=[newMulPoints];
+				bufferParams.distances=[distance];
+				bufferParams.unit=GeometryService.UNIT_METER;
+				geometryService.buffer(bufferParams, new AsyncResponder(function(result:Object, token:Object):void
+				{
+					if (bufferCalBufFunction != null)
+					{
+						bufferCalBufFunction(result);
+					}
+				}, function(errorInfo:Object, token:Object):void
+				{
+				}, null));
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			//测量面积
+			public function areaAndLengthMultiplePoint(grometryarray:Object,layer:GraphicsLayer, callFunction:Function):void
+			{
+				areaAndLengthMultiplePointFunction=callFunction;
+				var geometrys:Array=[];
+				var baseLayer:Object=FlexGlobals.topLevelApplication.map.layers.source[0] as Layer;
+				var isDegress:Boolean=(baseLayer.hasOwnProperty("units") && baseLayer.units == Units.DECIMAL_DEGREES);
+				for(var i:int=0;i<grometryarray.length;i++){
+					var geometry:Geometry=grometryarray[i];
+//					var geometry:Geometry=Geometry.fromJSON(record);
+					var newGeometry:Geometry=isDegress ? WebMercatorUtil.webMercatorToGeographic(geometry) : geometry;
+					geometrys.push(newGeometry);
+				}
+				var baseLayer:Object=layer.map.layers.source[0] as Layer;
+				var areaAndLengthParam:AreasAndLengthsParameters=new AreasAndLengthsParameters();
+				areaAndLengthParam.lengthUnit=GeometryService.UNIT_METER;
+				areaAndLengthParam.areaUnit=GeometryService.UNIT_SQUARE_METERS;
+				areaAndLengthParam.calculationType=CalculationType.GEODESIC;
+				areaAndLengthParam.polygons=geometrys;
+				geometryService.areasAndLengths(areaAndLengthParam, new AsyncResponder(function(result:Object, token:Object):void
+				{
+					areaAndLengthMultiplePointFunction(result);
+				}, function(errorInfo:Object, token:Object):void
+				{
+				}, null));
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function spatialSearch(filterStr:String, geometry:Geometry, layerIds:Array, serverIds:Array, callFunction:Function):void
+			{
+				CursorManager.setBusyCursor();
+				spatialSearchCallFunction=callFunction;
+				var params:Object={filterStr: filterStr, layerIds: layerIds, serverIds: serverIds, geometry: geometry, geometryType: geometry.type};
+				WebGISService.spatialSearch(JSON.stringify(params));
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function spatialSearchByGJXL(filterStr:String, geometry:Geometry,layerIds:Array, recordIdentify:Object, callFunction:Function):void
+			{
+				CursorManager.setBusyCursor();
+				spatialSearchByGJXLCallFunction=callFunction;
+				var params:Object={filterStr: filterStr,layerIds:layerIds, recordIdentify:recordIdentify, geometry: geometry, geometryType: geometry.type};
+				WebGISService.spatialSearchByGJXL(JSON.stringify(params));
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function spatialSearchByGJXLHandle(event:ResultEvent):void
+			{
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && spatialSearchByGJXLCallFunction != null)
+					spatialSearchByGJXLCallFunction(json);
+				CursorManager.removeBusyCursor();
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function projectMileage(mileArr:ArrayCollection, callFunction:Function):void
+			{
+				CursorManager.setBusyCursor();
+				projectMileageCallFunction=callFunction;
+				var params:Object={mileArr: mileArr};
+				WebGISService.projectMileage(JSON.stringify(params));
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			//桩号定位
+			protected function projectMileageHandle(event:ResultEvent):void
+			{
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && projectMileageCallFunction != null)
+					projectMileageCallFunction(json);
+				CursorManager.removeBusyCursor();
+			}
+			
+			
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function spatialAnaly(params:Object, callFunction:Function):void
+			{
+				CursorManager.setBusyCursor();
+				spatialAnalyCallFunction=callFunction;
+				WebGISService.spatialAnaly(JSON.stringify(params));
+			}
+
+			
+			protected function spatialSearchHandle(event:ResultEvent):void
+			{
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && spatialSearchCallFunction != null)
+					spatialSearchCallFunction(json);
+				CursorManager.removeBusyCursor();
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function spatialAnalyHandle(event:ResultEvent):void
+			{
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && spatialAnalyCallFunction != null)
+					spatialAnalyCallFunction(json);
+				CursorManager.removeBusyCursor();
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function getServerOrLayerInfoHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getServerOrLayerInfoCallFunction != null)
+					getServerOrLayerInfoCallFunction(json);
+			}
+
+			protected function getLayerFeaturesHandle(event:ResultEvent):void
+			{
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getLayerFeaturesHandleCallFunction != null)
+					getLayerFeaturesHandleCallFunction(json);
+				CursorManager.removeBusyCursor();
+			}
+
+			public function getLayerFeatures(layerId:String, page:int, whereParams:Object, callFunction:Function)
+			{
+//				trace(JSON.stringify(whereParams));
+				CursorManager.setBusyCursor();
+				getLayerFeaturesHandleCallFunction=callFunction;
+				WebGISService.getLayerFeatures(JSON.stringify({layerId: layerId, page: page, where: whereParams}));
+			}
+
+			public function exportLayerFeature2File(layerId:String, whereParams:Object, type:int, callFunction:Function)
+			{
+				CursorManager.setBusyCursor();
+				exportLayerFeature2FileCallFunction=callFunction;
+				WebGISService.exportLayerFeature2File(JSON.stringify({userId: USER_ID, layerId: layerId, type: type, where: whereParams}));
+			}
+
+			protected function exportLayerFeature2FileHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && exportLayerFeature2FileCallFunction != null)
+					exportLayerFeature2FileCallFunction(json);
+			}
+
+			public function exportServerOrLayerFeature2File(isServer:Boolean, objectId:String, wheres:Object, type:int, callFunction:Function):void
+			{
+				CursorManager.setBusyCursor();
+				exportServerOrLayerFeature2FileCallFunction=callFunction;
+				WebGISService.exportServerOrLayerFeature2File(JSON.stringify({userId: USER_ID, isServer: isServer, objectId: objectId, type: type, wheres: wheres}));
+			}
+
+			protected function exportServerOrLayerFeature2FileHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && exportServerOrLayerFeature2FileCallFunction != null)
+					exportServerOrLayerFeature2FileCallFunction(json);
+			}
+
+			protected function getMapAreaNavigatorFeaturesHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getMapAreaNavigatorFeaturesCallFunction != null)
+					getMapAreaNavigatorFeaturesCallFunction(json);
+			}
+
+			public function getMapAreaNavigatorFeatures(callFunction:Function):void
+			{
+				getMapAreaNavigatorFeaturesCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.getMapAreaNavigatorFeatures(APP_ID);
+			}
+
+			public function getStatisticTree(callfunction:Function):void
+			{
+				getStatisticTreeCallFunction=callfunction;
+				CursorManager.setBusyCursor();
+				WebGISService.getStatisticTree(APP_ID);
+			}
+
+			protected function getStatisticTreeHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getStatisticTreeCallFunction != null)
+					getStatisticTreeCallFunction(json);
+			}
+
+			protected function addUserMarkerHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && addUserMarkerCallFunction != null)
+					addUserMarkerCallFunction(json);
+			}
+
+			protected function updateUserMarkerHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && updateUserMarkerCallFunction != null)
+					updateUserMarkerCallFunction(json);
+			}
+
+			protected function deleteUserMarkerHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && deleteUserMarkerCallFunction != null)
+					deleteUserMarkerCallFunction(json);
+			}
+
+			protected function getUserMarkerHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getUserMarkerCallFunction != null)
+					getUserMarkerCallFunction(json);
+			}
+
+			protected function getStatisticDataHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getStatisticDataCallFunction != null)
+					getStatisticDataCallFunction(json);
+				else if (getStatisticDataErrorCallFunction != null)
+					getStatisticDataErrorCallFunction(event.result);
+			}
+
+			public function getStatisticData(id:String, callFunction:Function, errorFunction:Function):void
+			{
+				getStatisticDataCallFunction=callFunction;
+				getStatisticDataErrorCallFunction=errorFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.getStatisticData(id);
+			}
+
+			protected function getScaleLayerFeaturesHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getScaleLayerFeaturesCallFunction != null)
+					getScaleLayerFeaturesCallFunction(json);
+			}
+
+			protected function getMISLayersHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getMISLayersCallFunction != null)
+					getMISLayersCallFunction(json);
+			}
+
+			protected function getMISLayerRecordsHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getMISLayerRecordsCallFunction != null)
+					getMISLayerRecordsCallFunction(json);
+			}
+
+
+			protected function getSpecialLayersHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getSpecialLayersCallFunction != null)
+					getSpecialLayersCallFunction(json);
+			}
+
+			protected function getSpecialMisLayersHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getSpecialMisLayersCallFunction != null)
+					getSpecialMisLayersCallFunction(json);
+			}
+			
+			protected function getQueryLayersHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getQueryLayersCallFunction != null)
+					getQueryLayersCallFunction(json);
+			}
+
+			protected function getSpecialLayerDetailsHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getSpecialLayerDetailsCallFunction != null)
+					getSpecialLayerDetailsCallFunction(json);
+			}
+
+
+
+			public function getScaleLayerFeatures(layerId:String, scale:Number, queryField:String, isCalcCenterPoint:Boolean, callFunction:Function):void
+			{
+				getScaleLayerFeaturesCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.getScaleLayerFeatures(layerId, scale, queryField, isCalcCenterPoint);
+			}
+
+			public function getDistrictFeature(id:String, callFunction:Function):void
+			{
+				getDistrictFeatureCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.getDistrictFeature(id);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function deleteUserMarker(id:String, callFunction:Function):void
+			{
+				deleteUserMarkerCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.deleteUserMarker(id);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function addUserMarker(caption:String, content:String, attributes:String, geometry:String, symbol:String, is_share:Boolean, type:String, pictures:String, attachments:String, callFunction:Function):void
+			{
+				addUserMarkerCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.addUserMarker(USER_ID, caption, content, attributes, geometry, symbol, is_share, type, pictures, attachments);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function updateUserMarker(id:String, caption:String, content:String, attributes:String, geometry:String, symbol:String, is_share:Boolean, type:String, pictures:String, attachments:String, callFunction:Function):void
+			{
+				updateUserMarkerCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.updateUserMarker(id, caption, content, attributes, geometry, symbol, is_share, type, pictures, attachments);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getUserMarker(callFunction:Function):void
+			{
+				getUserMarkerCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.getUserMarker(USER_ID);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getMISLayers(callFunction:Function):void
+			{
+				getMISLayersCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.getMISLayers(USER_ID);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			public function getMISLayerRecords(id:String, callFunction:Function):void
+			{
+				getMISLayerRecordsCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.getMISLayerRecords(id);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			public function getSpecialLayers(isServer:Boolean, serverId:String, layerId:String, callFunction:Function):void
+			{
+				getSpecialLayersCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.getSpecialLayers(isServer, serverId, layerId);
+			}
+
+			public function getSpecialMisLayers(isServer:Boolean, serverId:String, layerId:String, callFunction:Function):void
+			{
+				getSpecialMisLayersCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.getSpecialMisLayers(isServer, serverId, layerId);
+			}
+			
+			public function getQueryLayers(isServer:Boolean, serverId:String, layerId:String, callFunction:Function):void
+			{
+				getQueryLayersCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.getQueryLayers(isServer, serverId, layerId);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getSpecialLayerDetails(layerId:String, callFunction:Function):void
+			{
+				getSpecialLayerDetailsCallFunction=callFunction;
+				CursorManager.setBusyCursor();
+				WebGISService.getSpecialLayerDetails(layerId);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function getLayerTreeItemAbstractContentHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getLayerTreeItemAbstractContentCallFunction != null)
+					getLayerTreeItemAbstractContentCallFunction(json);
+			}
+
+
+			protected function executeMethodHandle(event:ResultEvent):void
+			{
+				CursorManager.removeBusyCursor();
+				var json:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && executeMethodCallFunction != null)
+					executeMethodCallFunction(json);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getLayerTreeItemAbstractContent(id:String, fun:Function):void
+			{
+				CursorManager.setBusyCursor();
+				getLayerTreeItemAbstractContentCallFunction=fun;
+				WebGISService.getLayerTreeItemAbstractContent(id);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function executeMethod(operation:String, params:Object, fun:Function):void
+			{
+				params.userId=USER_ID;
+				params.appId=APP_ID;
+				CursorManager.setBusyCursor();
+				executeMethodCallFunction=fun;
+				WebGISService.executeMethod(operation, JSON.stringify(params));
+			}
+
+			private var getFeatureExtCallFunction:Function=null;
+			private var saveLayerFeatureExtPropertyCallFunction:Function=null;
+
+			protected function webGisGetFeatureExtPropertyHandle(event:ResultEvent):void
+			{
+				var json:Object=null;
+				var record:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && getFeatureExtCallFunction != null)
+					getFeatureExtCallFunction(json);
+			}
+
+			protected function webGisSaveLayerFeatureExtPropertyHandle(event:ResultEvent):void
+			{
+				var json:Object=null;
+				var record:Object=null;
+				if (!StringUtils.isEmpty(event.result as String) && (json=JSON.parse(event.result as String)).r && saveLayerFeatureExtPropertyCallFunction != null)
+					saveLayerFeatureExtPropertyCallFunction(json);
+			}
+
+			public function getFeatureExt(layerId:String, uid:String, callFunction:Function=null):void
+			{
+				getFeatureExtCallFunction=callFunction;
+				WebGISService.getFeatureExtProperty(layerId, uid);
+			}
+
+			public function saveFeatureExt(layerId:String, uid:String, recordId:String, attributes:String, pictures:String, attachments:String, callFunction:Function=null):void
+			{
+				saveLayerFeatureExtPropertyCallFunction=callFunction;
+				WebGISService.saveLayerFeatureExtProperty(layerId, uid, recordId, attributes, pictures, attachments);
+			}
+		]]>
+	</fx:Script>
+</mx:UIComponent>

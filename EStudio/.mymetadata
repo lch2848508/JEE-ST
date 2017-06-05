@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-module
+  type="WEB"
+  name="EStudio"
+  id="myeclipse.1465828940611"
+  context-root="/EStudio"
+  j2ee-spec="6.0"
+  archive="EStudio.war">
+  <attributes>
+    <attribute name="webrootdir" value="WebRoot" />
+  </attributes>
+</project-module>
+

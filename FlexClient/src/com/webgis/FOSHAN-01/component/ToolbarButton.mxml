@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer creationComplete="bordercontainer1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" mouseOver="{focused=true}"
+				   mouseOut="{focused=false}" width="23" height="23" backgroundColor="#F8FAFA" backgroundAlpha="{selected||focused?1:borderVisible?0.50:0}" borderVisible="true" borderAlpha="{selected||focused?1:borderVisible?0.5:0}"
+				   borderColor="#BDCBD3">
+	<s:layout>
+		<s:HorizontalLayout gap="0" verticalAlign="middle" horizontalAlign="center"/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.events.FlexEvent;
+			[Bindable]
+			public var selected:Boolean=false;
+			public var groupIndex:int=0;
+			public var toggle:Boolean=false;
+			public var tag:String="";
+			[Bindable]
+			public var borderVisible:Boolean=false;
+
+			[Bindable]
+			public var label:String="";
+
+			[Bindable]
+			public var icon:Class=null;
+
+			[Bindable]
+			private var focused:Boolean=false;
+
+			private function calcToolbarItemWidth():void
+			{
+				if (!icon)
+				{
+					this.removeAllElements();
+					img.width=0;
+				}
+
+
+				if (!StringUtils.isEmpty(label))
+				{
+					lbl.width=this.measureText(label).width + 2;
+					this.width=img.width + lbl.width + (icon ? 6 : 8);
+					this.addElement(lbl);
+				}
+			}
+
+			protected function bordercontainer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				calcToolbarItemWidth();
+			}
+		]]>
+
+	</fx:Script>
+
+	<fx:Declarations>
+		<s:Label text="{label}" id="lbl" width="100%" textAlign="{icon?'center':'left'}"/>
+	</fx:Declarations>
+	<s:Group width="20" height="20">
+		<s:Image id="img" verticalCenter="0" horizontalCenter="0" source="{icon}"/>
+	</s:Group>
+</s:BorderContainer>
+

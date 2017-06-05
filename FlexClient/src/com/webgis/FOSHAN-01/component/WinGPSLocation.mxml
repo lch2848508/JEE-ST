@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx title="请输入经纬度坐标" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" close="titlewindowex1_closeHandler(event)" xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:component="com.estudio.flex.component.*" width="360" height="140">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.map.WebGISUtils;
+
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			private static var instance:WinGPSLocation=null;
+			private var callFunction:Function=null;
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+			public static function execute(callFunction:Function):void
+			{
+				if (instance == null)
+					instance=new WinGPSLocation();
+				else
+					instance.inputLonLat.text="";
+				instance.callFunction=callFunction;
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject);
+				PopUpManager.centerPopUp(instance);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(instance);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var text:String=StringUtils.trim(inputLonLat.text);
+				text=StringUtils.replace(text, "度", "°");
+				text=StringUtils.replace(text, "分", "′");
+				text=StringUtils.replace(text, "秒", "″");
+				if (StringUtils.isEmpty(text))
+					return;
+				while (text.indexOf("  ") != -1)
+					text=StringUtils.replace(text, "  ", " ");
+
+				var lonlat:Array=null;
+				if (text.indexOf(" ") != -1)
+					lonlat=text.split(" ");
+				else
+					lonlat=text.split(",");
+				if (lonlat.length == 2)
+				{
+					lonlat[0]=StringUtils.trim(lonlat[0]);
+					lonlat[1]=StringUtils.trim(lonlat[1]);
+				}
+				else
+				{
+					AlertUtils.alert("坐标输入错误！");
+					return;
+				}
+				var lon:Number=-1;
+				lon=String(lonlat[0]).indexOf("°") != -1 ? WebGISUtils.dfm2Number(lonlat[0]) : Convert.str2Number(lonlat[0], -1);
+				var lat:Number=-1;
+				lat=String(lonlat[1]).indexOf("°") != -1 ? WebGISUtils.dfm2Number(lonlat[1]) : Convert.str2Number(lonlat[1], -1);
+				if (lon == -1 || lat == -1)
+				{
+					AlertUtils.alert("坐标输入有误!");
+					return;
+				}
+				callFunction(lon, lat);
+			}
+
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				PopUpManager.removePopUp(instance);
+			}
+		]]>
+	</fx:Script>
+	<s:Label text="经纬度坐标以逗号(,)或空格分开(支持度分秒格式)" left="10" top="10"/>
+	<s:TextInput left="15" top="30" right="15" id="inputLonLat"/>
+	<s:Line width="100%" height="0" left="1" right="1" bottom="44">
+		<s:stroke>
+			<s:SolidColorStroke color="0xCCCCCC" weight="1" caps="square"/>
+		</s:stroke>
+	</s:Line>
+	<s:Group width="100%" height="44" bottom="0" right="0">
+		<s:Button width="75" height="30" right="85" verticalCenter="0" label="定位" click="button1_clickHandler(event)">
+		</s:Button>
+		<s:Button width="75" height="30" right="5" verticalCenter="0" label="关闭" click="button2_clickHandler(event)">
+		</s:Button>
+	</s:Group>
+</component:TitleWindowEx>

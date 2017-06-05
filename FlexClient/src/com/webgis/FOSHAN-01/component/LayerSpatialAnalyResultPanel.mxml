@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group creationComplete="group1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="250"
+		 xmlns:component="com.webgis.component.*" xmlns:component1="com.estudio.flex.module.component.*" xmlns:flexiframe="com.google.code.flexiframe.*" xmlns:ns="http://www.esri.com/2008/ags" xmlns:AdvancedDataGrid="AdvancedDataGrid.*">
+	<s:layout>
+		<s:VerticalLayout gap="0">
+
+		</s:VerticalLayout>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.Geometry;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.google.code.flexiframe.IFrame;
+			import com.utilities.ResizeUtils;
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+			
+			import flash.net.navigateToURL;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+
+			private var isServer:Boolean=false;
+			private var objectId:String="";
+			private var id2ServerOrLayerInfos:Object={};
+			private var layerId2Column:Object={};
+			private var layerId2RecordInfo:Object={};
+			private var layerId2WhereParams:Object={};
+			private var layerId2WhereKey:Object={};
+			private var currentLayerId:String="";
+			private var mapServiceClient:MapServiceClient=null;
+			public var map:MapControl=null;
+			public var getAbstractCallFunction:Function=null;
+			[Bindable]
+			public var caption:String="图层服务数据列表";
+			[Bindable]
+			private var isSingleLayer:Boolean=true;
+			[Bindable]
+			private var mapLayerFilter:Object=null;
+			private var layerId2MBR:Object=null;
+			private var _filterObject:Object=null;
+			private var resizeUtils:ResizeUtils=null;
+			public var closeCallFunction:Function=null;
+			[Bindable]
+			public var resultCaption:String="空间统计分析结果";
+
+			public var spatialAnalyCondition:Object=null;
+			public var spatialAnalyResult:Object=null;
+			private var funname2Label:Object={CITY_NAME: "区域", MAX_GEO_LENGTH: "最大周长", MAX_GEO_AREA: "最大面积", MIN_GEO_LENGTH: "最小周长", MIN_GEO_AREA: "最小面积", SUM_GEO_LENGTH: "总周长", SUM_GEO_AREA: "总面积", COUNT: "数量"};
+
+			/////////////////////////////////////////////////////////////////////////////////////////
+			public function setSpatialAnalyResult(params:Array):void
+			{
+				spatialAnalyCondition=params[0];
+				spatialAnalyResult=params[1];
+				var type:int=spatialAnalyResult.type;
+				resultCaption=["空间缓冲区统计分析结果", "行政区划统计分析结果", "分类统计分类结果"][type - 1];
+				var groupFields:Array=spatialAnalyCondition.groupFields;
+				var groupFieldLabels:Array=spatialAnalyCondition.groupFieldLables;
+				var statisticFunctions:Array=spatialAnalyCondition.statisticFunctions;
+				var layerType:int=spatialAnalyCondition.layerType;
+				showPlanGridTable(groupFields, groupFieldLabels, statisticFunctions, spatialAnalyResult.records, layerType);
+			}
+
+			//显示列
+			private function showPlanGridTable(groupFields:Array, groupFieldLabels:Array, statisticFunctions:Array, records:Array, layerType:int):void
+			{
+				var columns:Array=[];
+
+				var i:int=0;
+				var fieldList:Array=[];
+				var statisticFieldList:Array=[];
+				var column:AdvancedDataGridColumn=null;
+				if (spatialAnalyCondition.o == "districtAnaly")
+				{
+					fieldList.push("CITY_NAME");
+					column=new AdvancedDataGridColumn();
+					column.dataField="CITY_NAME";
+					column.headerText="行政区";
+					columns.push(column);
+				}
+
+				for (i=0; i < groupFields.length; i++)
+				{
+					column=new AdvancedDataGridColumn();
+					column.dataField=groupFields[i].toUpperCase();
+					column.headerText=groupFieldLabels[i];
+					columns.push(column);
+					fieldList.push(groupFields[i]);
+				}
+
+				for (i=0; i < statisticFunctions.length; i++)
+				{
+					var funName:String=statisticFunctions[i];
+					if ((funName == "max" || funName == "min" || funName == "sum") && layerType == 0)
+						continue;
+					if (funName == "max")
+					{
+						statisticFieldList.push("MAX_GEO_LENGTH");
+						fieldList.push("MAX_GEO_LENGTH");
+						if (layerType == 2)
+						{
+							statisticFieldList.push("MAX_GEO_AREA");
+							fieldList.push("MAX_GEO_AREA");
+						}
+					}
+					else if (funName == "min")
+					{
+						statisticFieldList.push("MIN_GEO_LENGTH");
+						fieldList.push("MIN_GEO_LENGTH");
+						if (layerType == 2)
+						{
+							statisticFieldList.push("MIN_GEO_AREA");
+							fieldList.push("MIN_GEO_AREA");
+						}
+					}
+					else if (funName == "sum")
+					{
+						statisticFieldList.push("SUM_GEO_LENGTH");
+						fieldList.push("SUM_GEO_LENGTH");
+						if (layerType == 2)
+						{
+							statisticFieldList.push("SUM_GEO_AREA");
+							fieldList.push("SUM_GEO_AREA");
+						}
+					}
+					else if (funName == "count")
+					{
+						fieldList.push("COUNT");
+						statisticFieldList.push("COUNT");
+					}
+					else
+					{
+						var fieldName:String=StringUtils.after(funName, ") as ");
+						funname2Label[fieldName]=spatialAnalyCondition.fun2Label[fieldName];
+						fieldList.push(fieldName);
+						statisticFieldList.push(fieldName);
+					}
+				}
+
+				for (i=0; i < statisticFieldList.length; i++)
+				{
+					column=new AdvancedDataGridColumn();
+					column.dataField=statisticFieldList[i].toUpperCase();
+					column.headerText=funname2Label[statisticFieldList[i]];
+					columns.push(column);
+				}
+
+				datagrid.columns=columns;
+				datagrid.dataProvider=new ArrayCollection(records);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				Security.allowDomain("*");
+				Security.allowInsecureDomain("*");
+				mapServiceClient=map.mapServiceClient;
+				ExternalInterface.addCallback("filterSpatialAnalyResult", this.CallbackFilterSpatialAnalyResult);
+				resizeUtils=new ResizeUtils(this);
+				resizeUtils.enabledTop=true;
+
+//				iframe4SpatialAnalyResult=new IFrame("iframe4LayerAbstract");
+//				iframe4SpatialAnalyResult.source="spatial_result.html";
+//				iframe4SpatialAnalyResult.percentWidth=100;
+//				iframe4SpatialAnalyResult.percentHeight=100;
+//				iframe4SpatialAnalyResult.visible=false;
+//				iframeContain.addElement(iframe4SpatialAnalyResult);
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			public function show():void
+			{
+				this.visible=true;
+				this.height=this.height == 0 ? 250 : this.height;
+//				iframe4SpatialAnalyResult.visible=true;
+//				iframe4SpatialAnalyResult.updateFrameVisibility(true);
+				resizeUtils.active();
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			public function hide():void
+			{
+				resizeUtils.inactive();
+				this.visible=false;
+//				iframe4SpatialAnalyResult.visible=false;
+//				iframe4SpatialAnalyResult.updateFrameVisibility(false);
+				//iframeContain.removeElement(iframe4SpatialAnalyResult);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			protected function toolbarbutton1_clickHandler(event:MouseEvent):void
+			{
+				this.hide();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			//新开一个页面并在页面中显示内容
+			protected function toolbarbutton2_clickHandler(event:MouseEvent):void
+			{
+				if (spatialAnalyResult)
+				{
+					var jsFile:String=spatialAnalyResult.jsFile;
+					var url:String="spatial_result_ex.jsp?js=" + jsFile;
+					navigateToURL(new URLRequest(url), "win_spatial_result");
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			protected function toolbarbutton3_clickHandler(event:MouseEvent):void
+			{
+				var jsFile:String=spatialAnalyResult.jsFile;
+				var url:String="spatial_result2excel.jsp?js=" + jsFile;
+				navigateToURL(new URLRequest(url), "win_spatial2excel");
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			private function CallbackFilterSpatialAnalyResult(params:Object):void
+			{
+				var panelHeight:int=this.height;
+				var clickField:String=params.click_field;
+				if (clickField.indexOf("MAX_GEO_") == 0 || clickField.indexOf("MIN_GEO_") == 0)
+				{
+					params.o="findMaxOrMinGeometry";
+					mapServiceClient.spatialAnaly(params, function(json:Object):void
+					{
+						map.setFocus();
+						map.clearFeature();
+						if (!StringUtils.isEmpty(json.wkt))
+						{
+							var geometry:Geometry=Geometry.fromJSON(json.wkt);
+							var feature:Graphic=new Graphic(geometry, null, null);
+							map.splashFeature(feature, true, false, false);
+						}
+					});
+				}
+				else
+				{
+					params.o="getSpatialResultGeometrys";
+					mapServiceClient.spatialAnaly(params, function(json:Object):void
+					{
+						map.setFocus();
+						map.clearFeature();
+						var records:Array=json.records;
+						var features:Array=[];
+						for (var i:int=0; i < records.length; i++)
+						{
+							var geometry:Geometry=Geometry.fromJSON(records[i]);
+							var feature:Graphic=new Graphic(geometry, null, null);
+							features.push(feature);
+						}
+						if (features.length)
+						{
+							if (params.analyType != "bufAnaly")
+								map.splashFeatures(features, false, false);
+							else if (params.analyType != "districtAnaly")
+								map.splashFeatures(features, true, false);
+							else
+							{
+								map.zoomToInitialExtent();
+								map.splashFeatures(features, false, false);
+							}
+						}
+
+					});
+				}
+			}
+
+			protected function datagrid_doubleClickHandler(event:MouseEvent):void
+			{
+				if (datagrid.selectedCells.length == 0)
+					return;
+				var cell:Object=datagrid.selectedCells[0];
+				var rowIndex:int=cell.rowIndex;
+				var colIndex:int=cell.columnIndex;
+
+				var groupFields=spatialAnalyCondition.groupFields;
+				var records=spatialAnalyResult.records;
+				var record=records[rowIndex];
+				var params={where: {}, layerId: spatialAnalyCondition.layerId, layerType: spatialAnalyCondition.layerType, analyType: spatialAnalyCondition.o};
+				if (spatialAnalyCondition.o == "districtAnaly")
+				{
+					params.isDistrictAnaly=true;
+					params.where.city_code=record.CITY_CODE;
+				}
+				for (var i=0; i < groupFields.length; i++)
+					params.where[groupFields[i]]=record[groupFields[i]];
+				params.where.geometry=spatialAnalyCondition.geometry;
+				params.where.geometryType=spatialAnalyCondition.geometryType;
+				params.where.filterStr=spatialAnalyCondition.filterStr;
+				params.click_field=datagrid.columns[colIndex].dataField;
+				params.click_value=record[datagrid.columns[colIndex].dataField];
+				CallbackFilterSpatialAnalyResult(params);
+			}
+		]]>
+	</fx:Script>
+	<!-- resize -->
+	<s:Line width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="0xCCCCCC"/>
+		</s:stroke>
+	</s:Line>
+
+	<s:BorderContainer width="100%" borderVisible="false" backgroundAlpha="0.90" height="25" backgroundColor="#F8F8F8">
+		<s:layout>
+			<s:HorizontalLayout gap="2" paddingLeft="2" paddingRight="2" verticalAlign="middle"/>
+		</s:layout>
+		<s:Label text="{resultCaption}" fontWeight="bold"/>
+		<s:Spacer width="100%"/>
+
+		<component:ToolbarButton visible="false" toolTip="新开一个页面并以图表方式显示结果" icon="@Embed('/assets/webgis/ie-16.png')" click="toolbarbutton2_clickHandler(event)"/>
+		<component:ToolbarButton visible="false" toolTip="导出结果到Excel中" icon="@Embed('/assets/common/export2excel.png')" click="toolbarbutton3_clickHandler(event)"/>
+
+		<component:ToolbarButton toolTip="关闭" icon="@Embed('/assets/common/delete.png')" click="toolbarbutton1_clickHandler(event)"/>
+	</s:BorderContainer>
+
+	<s:Line width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="0x808080"/>
+		</s:stroke>
+	</s:Line>
+	<s:BorderContainer width="100%" height="100%" borderVisible="false" backgroundColor="0xFFFFFF">
+		<mx:AdvancedDataGrid selectionMode="singleCell" id="datagrid" x="0" y="0" width="100%" height="100%" borderStyle="none" paddingTop="0" verticalAlign="middle" doubleClickEnabled="true" horizontalScrollPolicy="auto" verticalScrollPolicy="auto"
+							 sortableColumns="false" doubleClick="datagrid_doubleClickHandler(event)" draggableColumns="false" folderClosedIcon="{null}" folderOpenIcon="{null}" defaultLeafIcon="{null}" headerHeight="28" rowHeight="25"
+							 alternatingItemColors="[0xFFFFFF]" sortExpertMode="true" headerColors="[0xF4F7F8,0xF5F5F5,0xF4F7F8]">
+		</mx:AdvancedDataGrid>
+	</s:BorderContainer>
+</s:Group>

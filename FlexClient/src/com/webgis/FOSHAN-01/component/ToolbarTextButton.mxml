@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer creationComplete="bordercontainer1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" mouseOver="{focused=true}" mouseOut="{focused=false}" height="22"
+				   fontWeight="{selected?'bold':'normal'}" backgroundColor="{selected?0xE6EDF1:0xF8FAFA}" backgroundAlpha="{selected||focused?1:0.5}" borderVisible="true" borderColor="#BDCBD3">
+	<s:layout>
+		<s:HorizontalLayout gap="0" verticalAlign="middle" horizontalAlign="center"/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			[Bindable]
+			public var selected:Boolean=false;
+			public var groupIndex:int=0;
+			public var toggle:Boolean=false;
+			public var tag:String="";
+
+			[Bindable]
+			public var label:String="";
+
+			[Bindable]
+			public var icon:Class=null;
+
+			[Bindable]
+			private var focused:Boolean=false;
+
+			private function calcToolbarItemWidth():void
+			{
+				this.width=this.measureText(label).width + 20;
+			}
+
+			protected function bordercontainer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				calcToolbarItemWidth();
+			}
+		]]>
+
+	</fx:Script>
+
+	<s:Label text="{label}" id="lbl" width="100%" textAlign="center"/>
+</s:BorderContainer>
+

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" autoDrawBackground="true" dataChange="itemrenderer1_dataChangeHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.StringUtils;
+
+			import flash.net.navigateToURL;
+			import mx.events.FlexEvent;
+
+			private var isVisible:Boolean=true;
+
+			protected function eventImgClick(event:MouseEvent):void
+			{
+				isVisible=!isVisible;
+				labelContent.visible=isVisible;
+				img.source=!isVisible ? "../images/arrow_state_blue_right.png" : "../images/arrow_state_blue_expanded.png";
+				if (isVisible)
+				{
+					box.addElementAt(labelContent, 1);
+					img.toolTip="点击隐藏意见";
+				}
+				else
+				{
+					box.removeElement(labelContent);
+					img.toolTip="点击显示意见";
+				}
+			}
+
+			protected function text1_linkHandler(event:TextEvent):void
+			{
+				var url:String=StringUtils.between(event.text, "'", "'");
+				var request:URLRequest=new URLRequest("/attachment/" + url);
+				navigateToURL(request, "_blank");
+			}
+
+			protected function itemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				//isVisible = false;
+				//eventImgClick(null);
+			}
+		]]>
+	</fx:Script>
+	<mx:VBox x="0" y="0" verticalGap="0" width="100%" backgroundColor="0xF5F5F5" id="box">
+		<s:Group width="100%" height="25">
+			<s:Label color="0xCC0000" verticalAlign="middle" fontWeight="bold" text="{data.date + ' ' + data.activity + '(' + data.user + ')'}" width="100%" height="25" backgroundColor="0xEEEEEE">
+			</s:Label>
+			<s:Image id="img" toolTip="点击隐藏意见" useHandCursor="true" click="eventImgClick(event)" source="../images/arrow_state_blue_expanded.png" width="16" height="16" right="4" top="4" mouseChildren="false" buttonMode="true">
+			</s:Image>
+			<mx:HRule bottom="0" width="100%" height="1" strokeColor="0xCCCCCC">
+			</mx:HRule>
+		</s:Group>
+
+		<mx:VBox id="labelContent" x="0" y="0" width="100%">
+
+			<s:TextArea width="100%" x="0" y="0" text="{data.idea}" minHeight="1" borderVisible="false" editable="false"/>
+
+
+			<!--
+			<mx:HRule width="100%" height="1" strokeColor="0xEEEEEE">
+			</mx:HRule>
+			<mx:Text doubleClickEnabled="false" htmlText="{data.files}" x="0" y="0" width="100%" color="0x0000CC" link="text1_linkHandler(event)">
+			</mx:Text>
+			-->
+		</mx:VBox>
+	</mx:VBox>
+
+
+</s:ItemRenderer>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:PortalGridExControl xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.module.component.*" width="100%" height="100%"
+							   xmlns:workflow="com.estudio.flex.module.component.workflow.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.utils.StringUtils;
+			import com.estudio.flex.utils.UIUtils;
+
+			import mx.controls.SWFLoader;
+			import mx.events.FlexEvent;
+			import mx.events.ModuleEvent;
+			import mx.managers.SystemManager;
+
+			import spark.components.NavigatorContent;
+			///////////////////////////////////////////////////////////////////////
+			public var controlName2Instance:Object=null;
+
+			///////////////////////////////////////////////////////////////////////
+			override public function initParams(controlParams:Object):void
+			{
+				super.initParams(controlParams);
+				callLater(function():void
+				{
+					var controls:Array=controlParams.controls.split(",");
+					for (var i:int=0; i < controls.length; i++)
+					{
+						var controlName:String=controls[i];
+						var control:PortalGridExControl=controlName2Instance[controlName];
+						var navigator:NavigatorContent=new NavigatorContent();
+						navigator.label=control.controlComment;
+						navigator.addElement(control);
+						pageControl.addElement(navigator);
+					}
+					_isCreateCompleted=true;
+				});
+			}
+
+			/////////////////////////////////////////////////////////////////////
+			public function setActivePage(controlName:String):void
+			{
+				for (var i:int=0; i < pageControl.numElements; i++)
+				{
+					var navi:NavigatorContent=NavigatorContent(pageControl.getElementAt(i));
+					if ((navi.getElementAt(0) as PortalGridExControl).controlName == controlName)
+					{
+						pageControl.selectedChild=navi;
+						break;
+					}
+				}
+			}
+			//////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<s:Group width="100%" height="100%">
+		<mx:TabNavigator left="-1" right="-1" bottom="-1" top="-1" id="pageControl"/>
+	</s:Group>
+</component:PortalGridExControl>

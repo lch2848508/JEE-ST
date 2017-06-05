@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx close="titlewindowex1_closeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:component="com.estudio.flex.component.*" width="400" height="120">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			private static var instance:WinActionSetting=null;
+
+			public static function execute(caption:String, callFunction:Function, bgcolor:uint, step:String):void
+			{
+				if (!instance)
+				{
+					instance=new WinActionSetting();
+					instance.step=step;
+					instance.bg=bgcolor;
+				}
+				else
+				{
+					instance.colorPicker.selectedColor=bgcolor;
+					instance.textStep.text=step;
+				}
+				instance.title=caption;
+				instance.callFunction=callFunction;
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as UIComponent, true);
+				PopUpManager.centerPopUp(instance);
+			}
+
+			[Bindable]
+			private var step:String="";
+			[Bindable]
+			private var bg:uint=0xFFFFFF;
+			private var callFunction:Function=null;
+
+			///////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			protected function btnClear_clickHandler(event:MouseEvent):void
+			{
+				titlewindowex1_closeHandler(null);
+				callFunction(colorPicker.selectedColor, StringUtils.trim(textStep.text));
+			}
+			////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<s:Label text="背景色：" top="15" left="5"/>
+	<mx:ColorPicker id="colorPicker" width="60" top="10" left="60" selectedColor="{bg}"/>
+	<s:Label text="进度：" top="15" left="130"/>
+	<s:TextInput left="170" top="10" right="5" id="textStep" text="{step}"/>
+	<s:Line width="100%" left="0" right="0" bottom="40" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#000000"/>
+		</s:stroke>
+	</s:Line>
+	<s:Button label="关闭" click="{titlewindowex1_closeHandler(null)}" id="btnClose" right="5" bottom="5" height="30" width="70"/>
+	<s:Button label="确定" click="btnClear_clickHandler(event)" id="btnClear" right="80" bottom="5" height="30" width="70"/>
+
+</component:TitleWindowEx>

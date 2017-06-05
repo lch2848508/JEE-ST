@@ -1,0 +1,5 @@
+13:05:51 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+13:05:51 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+17:34:18 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+17:34:18 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 106, active 0, maxActive 50 
+17:34:18 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 113, active 0, maxActive 50, runningSqlCount 1 : select 1 from dual 

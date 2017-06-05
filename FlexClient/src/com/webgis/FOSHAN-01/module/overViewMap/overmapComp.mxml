@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   initialize="init()" borderColor="white" alpha="0.8">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			
+			public var lines1 :Sprite =  new Sprite ();
+			public var lines2:Sprite =  new Sprite ();
+			public var lines3:Sprite =  new Sprite ();
+			public var ui:UIComponent = new UIComponent();
+			
+			public function init():void
+			{	
+				lines1.graphics.lineStyle(1,0.5);
+				lines1.graphics.moveTo(0,0);
+				lines1.graphics.lineTo(130,0);
+				lines1.graphics.moveTo(0,0);
+				lines1.graphics.lineTo(0,130);
+				
+				lines2.graphics.lineStyle(3,0xffffff,0.8);
+				lines2.graphics.moveTo(4,4);
+				lines2.graphics.lineTo(130,4);
+				lines2.graphics.moveTo(4,4);
+				lines2.graphics.lineTo(4,130);
+				
+				lines3.graphics.lineStyle(1,0.8);
+				lines3.graphics.moveTo(5,5);
+				lines3.graphics.lineTo(130,5);
+				lines3.graphics.moveTo(5,5);
+				lines3.graphics.lineTo(5,130);
+				
+				ui.addChild(lines1);
+				ui.addChild(lines2);
+				ui.addChild(lines3);
+				this.addElement(ui);
+			}
+		]]>
+	</fx:Script>
+</s:BorderContainer>

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:maplib="com.webgis.module.overViewMap.*" xmlns:esri="http://www.esri.com/2008/ags" implements="com.webgis.intf.MapWidgetIntf" right="0" bottom="0" width="24"
+		  height="24" creationComplete="module1_creationCompleteHandler(event)">
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.ags.layers.Layer;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.intf.MapWidgetIntf;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.events.FlexEvent;
+
+			[Bindable]
+			var mapInstance:Map=null;
+			var mapAppInstance:Object=null;
+
+			var layerInfo:Object=null;
+
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+				layerInfo=obj;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+			
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private var isShow:Boolean=false;
+
+			protected function toggleIcon_clickHandler(event:MouseEvent):void
+			{
+				isShow=!isShow;
+				if (isShow)
+				{
+					width=149;
+					height=149;
+					overmapContain.visible=true;
+					toggleIcon.source="../images/webgis/i_expand3.png";
+				}
+				else
+				{
+					width=23;
+					height=23;
+					//overmapContain.visible = false;
+					toggleIcon.source="../images/webgis/i_expand2.png";
+				}
+			}
+
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var layer:Layer=mapApp.getOvermapLayer();
+				if (layer)
+					overviewMap.addLayer(layer, 0);
+				//else
+				//    visible = false;
+				widgetContainInstance.getOverviewMapContain()["addElement"](this.owner);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var extParams:Object = null;
+			public function setParams(v:Object):void
+			{
+				this.extParams = v;
+			}
+
+		]]>
+	</fx:Script>
+
+	<s:BorderContainer width="100%" height="100%" borderColor="#7B889C" id="overmapContain" visible="false">
+		<maplib:OverviewMap width="100%" height="100%" mainMap="{map}" id="overviewMap">
+		</maplib:OverviewMap>
+	</s:BorderContainer>
+	<s:BorderContainer borderColor="#7B889C" width="24" height="24" right="0" bottom="0">
+		<mx:Image id="toggleIcon" verticalCenter="0" horizontalCenter="0" source="../images/webgis/i_expand2.png" click="toggleIcon_clickHandler(event)"/>
+	</s:BorderContainer>
+</s:Module>

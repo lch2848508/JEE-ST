@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup left="0" right="0" top="0" bottom="0" paddingLeft="5" paddingRight="5" paddingTop="5" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" gap="0">
+    <fx:Script>
+        <![CDATA[
+            import mx.core.Application;
+            import mx.core.FlexGlobals;
+            import mx.core.UIComponent;
+            import mx.events.CloseEvent;
+            import mx.managers.PopUpManager;
+
+            import spark.components.TitleWindow;
+
+            private static var win:TitleWindow = null;
+
+            private static var inst:InputRichEditForm = null;
+
+            private static var fun:Function = null;
+
+            /////////////////////////////////////////////////////////////////////////////////////////////////
+            public static function execute(value:String , callFun:Function , readonly:Boolean = false , width:int = 640 , height:int = 320):void
+            {
+                if (win == null)
+                {
+                    inst = new InputRichEditForm ();
+                    win = new TitleWindowEx ();
+                    win.title = "请输入文本内容";
+                    win.addElement (inst);
+                    win.addEventListener (CloseEvent.CLOSE , function(event:CloseEvent):void
+                    {
+                        inst.button2_clickHandler (null);
+                    });
+                }
+                fun = callFun;
+                inst.textarea.htmlText = value;
+                inst.btnOk.enabled = !readonly;
+                win.width = width;
+                win.height = height;
+                FlexGlobals.topLevelApplication.showPopupWindow (win , true);
+
+                //PopUpManager.centerPopUp(win);
+            }
+
+            ///////////////////////////////////////////////////////////////////////////////////////////////////
+            //确定
+            protected function button1_clickHandler(event:MouseEvent):void
+            {
+                var value:String = textarea.htmlText;
+                FlexGlobals.topLevelApplication.closePopupWindow (win);
+
+                if (fun != null)
+                    fun (value);
+                fun = null;
+            }
+
+            ///////////////////////////////////////////////////////////////////////////////////////////////////
+            //关闭
+            protected function button2_clickHandler(event:MouseEvent):void
+            {
+                FlexGlobals.topLevelApplication.closePopupWindow (win);
+
+            }
+        ]]>
+    </fx:Script>
+    <fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		
+		.textareanoborder
+		{
+			border-visible:false;
+			border-color:#898F99;
+		}
+	</fx:Style>
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+    <mx:RichTextEditor id="textarea" width="100%" height="100%" dropShadowVisible="false" headerHeight="0" textAreaStyleName="textareanoborder">
+    </mx:RichTextEditor>
+    <s:HGroup id="groupButtons" width="100%" height="40" verticalAlign="middle" gap="5">
+        <s:Spacer width="100%">
+        </s:Spacer>
+        <s:Button id="btnOk" width="75" height="30" fontWeight="bold" label="确定" click="button1_clickHandler(event)" tabIndex="65536">
+        </s:Button>
+        <s:Button width="75" height="30" fontWeight="bold" label="关闭" click="button2_clickHandler(event)" tabIndex="65537">
+        </s:Button>
+    </s:HGroup>
+</s:VGroup>

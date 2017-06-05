@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:ResizableTitleWindow skinClass="com.estudio.flex.component.ResizableTitleWindowSkin" close="resizabletitlewindow1_closeHandler(event)" title="即时通讯窗体" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark"
+                                xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="640" height="480">
+    <fx:Script>
+        <![CDATA[
+            import mx.core.UIComponent;
+            import mx.events.CloseEvent;
+            import mx.events.ModuleEvent;
+            import mx.events.MoveEvent;
+
+            protected function resizabletitlewindow1_closeHandler(event:CloseEvent):void
+            {
+                FlexGlobals.topLevelApplication.closePopupWindow (instance);
+				isVisible = false;
+            }
+
+//            protected function resizabletitlewindow1_moveHandler(event:MoveEvent):void
+//            {
+//                var target:UIComponent = event.target as UIComponent;
+//                var targetX:Number = target.x;
+//                var targetY:Number = target.y;
+//                var appWidth:Number = FlexGlobals.topLevelApplication.width;
+//                var appHeight:Number = FlexGlobals.topLevelApplication.height;
+//
+//                if (targetX + this.width > appWidth)
+//                    target.x = appWidth - this.width;
+//                if (targetX < 0)
+//                    target.x = 0;
+//
+//                if (targetY + this.height > appHeight)
+//                    target.y = appHeight - this.height;
+//                if (targetY < 0)
+//                    target.y = 0;
+//            }
+        ]]>
+    </fx:Script>
+    <s:ModuleLoader width="100%" height="100%" url="{'../flexclient/flash/com/estudio/flex/module/PortalICQ.swf?version=1'}">
+
+    </s:ModuleLoader>
+
+    <fx:Script>
+        <![CDATA[
+            import mx.core.FlexGlobals;
+            private static var instance:WinICQ = null;
+            private static var isVisible:Boolean = false;
+
+            public static function execute():void
+            {
+                if (isVisible)
+                    return;
+                isVisible = true;
+                if (instance == null)
+				{
+					instance = new WinICQ ();
+					instance.width = 250;
+					instance.height = 480;
+				}
+                FlexGlobals.topLevelApplication.showPopupWindow (instance , false , true);
+            }
+        ]]>
+    </fx:Script>
+</component:ResizableTitleWindow>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   creationComplete="init()"
+			   minWidth="1024" minHeight="768">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	
+	<fx:Script>     
+		<![CDATA[     
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.DataGrid;  
+			
+			
+			private var DataGrid1:DataGrid    
+			public var languageFlag:String = "cn";  
+			[Bindable]  
+			public var dataArr2:ArrayCollection =new ArrayCollection(
+				[{id:1,name:"苹果",price:100,count:"不合格",selected:false},     
+					{id:2,name:"西瓜",price:50,count:"不合格",selected:true},     
+					{id:3,name:"水蜜桃",price:333,count:"错别字",selected:false}]
+			);
+			
+			[Bindable]  
+			public var dataArr:ArrayCollection = new ArrayCollection(
+				[{label:"不合格", data:"2"},{label:"不合格", data:"3"},  
+					{label:"进口", data:"4"}, {label:"一般", data:"5"}]
+			);  
+			
+			private function init():void{    
+				var str:String="  aa ss ";
+				var s:String= str.replace(" ");
+				trace("s="+s);
+			}  
+			
+			public function saved():void{ 
+				for each(var a:Object in dataArr2){  
+					Alert.show("当前数据为: " + "序号: " + a.id + ", 名称: " + a.name + ", 数量: " + a.count + ", selected: " + a.selected);  
+				}  
+			}  
+		]]>     
+	</fx:Script>     
+	
+	<fx:Declarations>
+		<fx:Component id="cb_Render">
+			<mx:ComboBox>
+				<mx:dataProvider>
+					<fx:String>不合格</fx:String>
+					<fx:String>合格</fx:String>
+					<fx:String>错别字</fx:String>
+				</mx:dataProvider>
+			</mx:ComboBox>
+		</fx:Component>
+	</fx:Declarations>
+	
+	<mx:Button click="saved()" x="441" y="46" label="保存"/>  
+	<mx:DataGrid id="DataGrid2" editable="true" dataProvider="{dataArr2}" y="76" x="10" height="266" width="516">     
+		<mx:columns>     
+			<mx:DataGridColumn headerText="序号" id="dg1" dataField="id" editable="false"/>     
+			<mx:DataGridColumn headerText="名称" id="dg2" dataField="name"/>    
+			<mx:DataGridColumn headerText="价格" id="dg3" dataField="price" editorDataField="value" editable="false">     
+				<mx:itemRenderer>     
+					<fx:Component>     
+						<mx:NumericStepper maximum="1000" minimum="10">     
+						</mx:NumericStepper>     
+					</fx:Component>     
+				</mx:itemRenderer>     
+			</mx:DataGridColumn>     
+			<mx:DataGridColumn headerText="描述" id="dg4" dataField="count" editable="true" editorDataField="text" itemEditor="{cb_Render}"/>   
+			<mx:DataGridColumn headerText="select" dataField="selected" editable="false">  
+				<mx:itemRenderer>  
+					<fx:Component>  
+						<mx:CheckBox click="data.selected=!data.selected"  selected="{data.selected}"/>  
+					</fx:Component>                       
+				</mx:itemRenderer>  
+			</mx:DataGridColumn>    
+		</mx:columns>     
+	</mx:DataGrid>     
+</s:Application>

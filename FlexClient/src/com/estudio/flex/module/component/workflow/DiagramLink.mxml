@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:UIComponent mouseChildren="false" buttonMode="true" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Text;
+			import mx.events.FlexEvent;
+
+			import spark.components.Label;
+
+
+
+
+
+
+			[Bindable]
+			public var caption:String="";
+
+			private var label:Label=new Label();
+			private var labelMetrics:TextLineMetrics;
+
+			[Bindable]
+			public var fontColor:int=0xFF0000;
+
+			[Bindable]
+			public var background:int=0xFF0000;
+
+			private var boderColor:int=0x000000;
+			private var borderWidth:int=1;
+
+			//点序
+			private var _points:Array=null;
+
+			public function set points(v:Array):void
+			{
+				_points=v;
+				var x:int=65535;
+				var y:int=65535;
+				for (var i:int=0; i < _points.length; i++)
+				{
+					x=Math.min(x, _points[i][0]);
+					y=Math.min(x, _points[i][1]);
+				}
+				this.x=x;
+				this.y=y;
+			}
+
+			public function get points():Array
+			{
+				return _points;
+			}
+
+			//--------------------------------------------------------------------------
+			//清除绘制的内容
+			protected function clear():void
+			{
+				this.graphics.clear();
+			}
+
+			//--------------------------------------------------------------------------
+			//设置边框宽度颜色 
+			protected function setBorderColor():void
+			{
+				this.graphics.lineStyle(borderWidth, boderColor, 1, true, "normal", CapsStyle.ROUND);
+			}
+
+			//---------------------------------------------------------------------------
+			//调整Label尺寸
+			private function adjustLabelPosition():void
+			{
+				if (labelMetrics == null)
+				{
+					var p:Object=this.owner as UIComponent;
+					this.owner["addElement"](label);
+					this.label.setStyle("color", fontColor);
+					this.label.setStyle("fontWeight", "bold");
+					label.text=caption;
+					label.mouseChildren=false;
+					label.buttonMode=true;
+					labelMetrics=label.measureText(caption);
+				}
+				else
+				{
+					this.owner["removeElement"](label);
+					this.owner["addElement"](label);
+				}
+				label.left=this.x + (width - labelMetrics.width) / 2;
+				label.top=this.y + (height - labelMetrics.height) / 2 + 2;
+			}
+
+			//---------------------------------------------------------------------------
+			//绘制
+			public function Draw():void
+			{
+
+				this.clear();
+				//this.graphics.beginFill(background);
+				this.setBorderColor();
+				var p:Array=null;
+				for (var i:int=0; i < _points.length - 1; i++)
+				{
+					p=_points[i];
+					this.graphics.moveTo(p[0] - x, p[1] - y);
+					p=_points[i + 1];
+					this.graphics.lineTo(p[0] - x, p[1] - y);
+				}
+
+				p=[_points[0][0] - x, _points[0][1] - y];
+
+				var distinct:int=4;
+
+				this.graphics.beginFill(boderColor);
+				this.graphics.moveTo(p[0] - distinct, p[1]);
+				this.graphics.lineTo(p[0], p[1] - distinct);
+				this.graphics.lineTo(p[0] + distinct, p[1]);
+				this.graphics.lineTo(p[0], p[1] + distinct);
+				this.graphics.lineTo(p[0] - distinct, p[1]);
+				this.graphics.endFill();
+
+				var lastP:Array=_points[_points.length - 1];
+				var lastP1:Array=_points[_points.length - 2];
+
+				var fromX:int=_points[_points.length - 2][0] - x;
+				var fromY:int=_points[_points.length - 2][1] - y;
+				var toX:int=_points[_points.length - 1][0] - x;
+				var toY:int=_points[_points.length - 1][1] - y;
+
+				//箭头
+				var distinctX:int=0;
+				var distinctY:int=0;
+				this.graphics.beginFill(boderColor);
+				if (fromX == toX) //竖线 
+				{
+					distinctX=4;
+					distinctY=fromY > toY ? -6 : 6;
+
+					this.graphics.moveTo(toX, toY);
+					this.graphics.lineTo(toX - distinctX, toY - distinctY);
+					this.graphics.lineTo(toX + distinctX, toY - distinctY);
+					this.graphics.lineTo(toX, toY);
+				}
+				else if (fromY == toY) //横线
+				{
+					distinctY=4
+					distinctX=fromX > toX ? -6 : 6;
+
+					this.graphics.moveTo(toX, toY);
+					this.graphics.lineTo(toX - distinctX, toY - distinctY);
+					this.graphics.lineTo(toX - distinctX, toY + distinctY);
+					this.graphics.lineTo(toX, toY);
+				}
+				this.graphics.endFill();
+			}
+
+
+			//----------------------------------------------------------------------------
+			//绘制事件
+			override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				this.Draw();
+			}
+
+			//----------------------------------------------------------------------------
+			public function DrawShape():void
+			{
+				this.graphics.drawRect(0, 0, width, height);
+			}
+		]]>
+	</fx:Script>
+</mx:UIComponent>

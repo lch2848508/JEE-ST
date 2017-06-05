@@ -1,0 +1,115 @@
+09:02:11 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 61, active 0, maxActive 50 
+09:02:11 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:20:15 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:20:15 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:20:16 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 62, active 0, maxActive 50 
+09:21:36 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 61, active 3, maxActive 50, runningSqlCount 1 : select geometry from SYS_EXT_GEOMETRY where record_id=? 
+09:21:36 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 61, active 3, maxActive 50, runningSqlCount 1 : select geometry from SYS_EXT_GEOMETRY where record_id=?
+	at com.alibaba.druid.pool.DruidDataSource.getConnectionInternal(DruidDataSource.java:1195)
+	at com.alibaba.druid.pool.DruidDataSource.getConnectionDirect(DruidDataSource.java:1017)
+	at com.alibaba.druid.filter.FilterChainImpl.dataSource_connect(FilterChainImpl.java:4544)
+	at com.alibaba.druid.filter.stat.StatFilter.dataSource_getConnection(StatFilter.java:662)
+	at com.alibaba.druid.filter.FilterChainImpl.dataSource_connect(FilterChainImpl.java:4540)
+	at com.alibaba.druid.pool.DruidDataSource.getConnection(DruidDataSource.java:995)
+	at com.alibaba.druid.pool.DruidDataSource.getConnection(DruidDataSource.java:987)
+	at com.estudio.impl.db.DBConnProviderBase.getConnection(DBConnProviderBase.java:58)
+	at com.estudio.impl.db.DBHelper4Oracle.getConnection(DBHelper4Oracle.java:42)
+	at com.estudio.web.service.DataService4AttachmentEx.getAttachments(DataService4AttachmentEx.java:287)
+	at com.estudio.web.servlet.webclient.AttachmentExServlet.doRequest(AttachmentExServlet.java:29)
+	at com.estudio.web.servlet.BaseServlet.doPost(BaseServlet.java:332)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:650)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:731)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:303)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:52)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:241)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+	at com.alibaba.druid.support.http.WebStatFilter.doFilter(WebStatFilter.java:123)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:241)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+	at com.estudio.web.filter.EncodingFilter.doFilter(EncodingFilter.java:49)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:241)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+	at com.estudio.web.filter.ClientAuthenFilter.doFilter(ClientAuthenFilter.java:43)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:241)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:220)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:122)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:505)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:170)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:103)
+	at org.apache.catalina.valves.AccessLogValve.invoke(AccessLogValve.java:950)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:116)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:423)
+	at org.apache.coyote.http11.AbstractHttp11Processor.process(AbstractHttp11Processor.java:1079)
+	at org.apache.coyote.AbstractProtocol$AbstractConnectionHandler.process(AbstractProtocol.java:620)
+	at org.apache.tomcat.util.net.AprEndpoint$SocketProcessor.doRun(AprEndpoint.java:2476)
+	at org.apache.tomcat.util.net.AprEndpoint$SocketProcessor.run(AprEndpoint.java:2465)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.lang.Thread.run(Thread.java:745)
+ 
+09:21:36 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 61, active 3, maxActive 50, runningSqlCount 1 : select geometry from SYS_EXT_GEOMETRY where record_id=? 
+09:21:36 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 61, active 3, maxActive 50, runningSqlCount 1 : select geometry from SYS_EXT_GEOMETRY where record_id=?
+	at com.alibaba.druid.pool.DruidDataSource.getConnectionInternal(DruidDataSource.java:1195)
+	at com.alibaba.druid.pool.DruidDataSource.getConnectionDirect(DruidDataSource.java:1017)
+	at com.alibaba.druid.filter.FilterChainImpl.dataSource_connect(FilterChainImpl.java:4544)
+	at com.alibaba.druid.filter.stat.StatFilter.dataSource_getConnection(StatFilter.java:662)
+	at com.alibaba.druid.filter.FilterChainImpl.dataSource_connect(FilterChainImpl.java:4540)
+	at com.alibaba.druid.pool.DruidDataSource.getConnection(DruidDataSource.java:995)
+	at com.alibaba.druid.pool.DruidDataSource.getConnection(DruidDataSource.java:987)
+	at com.estudio.impl.db.DBConnProviderBase.getConnection(DBConnProviderBase.java:58)
+	at com.estudio.impl.db.DBHelper4Oracle.getConnection(DBHelper4Oracle.java:42)
+	at com.estudio.web.service.DataService4AttachmentEx.getAttachments(DataService4AttachmentEx.java:287)
+	at com.estudio.web.servlet.webclient.AttachmentExServlet.doRequest(AttachmentExServlet.java:29)
+	at com.estudio.web.servlet.BaseServlet.doPost(BaseServlet.java:332)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:650)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:731)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:303)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:52)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:241)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+	at com.alibaba.druid.support.http.WebStatFilter.doFilter(WebStatFilter.java:123)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:241)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+	at com.estudio.web.filter.EncodingFilter.doFilter(EncodingFilter.java:49)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:241)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+	at com.estudio.web.filter.ClientAuthenFilter.doFilter(ClientAuthenFilter.java:43)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:241)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:220)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:122)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:505)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:170)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:103)
+	at org.apache.catalina.valves.AccessLogValve.invoke(AccessLogValve.java:950)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:116)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:423)
+	at org.apache.coyote.http11.AbstractHttp11Processor.process(AbstractHttp11Processor.java:1079)
+	at org.apache.coyote.AbstractProtocol$AbstractConnectionHandler.process(AbstractProtocol.java:620)
+	at org.apache.tomcat.util.net.AprEndpoint$SocketProcessor.doRun(AprEndpoint.java:2476)
+	at org.apache.tomcat.util.net.AprEndpoint$SocketProcessor.run(AprEndpoint.java:2465)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.lang.Thread.run(Thread.java:745)
+ 
+09:35:27 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:35:27 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:45:02 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:45:02 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:51:50 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:51:50 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+10:01:21 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+10:01:21 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:18:58 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:18:58 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:21:00 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:21:00 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:23:28 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:23:28 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:24:08 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:24:08 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup gap="0" creationComplete="vgroup1_creationCompleteHandler(event)" implements="mx.controls.listClasses.IListItemRenderer" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="55"
+		  xmlns:layertree="com.webgis.module.layertree.*" xmlns:acm="com.acm.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.Convert;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.ColorPickerEvent;
+			import mx.events.FlexEvent;
+
+			import spark.events.IndexChangeEvent;
+			import spark.events.TextOperationEvent;
+
+
+			[Bindable]
+			private var _data:Object=null;
+
+			[Bindable]
+			private var compareIndex:int=-1;
+
+			[Bindable]
+			private var fieldValues:ArrayCollection=new ArrayCollection([]);
+			////////////////////////////////////////////////////////////////////////////////////////
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			public function get data():Object
+			{
+				return _data;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			public function set data(v:Object):void
+			{
+				_data=v;
+				if (_data)
+				{
+//					trace(JSON.stringify(_data));
+					compareIndex=getCompareItem();
+					cbxOperation_changeHandler(null);
+					if (currentState == "in")
+						fieldValues=_data.values;
+					else
+						fieldValues=new ArrayCollection([]);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				cbxOperation.textInput.editable=false;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			private function getCompareItem():int
+			{
+				for (var i:int=0; i < fieldOptions.length; i++)
+				{
+					if (fieldOptions.getItemAt(i).value == _data.compare)
+						return i;
+				}
+				return -1;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+
+			protected function cbxOperation_changeHandler(event:IndexChangeEvent):void
+			{
+				var compare:String=cbxOperation.selectedItem.value;
+				if (compare == "like" || compare == ">" || compare == ">=" || compare == "<" || compare == "=<")
+					currentState="one";
+				else if (compare == "is null" || compare == "is not null")
+					currentState="zero";
+				else if (compare == "between")
+					currentState="two";
+				else
+					currentState == _data.values ? "in" : "one";
+			}
+			/////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="zero"/>
+		<s:State name="one"/>
+		<s:State name="two"/>
+		<s:State name="in"/>
+	</s:states>
+	<s:HGroup gap="4" height="100%" verticalAlign="middle">
+		<s:Spacer width="4"/>
+		<s:CheckBox selected="{_data.checked}"/>
+		<s:Label text="{_data.title}" fontWeight="bold" color="0x0000FF" fontSize="12"/>
+	</s:HGroup>
+	<s:HGroup gap="4" height="100%" verticalAlign="middle" width="100%">
+		<s:Spacer width="4"/>
+		<s:ComboBox dataProvider="{fieldOptions}" change="cbxOperation_changeHandler(event)" selectedIndex="{compareIndex}" id="cbxOperation" width="90"/>
+
+		<s:TextInput width="100%" includeIn="one" id="oneText"/>
+
+		<s:TextInput width="100%" includeIn="two" id="towText1"/>
+		<s:Label includeIn="two" text=" - "/>
+		<s:TextInput includeIn="two" width="100%" id="towText2"/>
+
+		<acm:ComboCheck includeIn="in" labelField="value" width="100%" id="comboboxIn" dataProvider="{fieldValues}"/>
+
+		<s:Spacer width="4"/>
+	</s:HGroup>
+
+	<s:Line width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#DDE1E5"/>
+		</s:stroke>
+	</s:Line>
+</s:VGroup>

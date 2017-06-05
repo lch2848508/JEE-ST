@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:client="com.estudio.flex.client.*">
+	<fx:Style source="../client/MainForm.css"/>
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+
+			public function designColumns(params:Object):void
+			{
+				if (excelPanel && excelPanel.enabled)
+					excelPanel.designColumns();
+			}
+
+			public function appendRecord(params:Object):void
+			{
+				if (excelPanel && excelPanel.enabled)
+					excelPanel.appendRecord();
+			}
+
+			public function deleteRecord(params:Object):void
+			{
+				if (excelPanel && excelPanel.enabled)
+					excelPanel.deleteRecord();
+			}
+
+			public function pasteFromExcel(params:Object):void
+			{
+				if (excelPanel && excelPanel.enabled)
+					excelPanel.pasteFromExcel();
+			}
+
+			public function getContent(params:Object):Array
+			{
+				if (excelPanel && excelPanel.enabled)
+					return [excelPanel.getDataGridColumns(), excelPanel.getDataGridRecords()];
+				return ["", ""];
+			}
+
+			public function loadFromContent(params:Object):void
+			{
+				if (excelPanel && excelPanel.enabled)
+					excelPanel.setDataGridColumnsAndRecords(params.columns, params.records);
+			}
+
+			public function setReadonly(params:Object):void
+			{
+				if (excelPanel)
+					excelPanel.enabled=!params.readonly;
+			}
+
+			public function setRecordAsFolder(params:Object):void
+			{
+				if (excelPanel && excelPanel.enabled)
+					excelPanel.setRecordAsFolder();
+			}
+
+			public function setRecordAsCommon(params:Object):void
+			{
+				if (excelPanel && excelPanel.enabled)
+					excelPanel.setRecordAsCommon();
+			}
+
+			public function setRecordAsChildren(params:Object):void
+			{
+				if (excelPanel && excelPanel.enabled)
+					excelPanel.setRecordAsChildren();
+			}
+
+			protected function excelPanel_creationCompleteHandler(event:FlexEvent):void
+			{
+				loadFromContent({columns: "", records: ""});
+			}
+		]]>
+	</fx:Script>
+	<client:ExcelPanel creationComplete="excelPanel_creationCompleteHandler(event)" id="excelPanel" width="100%" height="100%"/>
+</s:Module>

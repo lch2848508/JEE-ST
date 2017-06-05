@@ -1,0 +1,10 @@
+<?xml version='1.0' ?>
+<menu id="0">
+		<!-- <item text="查看专题" img="chartView.ico"  id="View_Subject"/>	 -->
+		<item text="删除专题" img="chartDelete.ico"  id="Delete_Subject"/>	
+	<!-- 	<item text="Blue" img="blue.gif"  id="edit_Blue"/>	
+	<item text="Other..." img="" id="outher">
+		<item text="Yellow" img="yellow.gif"  id="edit_Yellow"/>	
+		<item text="White" img="white.gif"  id="edit_White"/>	
+	</item> -->
+</menu>

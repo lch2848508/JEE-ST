@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<workflow:DiagramStatusAction caption="结束" width="100" height="50" fontColor="0xFFFFFF" background="{0xCC3366}" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:workflow="com.estudio.flex.module.component.workflow.*">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+</workflow:DiagramStatusAction>

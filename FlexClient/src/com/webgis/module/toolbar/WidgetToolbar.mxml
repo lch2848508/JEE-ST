@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module width="100%" creationComplete="module1_creationCompleteHandler(event)" implements="com.webgis.intf.MapWidgetIntf" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" height="100%"
+		  xmlns:component="com.estudio.flex.component.*" xmlns:containers="flexlib.containers.*">
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.ags.layers.Layer;
+			import com.webgis.MapDynamicLayerChangeEvent;
+			import com.webgis.event.MapModeEvent;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.intf.MapWidgetIntf;
+			import com.webgis.service.MapServiceClient;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.MenuEvent;
+
+			import spark.events.IndexChangeEvent;
+			[Bindable]
+			private var mapInstance:Map=null;
+			private var mapAppInstance:Object=null;
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//创建完成事件
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				widgetContainInstance.getToolbarContain()["addElement"](this.owner);
+				FlexGlobals.topLevelApplication.addEventListener(MapModeEvent.PAN, event4MapPanMode);
+
+				baseMapToolbar.dataProvider=new ArrayCollection(map.getBaseLayers());
+				baseMapToolbar.selectedIndex=0;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//拖动 拉框放大 拉框缩小
+			protected function toolbar_changeHandler(event:IndexChangeEvent):void
+			{
+				var arrayItems:ArrayCollection=event.target.dataProvider as ArrayCollection;
+				if (event.newIndex == -1)
+				{
+					commonToolbar.selectedIndex=0;
+					map.activePanMode();
+					btnProperty.selected=false;
+				}
+				else
+				{
+					var item:Object=arrayItems.getItemAt(event.newIndex);
+					var type:String=item.type;
+					if (type == "toolbar_panel")
+					{
+						map.activePanMode();
+						unselectToolbarItem(measureToolbar);
+					}
+					else if (type == "toolbar_zoomin")
+					{
+						map.activeZoominMode();
+						unselectToolbarItem(measureToolbar);
+					}
+					else if (type == "toolbar_zoomout")
+					{
+						map.activeZoomoutMode();
+						unselectToolbarItem(measureToolbar);
+					}
+					else if (type == "toolbar_measure_line" || type == "toolbar_measure_area")
+					{
+						map.activeMeasureMode(type == "toolbar_measure_area");
+						unselectToolbarItem(commonToolbar);
+					}
+				}
+				btnProperty.selected=false;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			private function unselectToolbarItem(toolbar:ButtonBar):void
+			{
+				toolbar.selectedIndex=-1;
+				toolbar.selectedItem=null;
+				toolbar.validateDisplayList();
+			}
+
+			[Embed(source="/assets/webgis/IdentifyTool16.png")]
+			[Bindable]
+			private var identifyIcon:Class;
+
+			protected function btnProperty_clickHandler(event:MouseEvent):void
+			{
+				if (!btnProperty.selected)
+				{
+					unselectToolbarItem(measureToolbar);
+					unselectToolbarItem(commonToolbar);
+					commonToolbar.selectedIndex=0;
+					commonToolbar.selectedItem=commonToolbarItems.getItemAt(0);
+					commonToolbar.validateDisplayList();
+					map.activePanMode();
+				}
+				else
+				{
+					unselectToolbarItem(measureToolbar);
+					unselectToolbarItem(commonToolbar);
+					map.activeIdentifyMode();
+				}
+			}
+
+			protected function btnClearClickHandler(event:MouseEvent):void
+			{
+				mapApp.clear();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private function event4MapPanMode(event:MapModeEvent):void
+			{
+				commonToolbar.selectedIndex=0;
+				measureToolbar.selectedItem=null;
+				btnProperty.selected=false;
+
+				commonToolbar.invalidateDisplayList();
+				measureToolbar.invalidateDisplayList();
+				btnProperty.invalidateDisplayList();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function baseMapToolbar_changeHandler(event:IndexChangeEvent):void
+			{
+				map.changeBaseMap(event.newIndex);
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var extParams:Object = null;
+			public function setParams(v:Object):void
+			{
+				this.extParams = v;
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:ArrayCollection id="commonToolbarItems">
+			<fx:Object type="toolbar_panel" label="" icon="@Embed('/assets/webgis/pan.png')" title="拖动"/>
+			<fx:Object type="toolbar_zoomin" label="" icon="@Embed('/assets/webgis/ZoomInTool_B_16.png')" title="放大"/>
+			<fx:Object type="toolbar_zoomout" label="" icon="@Embed('/assets/webgis/ZoomOutTool_B_16.png')" title="缩小"/>
+		</s:ArrayCollection>
+
+		<s:ArrayCollection id="measureToolbarItems">
+			<fx:Object type="toolbar_measure_line" label="" icon="@Embed('/assets/webgis/MeasureTool16.png')" title="测量距离"/>
+			<fx:Object type="toolbar_measure_area" label="" icon="@Embed('/assets/webgis/MeasureAreaTool16.png')" title="测量面积"/>
+		</s:ArrayCollection>
+
+		<s:ArrayCollection id="propertyToolbarItems">
+			<fx:Object type="toolbar_property_point" label="点选" icon="@Embed('/assets/webgis/edit_point.png')" title=""/>
+			<fx:Object type="toolbar_property_rectangle" label="框选" icon="@Embed('/assets/webgis/edit_rectangle.png')" title=""/>
+			<fx:Object type="toolbar_property_circle" label="圆形" icon="@Embed('/assets/webgis/edit_circle.png')" title=""/>
+			<fx:Object type="toolbar_property_polygon" label="多边形" icon="@Embed('/assets/webgis/edit_polygon.png')" title=""/>
+		</s:ArrayCollection>
+	</fx:Declarations>
+	<s:HGroup textAlign="right" right="0" height="100%" gap="2" verticalAlign="middle" paddingLeft="2" paddingRight="2">
+		<!-- 拖动 拉框放大 拉框缩小 -->
+		<s:ButtonBar id="commonToolbar" change="toolbar_changeHandler(event)" buttonMode="true" height="22" width="{commonToolbarItems.length*22}" selectedIndex="0" dataProvider="{commonToolbarItems}"/>
+
+		<!-- 测量 -->
+		<s:ButtonBar id="measureToolbar" change="toolbar_changeHandler(event)" buttonMode="true" height="22" width="{measureToolbarItems.length*22}" dataProvider="{measureToolbarItems}"/>
+
+		<!-- 属性 -->
+		<s:ToggleButton icon="{identifyIcon}" width="22" height="22" id="btnProperty" click="btnProperty_clickHandler(event)"/>
+	
+		<!--清除-->
+		<s:Button width="22" height="22" icon="@Embed('/assets/webgis/GenericDeleteBlackSmall16.png')" click="btnClearClickHandler(event)">
+
+		</s:Button>
+
+		<s:Spacer width="10"/>
+
+		<s:ButtonBar height="22" change="baseMapToolbar_changeHandler(event)" id="baseMapToolbar" requireSelection="true">
+			<s:layout>
+				<s:HorizontalLayout gap="-1" columnWidth="60" variableColumnWidth="false"/>
+			</s:layout>
+		</s:ButtonBar>
+	</s:HGroup>
+</s:Module>

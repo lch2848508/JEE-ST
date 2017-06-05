@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module visible="false" creationComplete="module1_creationCompleteHandler(event)" implements="com.webgis.intf.MapWidgetIntf,com.webgis.intf.MapControlShare" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%" height="100%" xmlns:component="com.webgis.component.*" >
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.ags.geometry.MapPoint;
+			import com.estudio.flex.component.InputTextForm;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.MapLayerManager;
+			import com.webgis.intf.MapControlShare;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			[Bindable]
+			private var mapInstance:Map=null;
+			[Bindable]
+			private var mapAppInstance:Object=null;
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+			
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+				
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			//创建完成事件
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				widgetContainInstance.getShareContain()["addElement"](this.owner);
+				this.visible=true;
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+				widgetContainInstance.share=this;
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+			
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			//添加收藏夹项
+			public function add():void
+			{
+				var config:Object=getShareConfig();
+				var time:Date=new Date();
+				var state:String=time.getFullYear().toString()+(time.getMonth()+1).toString()+time.getDate().toString()+time.getHours().toString()+time.getMinutes().toString()+time.getSeconds().toString();
+				var str:String="http://localhost:8080/gis?"+state;
+				mapServiceClientInstance.newMapShare(Number(state),-1, 1, str, JSON.stringify(config)); 
+				InputTextForm.execute("URL分享",str, function(text:String):void
+				{
+					System.setClipboard(str);
+				});
+			}
+			
+			///////////////////////////////////////////////////////////////////////////////////
+			private function getShareConfig():Object
+			{
+				var m:MapControl=map as MapControl;
+				var result:Object={};
+				result.level=m.level;
+				result.center=m.center;
+				result.layers=[];
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(m.mapLayerManager.getDynamicLayerTree(), list);
+				for (var i:int=0; i < list.length; i++)
+				{
+					var item:Object=list[i];
+					if (item.selected)
+						result.layers.push(item.id);
+				}
+				result.baseLayerIndex=m.baseMapIndex;
+				return result;
+			}
+			
+			
+			private var extParams:Object = null;
+			public function setParams(v:Object):void
+			{
+				this.extParams = v;
+			}
+		]]>
+	</fx:Script>
+	
+</s:Module>

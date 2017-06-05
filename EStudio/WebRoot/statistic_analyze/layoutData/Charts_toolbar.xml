@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<toolbar>
+	<!-- <item id="new" type="buttonSelect" img="new.gif" imgdis="new_dis.gif" text="New" action="showNewDocumentSelect">
+		<item type="button"	id="new_text"  text="Text Document" img="text_document.gif" action="doOnNewDocument"/>
+		<item type="button"	id="new_excel" text="Stylesheet"    img="stylesheet.gif"    action="doOnNewDocument"/>
+		<item type="button"	id="new_db"    text="Database"      img="database.gif"      action="doOnNewDocument"/>
+		<item type="button" 	id="new_pp"    text="Presentation"  img="presentation.gif"  action="doOnNewDocument"/>
+		<item type="separator"	id="new_s1"/>
+		<item type="button"	id="new_other" text="Other"         img="other.gif"         action="doOnNewDocument"/>
+	</item>
+	<item id="sep1" type="separator"/> -->
+	<item id="chartSelect" type="button" img="chart-add.ico" text="图表选择"/>
+	<item id="paramSetting" type="button" img="param-config.ico" text="参数设置"/>
+	<item id="refresh" type="button" img="Refresh.ico" text="刷新"/>
+	<item id="collectSubject" type="button" img="favorite.ico" text="收藏专题"/>
+	<!-- <item id="dataToCSV" type="button" img="excel.ico" text="导出结果"/> -->
+	<!-- <item id="saveImage" type="button" img="saveImage.ico" text="专题保存"/> -->
+	<!-- <item id="FileofSubject" type="button" img="FileofSubject.ico" text="专题管理"/> -->
+	<!-- <item id="testbutton" type="button" img="print.png"  text="功能测试"/> -->
+	<!-- <item id="print" type="button" img="print.png" text="打印"/> -->
+</toolbar>

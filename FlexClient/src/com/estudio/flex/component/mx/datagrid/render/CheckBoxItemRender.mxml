@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer verticalCenter="0" focusEnabled="true" dataChange="mxdatagriditemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.Convert;
+
+			import mx.events.FlexEvent;
+
+
+			protected function checkbox1_changeHandler(event:MouseEvent):void
+			{
+				data[dataGridListData.dataField]=checkboxEditor.selected ? 1 : 0;
+				data["__ischeckboxchecked__"]=checkboxEditor.selected;
+				if (clickCallFunction)
+					clickCallFunction();
+			}
+
+			protected function mxdatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				checkboxEditor.selected=Convert.object2Boolean(data[dataGridListData.dataField]);
+			}
+
+			public function isMouseOnCheckBox(x:int, y:int):Boolean
+			{
+				var rect:Rectangle=checkboxEditor.getRect(this);
+				return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+			}
+
+			[Bindable]
+			public var clickCallFunction:Function=null;
+		]]>
+	</fx:Script>
+	<s:CheckBox id="checkboxEditor" width="14" height="14" horizontalCenter="0" verticalCenter="0" doubleClickEnabled="false" click="checkbox1_changeHandler(event)">
+	</s:CheckBox>
+</s:MXDataGridItemRenderer>

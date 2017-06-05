@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" xmlns:component="com.estudio.flex.module.component.*" gap="0">
+	<fx:Script>
+		<![CDATA[
+			import spark.components.Group;
+
+			public function getGroup(index:int):Group
+			{
+				var result:Group=[ownFilterToolbarContain1, ownFilterToolbarContain2, ownFilterToolbarContain3, ownFilterToolbarContain4, ownFilterToolbarContain5][index];
+				return result;
+			}
+
+			public function setFilterGroupVisible(vs:Array):void
+			{
+				for (var i:int=vs.length - 1; i >= 0; i--)
+				{
+					if (!vs[i])
+						this.removeElementAt(i);
+				}
+			}
+		]]>
+	</fx:Script>
+	<!-- 第一行 -->
+	<component:ToolbarGroup width="100%">
+		<s:HGroup id="ownFilterToolbarContain1" width="100%" height="100%" gap="2" paddingLeft="4" verticalAlign="middle">
+		</s:HGroup>
+		<s:Line left="0" bottom="0" width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke caps="square" color="0x606976" weight="1"/>
+			</s:stroke>
+		</s:Line>
+	</component:ToolbarGroup>
+
+	<!-- 第二行 -->
+	<component:ToolbarGroup width="100%">
+		<s:HGroup id="ownFilterToolbarContain2" width="100%" height="100%" gap="2" paddingLeft="4" verticalAlign="middle">
+		</s:HGroup>
+		<s:Line left="0" bottom="0" width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke caps="square" color="0x606976" weight="1"/>
+			</s:stroke>
+		</s:Line>
+	</component:ToolbarGroup>
+
+	<!-- 第三行 -->
+	<component:ToolbarGroup width="100%">
+		<s:HGroup id="ownFilterToolbarContain3" width="100%" height="100%" gap="2" paddingLeft="4" verticalAlign="middle">
+		</s:HGroup>
+		<s:Line left="0" bottom="0" width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke caps="square" color="0x606976" weight="1"/>
+			</s:stroke>
+		</s:Line>
+	</component:ToolbarGroup>
+
+	<!-- 第四行 -->
+	<component:ToolbarGroup width="100%">
+		<s:HGroup id="ownFilterToolbarContain4" width="100%" height="100%" gap="2" paddingLeft="4" verticalAlign="middle">
+		</s:HGroup>
+		<s:Line left="0" bottom="0" width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke caps="square" color="0x606976" weight="1"/>
+			</s:stroke>
+		</s:Line>
+	</component:ToolbarGroup>
+
+	<!-- 第五行 -->
+	<component:ToolbarGroup width="100%">
+		<s:HGroup id="ownFilterToolbarContain5" width="100%" height="100%" gap="2" paddingLeft="4" verticalAlign="middle">
+		</s:HGroup>
+		<s:Line left="0" bottom="0" width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke caps="square" color="0x606976" weight="1"/>
+			</s:stroke>
+		</s:Line>
+	</component:ToolbarGroup>
+</s:VGroup>

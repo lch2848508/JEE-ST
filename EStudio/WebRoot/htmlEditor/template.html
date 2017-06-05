@@ -1,0 +1,82 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>新闻公告后台维护系统</title>
+<style type="text/css">
+html {
+	font-family: "微软雅黑", "新宋体";
+	font-size: 12px;
+	font-weight: normal;
+	height: 100%;
+	width: 100%;
+	margin: 0px;
+	padding: 0px;
+}
+body {
+	font-family: "微软雅黑", "新宋体";
+	font-size: 12px;
+	font-weight: normal;
+	height: 100%;
+	width: 100%;
+	overflow: hidden;
+	margin: 0px;
+	padding: 0px;
+}
+form
+{
+	height: 100%;
+	width: 100%;
+}
+#richEditor
+{
+	height: 100%;
+	width: 100%;
+}
+</style>
+
+<script language="javascript" src="ckeditor/ckeditor.js">
+</script>
+</head>
+
+<body>
+<form action="../../" method="post" enctype="application/x-www-form-urlencoded">
+	<table width="100%" height="100%" style="table-layout:fixed; height:100%; height:100%; border-collapse:collapse" border="1" cellspacing="0" cellpadding="0">
+    <col width="80"/>
+    <col />
+    <col width="80"/>
+    <col/>
+  <tr height="30">
+    <td  colspan="4">&nbsp;</td>
+    </tr>
+  <tr height="30">
+    <td height="30" align="center">标题：</td>
+    <td colspan="3">&nbsp;</td>
+    </tr>
+  <tr height="30">
+    <td height="30" align="center">类型：</td>
+    <td>&nbsp;</td>
+    <td align="center" valign="middle">摘要：</td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr height="30">
+    <td height="30" align="center">时间：</td>
+    <td>&nbsp;</td>
+    <td align="center" valign="middle">来源：</td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr height="30">
+    <td height="30" align="center">作者：</td>
+    <td>&nbsp;</td>
+    <td align="center" valign="middle">&nbsp;</td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td colspan="4" valign="top">
+    <textarea name="richEditor"  class="ckeditor" rows="30" id="richEditor" style="height:100%"></textarea>      
+    </td>
+    </tr>
+</table>
+</form>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application creationComplete="application1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" minWidth="955" minHeight="600">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.collections.GroupingCollection;
+			import mx.collections.HierarchicalData;
+			import mx.events.FlexEvent;
+			var tempItems:Object={"r": true, "records": [{"children": [{"CAPTION": "项目前期业务", "DETAIL_URL": null, "LABEL": "项目信息", "ID": 230059.0}], "label": "项目前期业务"}, {"children": [{"CAPTION": "港口项目收集", "DETAIL_URL": null, "LABEL": "泊位信息收集", "ID": 232272.0}], "label": "港口项目收集"}, {"children": [{"CAPTION": "精准扶贫", "DETAIL_URL": null, "LABEL": "农村客运候车亭项目", "ID": 258838.0, "children": [{"label": "行政区分组", "fields": ["F1", "F2"]}]}, {"CAPTION": "精准扶贫", "DETAIL_URL": null, "LABEL": "危桥改造项目情况", "ID": 258839.0, "children": [{"label": "行政区分组", "fields": ["F1", "F2"]}, {"label": "危害类型分组", "fields": ["F11"]}, {"label": "建设性质分组", "fields": ["F14"]}]}, {"CAPTION": "精准扶贫", "DETAIL_URL": null, "LABEL": "窄路基路面拓宽改造项目情况", "ID": 258840.0, "children": [{"label": "行政区分组", "fields": ["F1", "F2"]}]}, {"CAPTION": "精准扶贫", "DETAIL_URL": null, "LABEL": "自然村公路路面硬化项目情况", "ID": 258841.0, "children": [{"label": "行政区分组", "fields": ["F2", "F3"]}]}], "label": "精准扶贫"}]};
+
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var data:GroupingCollection = new GroupingCollection();
+				data.source = tempItems.records.children;
+				combobox.dataProvider = new HierarchicalData(new ArrayCollection(tempItems.records));
+			}
+		]]>
+	</fx:Script>
+	<mx:ComboBox left="10" top="10" width="120" id="combobox" labelField="label" />
+</s:Application>

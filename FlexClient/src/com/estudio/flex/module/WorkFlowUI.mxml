@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.module.component.*" xmlns:component2="com.estudio.flex.component.*" width="100%" height="100%"
+		  implements="com.estudio.flex.common.InterfaceWorkFlowUI" creationComplete="eventModuleCreateCompleted(event)">
+	<fx:Style source="../client/MainForm.css"/>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<s:VGroup x="0" y="0" width="100%" height="100%" gap="0" id="topGroup">
+
+		<!-- 工具栏区域 -->
+		<s:BorderContainer width="100%" height="28" backgroundColor="0xDCEBFE" borderVisible="false" id="ToolbarUI">
+			<mx:LinkBar id="Toolbar" paddingTop="0" paddingBottom="0" itemClick="eventToolbarItemClick(event)" width="100%" left="0" top="0" toolTipField="hint" dataProvider="{_toolbarItems}" backgroundColor="0xDCEBFE" contentBackgroundAlpha=".1">
+			</mx:LinkBar>
+
+			<s:Line width="100%" height="0" left="0" bottom="0">
+				<s:stroke>
+					<s:SolidColorStroke color="0x606976" weight="1" caps="square"/>
+				</s:stroke>
+			</s:Line>
+		</s:BorderContainer>
+
+		<!-- 过滤器工具栏 -->
+		<s:BorderContainer width="100%" height="28" backgroundColor="0xDCEBFE" borderVisible="false" id="ToolbarFilter">
+			<s:HGroup gap="4" paddingLeft="2" x="0" paddingTop="-2" y="0" width="100%" height="100%" id="groupFilter" verticalAlign="middle">
+
+			</s:HGroup>
+			<s:Line width="100%" height="0" left="0" bottom="0">
+				<s:stroke>
+					<s:SolidColorStroke color="0x606976" weight="1" caps="square"/>
+				</s:stroke>
+			</s:Line>
+		</s:BorderContainer>
+
+		<!-- 数据列表区域 -->
+		<component:AdvancedDataGridWrap id="DataGridWrap" creationComplete="eventDataGridWrapCreateCompleted(event)">
+		</component:AdvancedDataGridWrap>
+
+		<!-- 分页区域 -->
+		<s:BorderContainer width="100%" height="30" backgroundColor="0xDCEBFE" borderVisible="false" id="PaginationUI">
+			<s:Line width="100%" height="0" left="0" top="0">
+				<s:stroke>
+					<s:SolidColorStroke color="0x606976" weight="1" caps="square"/>
+				</s:stroke>
+			</s:Line>
+			<component2:Pagination width="100%" height="26" left="0" top="2" id="Pagination">
+			</component2:Pagination>
+		</s:BorderContainer>
+
+
+	</s:VGroup>
+
+	<fx:Script source="WorkFlow4Utils.as">
+	</fx:Script>
+
+
+</s:Module>

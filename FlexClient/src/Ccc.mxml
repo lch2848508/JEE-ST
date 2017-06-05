@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" initialize="init()">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.collections.ArrayCollection;
+			import mx.controls.DataGrid;
+			import mx.events.ListEvent;
+			import mx.controls.ComboBox;
+			[Bindable]
+			private var dgDataArr:Array = [{name: "Jon", job: "officer"},
+				{name: "James", job: "seller"},
+				{name: "Jodon", job: "manager"}];
+			private function init():void
+			{
+				var dgData:ArrayCollection = new ArrayCollection(dgDataArr);
+				dgData.filterFunction
+				var dataGrid:DataGrid = new DataGrid();
+				dataGrid.x = 10;
+				dataGrid.y = 20;
+				dataGrid.editable = true;
+				dataGrid.percentWidth = 100;
+				dataGrid.setStyle("fontSize", 14);
+				dataGrid.styleName
+				dataGrid.dataProvider = dgData;
+				dataGrid.addEventListener(ListEvent.ITEM_CLICK, itemClickHandler);
+				addChild(dataGrid);
+				var columns:Array = new Array();
+				var col:DataGridColumn;
+				for ( var i:* in dgDataArr[0] ) {
+					col = new DataGridColumn(i);
+					if ( i == "name" ) col.editable = false;
+					if ( i == "job" ) {
+						var comboboxFactory:ClassFactory = new ClassFactory(ComboBox);
+						comboboxFactory.properties = { dataProvider: ["officer", "seller", "manager"], editable: true };
+						col.itemEditor = comboboxFactory;
+					}
+					columns.push(col);
+				}
+				dataGrid.columns = columns;
+			}
+			private function itemClickHandler(e:ListEvent):void
+			{
+				trace(e.target);
+			}
+		]]>
+	</mx:Script>
+</mx:Application>

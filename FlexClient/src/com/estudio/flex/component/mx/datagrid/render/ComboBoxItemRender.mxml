@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer focusEnabled="true" dataChange="mxdatagriditemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.module.FormDataService;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+
+			[Bindable]
+			public var dataProvider:ArrayCollection=null;
+
+			public var comboboxProperty:Object=null;
+
+			public var formDataService:FormDataService=null;
+
+			private function getLabel():String
+			{
+				var result:String="";
+				if (Convert.object2Boolean(comboboxProperty.FormDB))
+				{
+					if (StringUtils.isEmpty(comboboxProperty.displayFieldEx))
+					{
+						var dataProvider:ArrayCollection=formDataService.getArrayCollection(comboboxProperty.DataSource);
+						if (dataProvider == null)
+							dataProvider=new ArrayCollection([]);
+						var index:int=ArrayCollectionUtils.indexOf(dataProvider, comboboxProperty.valueField, data[dataGridListData.dataField]);
+						if (index != -1)
+							result=dataProvider.getItemAt(index)[comboboxProperty.displayField];
+					}
+					else //专门的字段
+					{
+						result=data[comboboxProperty.displayFieldEx];
+					}
+				}
+				else if (comboboxProperty.comboboxItems)
+				{
+					var dataProvider:ArrayCollection=new ArrayCollection(comboboxProperty.comboboxItems);
+					var index:int=ArrayCollectionUtils.indexOf(dataProvider, "Value", data[dataGridListData.dataField]);
+					if (index != -1)
+						result=dataProvider.getItemAt(index)["Display"];
+				}
+				return result;
+			}
+
+			protected function mxdatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				lblData.text=getLabel();
+			}
+		]]>
+	</fx:Script>
+	<s:Label id="lblData" left="1" right="1" top="1" bottom="1" paddingLeft="3" paddingRight="3" verticalAlign="middle"/>
+</s:MXDataGridItemRenderer>

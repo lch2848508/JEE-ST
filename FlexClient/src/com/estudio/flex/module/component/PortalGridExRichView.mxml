@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:PortalGridExControl creationComplete="portalgridexcontrol1_creationCompleteHandler(event)" currentState="view" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+							   xmlns:component="com.estudio.flex.module.component.*" width="100%" height="100%" xmlns:workflow="com.estudio.flex.module.component.workflow.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.utils.StringUtils;
+			import com.estudio.flex.utils.UIUtils;
+
+			import mx.controls.SWFLoader;
+			import mx.events.FlexEvent;
+			import mx.events.ModuleEvent;
+			import mx.managers.SystemManager;
+			[Bindable]
+			private var content:String="";
+
+			public override function resetCurrentState():void
+			{
+				this.currentState=readonly || controlParams.IsReadonly ? "view" : "editor";
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			override public function initParams(controlParams:Object):void
+			{
+				super.initParams(controlParams);
+				readonly=readonly || controlParams.IsReadonly;
+				this.currentState=readonly ? "view" : "editor";
+			}
+
+			/////////////////////////////////////////////////////////////////////
+			public function getText():String
+			{
+				var result:String=this.currentState == "view" ? content : textArea.htmlText;
+				return result;
+			}
+
+			public function setText(text:String):void
+			{
+				content=text;
+				if (textArea)
+					textArea.htmlText=content;
+			}
+
+			protected function textArea_creationCompleteHandler(event:FlexEvent):void
+			{
+
+				textArea.textArea.setStyle("focusThickness", 0);
+//				var sysFont:Array = Font.enumerateFonts(true);
+//				var fontNames:Array = [];
+//				for(var i:int=0;i<sysFont.length;i++)
+//				{
+//					fontNames.push(sysFont[i].fontName);
+//				}
+				textArea.fontFamilyArray=["YaHei Consolas Hybrid,微软雅黑", "宋体", "黑体", "楷体", "Courier New", "Tahoma"];
+			}
+
+			protected function portalgridexcontrol1_creationCompleteHandler(event:FlexEvent):void
+			{
+				_isCreateCompleted=true;
+			}
+		]]>
+	</fx:Script>
+	<component:states>
+		<s:State name="editor"/>
+		<s:State name="view"/>
+	</component:states>
+	<mx:RichTextEditor creationComplete="textArea_creationCompleteHandler(event)" width="100%" height="100%" minWidth="10" minHeight="10" dropShadowVisible="false" headerHeight="0" borderStyle="none" borderVisible="false" includeIn="editor" id="textArea" htmlText="{content}"/>
+
+	<mx:TextArea focusThickness="0" includeIn="view" htmlText="{content}" width="100%" height="100%" borderStyle="none" editable="false"/>
+
+</component:PortalGridExControl>

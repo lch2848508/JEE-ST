@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:DataGrid borderVisible="false" alternatingItemColors="{['0xFFFFFF']}" headerHeight="0" rowHeight="25" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			public var refreshDesktopContentFunction:Function=null;
+
+			public var portalName:String="待办业务";
+		]]>
+	</fx:Script>
+	<mx:columns>
+		<mx:DataGridColumn dataField="icon" width="16" textAlign="center">
+			<mx:itemRenderer>
+				<fx:Component>
+					<mx:Image verticalAlign="middle" width="12" height="12" verticalCenter="0" source="{data.icon}"/>
+				</fx:Component>
+			</mx:itemRenderer>
+		</mx:DataGridColumn>
+		<mx:DataGridColumn dataField="processCaption">
+			<mx:itemRenderer>
+				<fx:Component>
+					<mx:Label height="100%" click="label1_clickHandler(event)" verticalCenter="0" color="#0000FF" mouseChildren="false" useHandCursor="true" buttonMode="true">
+
+						<fx:Script>
+							<![CDATA[
+								import mx.core.FlexGlobals;
+								public var portalName:String="";
+
+								protected function label1_clickHandler(event:MouseEvent):void
+								{
+									FlexGlobals.topLevelApplication.executePortalFunction((owner as Object).portalName, "focusRecordByID", {id: data.id, callFunction: function():void
+									{
+										document.generateContent();
+									}});
+								}
+							]]>
+						</fx:Script>
+					</mx:Label>
+				</fx:Component>
+			</mx:itemRenderer>
+		</mx:DataGridColumn>
+		<mx:DataGridColumn dataField="remaidTime" width="25" textAlign="center"/>
+		<mx:DataGridColumn dataField="sendUser" width="80" />
+		<mx:DataGridColumn dataField="sendDate" width="120" textAlign="center"/>
+	</mx:columns>
+</mx:DataGrid>

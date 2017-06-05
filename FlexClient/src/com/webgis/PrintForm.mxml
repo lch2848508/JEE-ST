@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow title="打印当前地图" creationComplete="titlewindow1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:ns="http://www.esri.com/2008/ags" width="360" height="198" close="PopUpManager.removePopUp(this)">
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.events.PrintEvent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.layers.ArcGISDynamicMapServiceLayer;
+			import com.esri.ags.layers.ArcGISTiledMapServiceLayer;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.layers.Layer;
+			import com.esri.ags.layers.supportClasses.DynamicLayerInfo;
+			import com.esri.ags.layers.supportClasses.LayerDrawingOptions;
+			import com.esri.ags.layers.supportClasses.LayerMapSource;
+			import com.esri.ags.tasks.supportClasses.DataFile;
+			import com.esri.ags.tasks.supportClasses.JobInfo;
+			import com.esri.ags.tasks.supportClasses.LegendLayer;
+			import com.esri.ags.tasks.supportClasses.LegendOptions;
+			import com.esri.ags.tasks.supportClasses.ParameterValue;
+			import com.esri.ags.tasks.supportClasses.PrintServiceInfo;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.layer.TileDynamicMapServiceLayer;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+
+			private var hostMap:Map=null;
+			private var printServerUrl:String="";
+
+			private static var instance:PrintForm=null;
+
+			public static function execute(m:Map, url:String):void
+			{
+				if (instance == null)
+				{
+					instance=new PrintForm();
+					instance.hostMap=m;
+					instance.printServerUrl=url;
+				}
+				else
+					instance.map=m;
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(instance);
+			}
+
+			public function set map(m:Map):void
+			{
+				mapEx.removeAllLayers();
+				var legendOptions:LegendOptions=new LegendOptions();
+				var legendLayers:Array=[];
+
+				for (var i:int=0; i < m.layers.length; i++)
+				{
+					var sl:Layer=m.layers.getItemAt(i);
+					if (!sl.visible)
+						continue;
+					var st:Layer=cloneMapLayer(sl);
+					if (st != null)
+					{
+						mapEx.addLayer(st);
+						if (i != 0 && !(st is GraphicsLayer))
+						{
+							var legendLayer:LegendLayer=new LegendLayer();
+							legendLayer.layerId=st.id;
+							legendLayers.push(legendLayer);
+						}
+					}
+				}
+				legendOptions.legendLayers=legendLayers;
+				layoutOptions.legendOptions=legendOptions;
+				hostMap=m;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function cloneMapLayer(layer:Layer):Layer
+			{
+				var result:Layer=null;
+				if (layer is ArcGISTiledMapServiceLayer)
+				{
+					result=new ArcGISTiledMapServiceLayer(ArcGISTiledMapServiceLayer(layer).url);
+				}
+				else if (layer is ArcGISDynamicMapServiceLayer)
+				{
+					result=new ArcGISDynamicMapServiceLayer(ArcGISDynamicMapServiceLayer(layer).url);
+					ArcGISDynamicMapServiceLayer(result).visibleLayers=ArcGISDynamicMapServiceLayer(layer).visibleLayers;
+					ArcGISDynamicMapServiceLayer(result).dynamicLayerInfos=ArcGISDynamicMapServiceLayer(layer).dynamicLayerInfos;
+					ArcGISDynamicMapServiceLayer(result).layerDrawingOptions=ArcGISDynamicMapServiceLayer(layer).layerDrawingOptions;
+					ArcGISDynamicMapServiceLayer(result).layerDefinitions=ArcGISDynamicMapServiceLayer(layer).layerDefinitions;
+
+				}
+				else if (layer is TileDynamicMapServiceLayer)
+				{
+					result=new ArcGISDynamicMapServiceLayer(TileDynamicMapServiceLayer(layer).url);
+					if (TileDynamicMapServiceLayer(layer)._visibleLayers)
+						ArcGISDynamicMapServiceLayer(result).dynamicLayerInfos=MapLayerManager.createDynamicLayerInfos(TileDynamicMapServiceLayer(layer)._visibleLayers.source);
+					ArcGISDynamicMapServiceLayer(result).layerDrawingOptions=TileDynamicMapServiceLayer(layer).layerDrawingOptions;
+					ArcGISDynamicMapServiceLayer(result).layerDefinitions=TileDynamicMapServiceLayer(layer).layerDefinitions;
+				}
+				else if (layer is GraphicsLayer)
+				{
+					result=new GraphicsLayer();
+					for (var i:int=0; i < GraphicsLayer(layer).numGraphics; i++)
+					{
+						var g:Graphic=GraphicsLayer(layer).graphicProvider.getItemAt(i);
+						var ng:Graphic=new Graphic(Geometry.fromJSON(g.geometry.toJSON()), g.symbol);
+						GraphicsLayer(result).add(ng);
+					}
+				}
+				return result;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			private function isEmpty(array:Object):Boolean
+			{
+				return array == null || array.length == 0;
+			}
+
+			//打印结束后处理 
+			private function printTask_executeCompleteHandler(event:PrintEvent):void
+			{
+				var paramValue:ParameterValue=event.executeResult.results[0];
+				var dataFile:DataFile=paramValue.value as DataFile;
+				if (StringUtils.isEmpty(printTask.proxyURL))
+					navigateToURL(new URLRequest(dataFile.url));
+				else
+					navigateToURL(new URLRequest(printTask.proxyURL + "?" + dataFile.url));
+				//navigateToURL(new URLRequest(dataFile.url));
+				printButton.enabled=true;
+				labelStatus.text="打印完成.";
+			}
+
+			private function printTask_getResultDataCompleteHandler(event:PrintEvent):void
+			{
+				var dataFile:DataFile=event.parameterValue.value as DataFile;
+				if (StringUtils.isEmpty(printTask.proxyURL))
+					navigateToURL(new URLRequest(dataFile.url));
+				else
+					navigateToURL(new URLRequest(printTask.proxyURL + "?" + dataFile.url));
+				printButton.enabled=true;
+				labelStatus.text="打印完成.";
+			}
+
+			private function printTask_jobCompleteHandler(event:PrintEvent):void
+			{
+
+				var jobInfo:JobInfo=event.jobInfo;
+				if (jobInfo.jobStatus == JobInfo.STATUS_SUCCEEDED)
+				{
+					printTask.getResultData(jobInfo.jobId);
+				}
+				else
+				{
+					labelStatus.text="打印失败";
+				}
+				printButton.enabled=true;
+			}
+
+			//获取打印参数（模版和格式）
+			protected function printTask_getServiceInfoCompleteHandler(event:PrintEvent):void
+			{
+				var items:IList=event.serviceInfo.layoutTemplates;
+				for (var i:int=items.length - 1; i >= 0; i--)
+				{
+					if (items.getItemAt(i) == "MAP_ONLY")
+						items.removeItemAt(i);
+				}
+				cbTemplate.dataProvider=items;
+				if (cbTemplate.dataProvider.length != 0)
+				{
+					cbTemplate.selectedIndex=0;
+					cbTemplate.selectedItem=cbTemplate.dataProvider.getItemAt(0);
+					printButton.enabled=true;
+				}
+
+			}
+
+			//获取打印比例尺
+			private function printButton_exportWebMapClickHandler(event:MouseEvent):void
+			{
+				mapEx.width=hostMap.width;
+				mapEx.height=hostMap.height;
+				mapEx.extent=hostMap.extent;
+
+				layoutOptions.title=txtTitle.text;
+				printParameters.layoutTemplate=cbTemplate.selectedItem;
+				printParameters.format=cbFormat.selectedItem;
+				if (printTask.getServiceInfoLastResult.isServiceAsynchronous)
+				{
+					printTask.submitJob(printParameters);
+				}
+				else
+				{
+					printTask.execute(printParameters);
+				}
+				printButton.enabled=false;
+				labelStatus.text="已经发送打印命令，请耐心等待。";
+			}
+
+			protected function printTask_faultHandler(event:FaultEvent):void
+			{
+				labelStatus.text="打印失败.";
+				printButton.enabled=true;
+			}
+
+			protected function titlewindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				cbTemplate.textInput.editable=false;
+				cbFormat.textInput.editable=false;
+				printTask.proxyURL=flash.external.ExternalInterface.call("getWebGisProxyCache") + "/-65535/";
+				printTask.url=printServerUrl;
+				printTask.getServiceInfo();
+				this.map=this.hostMap;
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<ns:PrintTask method="POST" id="printTask" executeComplete="printTask_executeCompleteHandler(event)" fault="printTask_faultHandler(event)" getResultDataComplete="printTask_getResultDataCompleteHandler(event)"
+					  getServiceInfoComplete="printTask_getServiceInfoCompleteHandler(event)" jobComplete="printTask_jobCompleteHandler(event)" showBusyCursor="true"/>
+		<ns:PrintParameters id="printParameters" map="{mapEx}" format="PDF">
+			<ns:layoutOptions>
+				<ns:LayoutOptions id="layoutOptions"/>
+			</ns:layoutOptions>
+		</ns:PrintParameters>
+	</fx:Declarations>
+
+	<s:Group width="100%" height="100%">
+
+		<s:Label left="10" top="15" text="打印标题"/>
+		<s:TextInput id="txtTitle" top="10" right="10" left="70" text=""/>
+
+		<s:Label left="10" top="55" text="输出模版"/>
+		<s:ComboBox id="cbTemplate" top="50" right="10" left="70"/>
+
+
+		<s:Label left="10" top="95" text="输出格式"/>
+		<s:ComboBox selectedIndex="0" id="cbFormat" left="70" top="90" width="100" dataProvider="{new ArrayCollection(['PDF','PNG32'])}"/>
+
+		<s:Line left="1" right="1" height="0" bottom="40">
+			<s:stroke>
+				<s:SolidColorStroke color="#7B889C"/>
+			</s:stroke>
+		</s:Line>
+		<s:Label verticalAlign="middle" left="5" bottom="5" right="160" height="30" id="labelStatus"/>
+		<s:Button id="printButton" right="80" bottom="5" width="70" height="30" label="打印" enabled="false" click="printButton_exportWebMapClickHandler(event)"/>
+		<s:Button label="关闭" right="5" bottom="5" width="70" height="30" click="PopUpManager.removePopUp(this)"/>
+		<s:Group right="0" bottom="0" width="1" height="1">
+			<ns:Map id="mapEx" focusEnabled="false" enabled="false" alpha="0"/>
+		</s:Group>
+
+	</s:Group>
+
+
+</s:TitleWindow>

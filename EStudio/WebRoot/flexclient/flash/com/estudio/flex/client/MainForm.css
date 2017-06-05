@@ -1,0 +1,269 @@
+/* CSS file */
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+@namespace component "com.estudio.flex.component.*";
+@namespace flexlib "flexlib.controls.tabBarClasses.*";
+@namespace dataGridClasses "com.iwobanas.controls.dataGridClasses.*";
+/*********************************************************************************/
+global
+{
+    fontFamily:"YaHei Consolas Hybrid,微软雅黑,STXihei,宋体";
+	font-size:12;
+	modal-transparency-duration:0;
+	modal-transparency:0.4;
+	color:#000000; 	
+}
+
+/*********************************************************************************/
+s|List
+{
+	borderVisible: false;
+}
+/*********************************************************************************/
+mx|Accordion
+{
+	open-duration:0;
+}
+
+
+mx|AccordionHeader
+{
+	font-weight:bold;
+}
+
+/*********************************************************************************/
+mx|TabNavigator
+{
+	paddingTop: 0;
+}
+	
+mx|TabBar
+{
+	selected-tab-text-style-name:TabBarSelectedText;
+}
+
+.TabBarSelectedText
+{
+	font-weight:bold;
+}
+/***********************************************************************************/
+s|Button
+{
+	corner-radius:0;
+}
+
+mx|Button
+{
+	corner-radius:0;
+}
+
+s|Spinner
+{
+	corner-radius:0;
+}
+
+s|TileGroup
+{
+	font-size:12;
+}
+
+s|ComboBox
+{
+	corner-radius:0;
+	open-duration:0;
+	close-duration:0;
+	drop-shadow-visible:false;
+	border-visible:true;
+	border-color:#606976;
+	alternating-item-colors:#F5F5F5;
+	text-align:left;	
+	skinClass:ClassReference("com.estudio.flex.component.ComboBoxSkin4FixMinHeight")
+}
+
+s|TextInput
+{
+	focusThickness:0;
+}
+
+s|DropDownList
+{
+	corner-radius:0;
+	open-duration:0;
+	close-duration:0;
+	drop-shadow-visible:false;
+	border-visible:true;
+	border-color:#606976;
+	alternating-item-colors:#F5F5F5;
+	text-align:left;	
+}
+
+s|Label.GridHeadeerItemLabel
+{
+	paddingLeft: 3;
+	paddingRight: 3;
+	verticalAlign: middle;
+	line-break:explicit;
+}
+/**************************************************************************************/
+mx|DataGrid
+{
+	horizontal-grid-lines:true;
+	horizontal-grid-line-color:"0xE5E5E5";
+	vertical-grid-lines:true;
+	vertical-grid-line-color:"0xE5E5E5";
+	use-roll-over:false;
+	selection-duration:0;
+}
+/**************************************************************************************/
+mx|AdvancedDataGrid
+{
+	horizontal-grid-lines:true;
+	horizontal-grid-line-color:"0xE5E5E5";
+	vertical-grid-lines:true;
+	vertical-grid-line-color:"0xE5E5E5";
+	use-roll-over:false;
+	selection-duration:0;
+}
+/**************************************************************************************/
+mx|Tree
+{
+	disclosure-closed-icon:Embed(source='/assets/common/plus.png');
+	disclosure-open-icon:Embed(source='/assets/common/minus.png');
+	selection-duration:0;
+	use-roll-over:false;
+	open-duration:0;
+	border-visible:false;
+	use-roll-over:false;
+}
+
+
+s|TitleWindow
+{
+	corner-radius:0;
+}
+
+mx|ToolTip
+{
+	fontSize:12;
+	corner-radius:0;
+	background-alpha:1;
+	borderVisible:true;
+	borderStyle:solid;
+	dropShadowVisible:true;
+}
+
+mx|PopUpMenuButton
+{
+	corner-radius:0;
+	open-duration:0;
+	close-duration:0;
+}
+
+/**************************************************************************************/
+component|GroupBox
+{
+	skinClass: ClassReference("com.estudio.flex.style.GroupBoxSkin");   
+	cornerRadius: 0;   
+	borderColor: #606976;   
+	borderWeight: 1;   
+	dropShadowVisible: false; 
+	borderAlpha:1;
+}
+
+component|TextInputEx
+{
+	skinClass: ClassReference("com.estudio.flex.style.TextInputExSkin"); 
+}
+
+.datefieldEditor4GridItemRender
+{
+	border-color:#FF0000;
+}
+
+mx|Alert
+{
+	
+}
+
+.columnHeaderStyle_left
+{
+	textAlign:left;
+}
+
+.columnHeaderStyle_right
+{
+	textAlign:right;
+}
+
+.columnHeaderStyle_center
+{
+	textAlign:center;
+}
+
+
+flexlib|SuperTab{
+	tabCloseButtonStyleName:"SuperTabButtonStyle"; 
+	verticalGap:2;
+	textAlign:"left";
+}
+
+.SuperTabButtonStyle{
+	icon: Embed(source="/assets/common/close.png");
+}
+
+mx|Menu
+{
+	dropShadowVisible:false;
+}
+
+
+dataGridClasses|DropDownFilterEditorBase{
+	border-style:		solid;
+	background-alpha: 	1;
+	background-color:	white;
+	drop-shadow-enabled: true;
+	padding-bottom:		5;
+	padding-left:		5;
+	padding-right:		5;
+	padding-top:		5;
+}
+
+dataGridClasses|DropDownFilterHeaderRenderer{
+	padding-bottom:		0;
+	padding-left:		5;
+	padding-right:		0;
+	padding-top:		0;
+	horizontal-gap:		0;
+	vertical-align:		middle;
+	
+}
+.dataGridFilterButton{
+	padding-bottom:		4;
+	padding-left:		4;
+	padding-right:		4;
+	padding-top:		4;
+	/*icon:				Embed("assets/icons/filter.png");*/
+}
+
+.dataGridFilterButtonActive{
+	padding-bottom:		4;
+	padding-left:		4;
+	padding-right:		4;
+	padding-top:		4;
+	/*icon:				Embed("assets/icons/filter_active.png");*/
+}
+
+a:link { text-decoration: none;color: blue} 
+a:active { text-decoration:none}
+a:hover { text-decoration:none;color: red} 
+a:visited { text-decoration: none;color: green}
+
+mx|a:link { text-decoration: none;color: blue} 
+mx|a:active { text-decoration:none}
+mx|a:hover { text-decoration:none;color: red} 
+mx|a:visited { text-decoration: none;color: green}
+/*
+_tree.setStyle ("useRollOver", false);
+_tree.uration", 0);
+_tree.setStyle ("borderStyle", "none");
+*/

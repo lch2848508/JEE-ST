@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer focusEnabled="true" dataChange="mxdatagriditemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.component.FormGrid;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.events.FlexEvent;
+
+			[Bindable]
+			public var checkedValue:String="1";
+
+			[Bindable]
+			public var uncheckedValue:String="0";
+
+			[Binadble]
+			public var readonly:Boolean=false;
+
+			[Bindable]
+			public var cellValue:String="";
+
+			[Bindable]
+			public var formGrid:FormGrid=null;
+
+			////////////////////////////////////////////////////////////////////////////
+			protected function checkbox_clickHandler(event:MouseEvent):void
+			{
+				//this.checkbox.selected
+				data[dataGridListData.dataField]=cellValue=checkbox.selected ? checkedValue : uncheckedValue;
+				formGrid.checkRenderEditHookFunction(dataGridListData.dataField, cellValue);
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////
+			protected function mxdatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				checkbox.selected=Convert.object2Boolean(data[dataGridListData.dataField], false);
+				checkbox.enabled=getCheckBoxEnabled();
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			private function getCheckBoxEnabled():Boolean
+			{
+				return !formGrid.readonly;
+			}
+		]]>
+	</fx:Script>
+
+	<mx:CheckBox id="checkbox" enabled="{getCheckBoxEnabled()}" width="16" height="16" horizontalCenter="0" verticalCenter="0" doubleClickEnabled="false" click="checkbox_clickHandler(event)">
+	</mx:CheckBox>
+</s:MXDataGridItemRenderer>

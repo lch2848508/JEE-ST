@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer focusEnabled="true" dataChange="mxdatagriditemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.component.FormGrid;
+			import com.estudio.flex.module.FormDataService;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.JSFunUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+
+			import spark.events.IndexChangeEvent;
+
+			private var oldValue:String="";
+			[Bindable]
+			public var readonly:Boolean=false;
+
+			public var cellValue:String="";
+			public var comboboxProperty:Object=null;
+
+			public var formDataService:FormDataService=null;
+
+			public var grid:FormGrid=null;
+
+			////////////////////////////////////////////////////////////////////////////
+			protected function mxdatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				initDataProvider();
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			private function initDataProvider():void
+			{
+				var dataProvider:ArrayCollection=null;
+				if (Convert.object2Boolean(comboboxProperty.FormDB))
+				{
+					comboboxEditor.labelField=comboboxProperty.displayField;
+					var parentKeyValue:String="";
+					if (!StringUtils.isEmpty(comboboxProperty.parentField))
+						parentKeyValue=data[comboboxProperty.parentField];
+					dataProvider=dynamicLoadDataProvider4Combobox(comboboxProperty.DataSource, parentKeyValue, comboboxProperty.valueField, comboboxProperty.displayField);
+				}
+				else if (comboboxProperty.comboboxItems)
+				{
+					dataProvider=new ArrayCollection(comboboxProperty.comboboxItems);
+					comboboxProperty.valueField="Value";
+					comboboxProperty.displayField="Display";
+					comboboxEditor.labelField="Display";
+				}
+
+				//选定记录
+				if (dataProvider == null)
+					dataProvider=new ArrayCollection([]);
+				comboboxEditor.dataProvider=dataProvider;
+				var index:int=ArrayCollectionUtils.indexOf(dataProvider, comboboxProperty.valueField, data[dataGridListData.dataField]);
+				if (index != -1)
+				{
+					comboboxEditor.selectedIndex=index;
+					cellValue=data[dataGridListData.dataField];
+				}
+				else
+				{
+					comboboxEditor.selectedIndex=-1;
+					cellValue=null;
+				}
+				oldValue=cellValue;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			private function dynamicLoadDataProvider4Combobox(datasourceName:String, keyValue:String, valueFieldName:String, displayFieldName:String):ArrayCollection
+			{
+				return formDataService.dynamicLoadDataSetRecords4Combobox(datasourceName, keyValue, valueFieldName, displayFieldName, grid.formInstance.getFormParams());
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			public override function get text():String
+			{
+				var extValue:String=null;
+				if (comboboxEditor.selectedIndex > -1)
+				{
+					cellValue=comboboxEditor.selectedItem[comboboxProperty.valueField];
+					if (!StringUtils.isEmpty(comboboxProperty.displayFieldEx))
+					{
+						extValue=comboboxEditor.selectedItem[comboboxEditor.labelField];
+						formDataService.setDataSetValue(comboboxProperty.datasetName, comboboxProperty.displayFieldEx, extValue);
+					}
+				}
+				else
+				{
+					cellValue=null;
+					if (!StringUtils.isEmpty(comboboxProperty.displayFieldEx))
+						formDataService.setDataSetValue(comboboxProperty.datasetName, comboboxProperty.displayFieldEx, null);
+				}
+
+				grid.formInstance.setDataSetValue(comboboxProperty.datasetName, comboboxProperty.displayFieldEx, extValue, [this.grid]);
+				grid.formInstance.setDataSetValue(comboboxProperty.datasetName, comboboxProperty.dataField, cellValue, [this.grid]);
+
+				if (grid.resetRefComboboxColumns(dataGridListData.dataField, dataGridListData.columnIndex))
+					grid.grid.invalidateList();
+
+				//触发事件
+				grid.triggerChangeEvent(comboboxProperty.dataField, oldValue, cellValue);
+				oldValue=cellValue;
+				return cellValue;
+			}
+		]]>
+	</fx:Script>
+	<s:Rect left="1" right="1" top="1" bottom="1">
+	</s:Rect>
+	<s:ComboBox id="comboboxEditor" left="1" right="1" top="1" bottom="1" enabled="{!readonly}" skinClass="com.estudio.flex.style.ComboBoxExSkin">
+	</s:ComboBox>
+	<!--  -->
+</s:MXDataGridItemRenderer>

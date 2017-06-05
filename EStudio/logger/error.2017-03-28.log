@@ -1,0 +1,19 @@
+09:42:24 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:42:24 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:49:36 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 69, active 0, maxActive 50 
+09:49:36 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 72, active 0, maxActive 50 
+10:08:02 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+10:08:02 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+10:11:42 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+10:11:42 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 75, active 0, maxActive 50 
+10:14:19 - org.apache.catalina.connector.ClientAbortException: java.io.IOException 
+10:23:54 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 75, active 0, maxActive 50 
+10:23:54 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 71, active 0, maxActive 50 
+10:27:19 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 79, active 0, maxActive 50 
+10:27:19 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 79, active 0, maxActive 50 
+11:07:48 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+11:07:48 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+11:26:30 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+11:26:30 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+11:33:43 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 68, active 0, maxActive 50 
+11:33:43 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 72, active 0, maxActive 50 

@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module visible="false" creationComplete="module1_creationCompleteHandler(event)" implements="com.webgis.intf.MapWidgetIntf,com.webgis.intf.MapControlFavorite" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%" height="100%" xmlns:component="com.webgis.component.*">
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.ags.geometry.MapPoint;
+			import com.estudio.flex.component.InputTextForm;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.MapLayerManager;
+			import com.webgis.intf.MapControlFavorite;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			[Bindable]
+			private var mapInstance:Map=null;
+			[Bindable]
+			private var mapAppInstance:Object=null;
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//创建完成事件
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				widgetContainInstance.getFavoriteContain()["addElement"](this.owner);
+				this.visible=true;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+				widgetContainInstance.favorite=this;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function favoriteListClickHandler(event:MouseEvent):void
+			{
+				var item:Object=favoriteList.selectedItem;
+				if (item)
+					applyFavoriteConfig(item.config);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//添加收藏夹项
+			public function add():void
+			{
+				var str:String="";
+				InputTextForm.execute("请输入收藏标题",str, function(text:String):void
+				{
+					text=StringUtils.trim(text);
+					if (StringUtils.isEmpty(text))
+						return;
+					var config:Object=getFavoriteConfig();
+					mapServiceClientInstance.newMapFavorite(-1, 1, text, JSON.stringify(config), function(json:Object):void
+					{
+						favoriteList.dataProvider.addItemAt({caption: text, config: config, id: json.id}, 0);
+						favoriteList.selectedIndex=0;
+					});
+				});
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////
+			private function getFavoriteConfig():Object
+			{
+				var m:MapControl=map as MapControl;
+				var result:Object={};
+				result.level=m.level;
+				result.center=m.center;
+				result.layers=[];
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(m.mapLayerManager.getDynamicLayerTree(), list);
+				for (var i:int=0; i < list.length; i++)
+				{
+					var item:Object=list[i];
+					if (item.selected)
+						result.layers.push(item.id);
+				}
+				result.baseLayerIndex=m.baseMapIndex;
+				return result;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private function applyFavoriteConfig(config:*):void
+			{
+				if (map.loaded)
+				{
+					if (config is String)
+						config=JSON.parse(config);
+					var mapLayerManager:MapLayerManager=map.mapLayerManager;
+					var list:Array=[];
+					ArrayCollectionUtils.TreeData2List(mapLayerManager.getDynamicLayerTree(), list);
+					for (var i:int=0; i < list.length; i++)
+					{
+						var id:Number=list[i].id;
+						if (ArrayUtils.contain(config.layers, id))
+							list[i].selected=true;
+						else
+							list[i].selected=false;
+					}
+					mapLayerManager.switchDynamicLayerVisible(map as MapControl, null, "selected");
+					map.changeBaseMap(config.baseLayerIndex);
+					map.centerAt(new MapPoint(config.center.x, config.center.y));
+					map.level=config.level;
+				}
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var isLoadedFavorites:Boolean=false;
+
+			//获取收藏夹项目
+			public function getFavorites():void
+			{
+				if (isLoadedFavorites)
+					return;
+				isLoadedFavorites=true;
+				mapServiceClientInstance.getMapFavorite(function(json:Object):void
+				{
+					var records:Array=json.children;
+					if (!records)
+						records=[];
+					favoriteList.dataProvider=new ArrayCollection(records);
+				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			public function active():void
+			{
+				getFavorites();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//删除方案
+			public function deleteFavorite():void
+			{
+				var item:Object=favoriteList.selectedItem;
+				if (!item)
+					return;
+				AlertUtils.confirm("确定要删除选定的收藏方案?", function():void
+				{
+					mapServiceClient.deleteMapFavorite(item.id, function(json:Object):void
+					{
+						favoriteList.dataProvider.removeItemAt(favoriteList.selectedIndex);
+						favoriteList.invalidateDisplayList();
+						favoriteList.selectedIndex=0;
+					});
+				});
+			}
+
+			protected function toolbarbutton1_clickHandler(event:MouseEvent):void
+			{
+				var tag:String=event.currentTarget.tag;
+				if (tag == "add")
+					add();
+				else if (tag == "delete")
+					deleteFavorite();
+				else if (tag == "filter")
+					textinput1_enterHandler(null);
+			}
+
+			private function filterFunction(value:Object):Boolean
+			{
+				var cap:String=value.caption;
+				if (!StringUtils.isEmpty(filterStr) && !StringUtils.isEmpty(cap))
+					return cap.toLowerCase().indexOf(filterStr) != -1;
+				return true;
+			}
+
+			private var filterStr:String="";
+
+			protected function textinput1_enterHandler(event:FlexEvent):void
+			{
+				filterStr=StringUtils.trim(text.text).toLowerCase();
+				var list:ArrayCollection=favoriteList.dataProvider as ArrayCollection;
+				list.filterFunction=filterFunction;
+				list.refresh();
+				favoriteList.dataProvider=list;
+			}
+			
+			private var extParams:Object = null;
+			public function setParams(v:Object):void
+			{
+				this.extParams = v;
+			}
+		]]>
+	</fx:Script>
+	<s:BorderContainer width="100%" height="27" borderVisible="false" backgroundColor="#F4F7F8">
+		<s:HGroup gap="2" height="25" verticalAlign="middle" width="100%" paddingTop="2" paddingRight="2" paddingLeft="2" paddingBottom="2">
+			<s:Label text="条件" paddingTop="2"/>
+			<s:TextInput width="100%" verticalCenter="0" enter="textinput1_enterHandler(event)" id="text"/>
+			<component:ToolbarButton toolTip="过滤" click="toolbarbutton1_clickHandler(event)" width="22" height="22" tag="filter" icon="@Embed('/assets/common/search.png')"/>
+			<component:ToolbarButton toolTip="增加" click="toolbarbutton1_clickHandler(event)" width="22" height="22" tag="add" icon="@Embed('/assets/common/add.png')"/>
+			<component:ToolbarButton toolTip="删除" click="toolbarbutton1_clickHandler(event)" width="22" height="22" tag="delete" icon="@Embed('/assets/common/delete.png')"/>
+		</s:HGroup>
+		<s:Line width="100%" bottom="0" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#DDE1E5"/>
+			</s:stroke>
+		</s:Line>
+	</s:BorderContainer>
+
+	<s:List borderVisible="false" width="100%" doubleClickEnabled="false" click="favoriteListClickHandler(event)" height="100%" itemRenderer="com.webgis.module.favorite.FavoriteListItemRender" id="favoriteList"/>
+
+</s:Module>

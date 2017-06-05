@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application  backgroundColor="#EBF4FF" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="ext.component.*" creationComplete="creationComplete(event)" xmlns:ext="com.estudio.flex.ext.*">
+	<s:layout>
+		<s:HorizontalLayout gap="5">
+
+		</s:HorizontalLayout>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.datagridLink.LinkButtonDynamicEvent;
+			import com.datagridLink.UrlLinkRenderer;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+
+			[Bindable]
+			private var dbgwcount:Number=0;
+			[Bindable]
+			private var zhzfcount:Number=0;
+
+			[Bindable]
+			private var importanceRecords:Array=null;
+
+			[Bindable]
+			private var warningCaseList:Array=null;
+
+			[Bindable]
+			private var allCaseList:Array=null;
+
+			[Bindable]
+			private var systemUserName:String=FlexGlobals.topLevelApplication.loginRealname;
+
+			[Bindable]
+			private var systemUserDuty:String=FlexGlobals.topLevelApplication.loginDuty;
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////
+			private var studyHTMLContent:String="<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:lzwh/show-29-4472-1.html'>龙泉驿区国税局开展“清风相伴人生路”廉政演讲赛</a></font></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:lzwh/show-29-4728-1.html'>成都高新区开展廉政文化建设巡回宣传活动</a></font></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:lzwh/show-29-4738-1.html'>高新区：漫画宏廉洁　清风颂正气</a></font></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:lzwh/show-29-4813-1.html'>青羊：深入基层宣党风 面向群众话廉洁</a></font></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:zdjs/show-30-343-1.html'>我市创新公共资源交易监管体制</a></font></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:zdjs/show-30-345-1.html'>我市围绕中心工作 实施廉政风险专项防控</a></font></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:zdjs/show-30-346-1.html'>我市试行公共资源交易监督办法</a></font></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:zdjs/show-30-347-1.html'>公开+服务+监督 基层党风廉政建设模式创新</a></font></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:lzjy/show-28-358-1.html'>准确把握全面深化改革的目标任务——一论认真贯彻落实市委十二届三次全会精神</a></font></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:lzjy/show-28-359-1.html'>准确把握全面深化改革的路线设计——二论认真贯彻落实市委十二届三次全会精神</a></font></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:lzjy/show-28-361-1.html'>准确把握全面深化改革的核心牵引——三论认真贯彻落实市委十二届三次全会精神</a></font></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:lzjy/show-28-362-1.html'>准确把握全面深化改革的系统布局——四论认真贯彻落实市委十二届三次全会精神</a></font></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:ljcdxc/show-27-404-1.html'>我市将集中展播廉政公益广告</a></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:ljcdxc/show-27-462-1.html'>我市全面启动“纪委书记下基层”活动 </a></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:ljcdxc/show-27-464-1.html'>成都市纪委监察局首次举行开放日</a></textformat>\n" + //
+				"<textformat leftmargin='10' leading='6'><font color='#0000FF' size='12'><a href='event:ljcdxc/show-27-465-1.html'>我市纪检监察系统扎实开展“纪委书记下基层”活动</a></textformat>";
+
+			//读取文件数据
+			public function generateContent():void
+			{
+				var url:String="../client/MyDesktopServlet";
+				AjaxUtils.postData(url, {}, function(data:String, token:Object):void
+				{
+					var json:Object=null;
+					if (!(json=JSON.parse(data)) || !json.r)
+						return;
+					generateDutyInfo(json);
+					datagridCommonCase.dataProvider=json.commonCaseList;
+					allCaseList=json.allCaseList;
+					datagridNews.dataProvider=json.newMessages;
+					importanceRecords=json.importanceMessage;
+					warningCaseList=json.warningCaseList;
+				});
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//生成部门职务信息
+			private function generateDutyInfo(json:Object):void
+			{
+				var htmlContent:String="";
+
+				var htmlContent:String="<textformat leftmargin='6' rightmargin='4' leading='6'>";
+				//htmlContent += "<textformat leftmargin='10' leading='6'><font color='#0000FF' size='14'><b>部门职责</b></font><br>" + StringUtils.str2HTML(StringUtils.trim(json.department.duty)) + "</textformat><br>";
+				for (var i:int=0; i < json.roles.length; i++)
+				{
+					var roleInfo:Object=json.roles[i];
+					if (StringUtils.isEmpty(roleInfo.duty))
+						continue;
+					htmlContent+="<textformat leftmargin='10' leading='6'>" + StringUtils.getHTMLContent(roleInfo.name + (StringUtils.isEmpty(roleInfo.level) ? "" : "  风险等级:" + roleInfo.level), "#FF0000", "14", true) + "</textformat><br>";
+					if (!StringUtils.isEmpty(roleInfo.duty))
+						htmlContent+="<textformat leftmargin='20' leading='6'>" + StringUtils.getHTMLContent("工作职责:", "#0000FF", "12", true) + "<br><textformat leftmargin='30' leading='6'>" + StringUtils.str2HTML(StringUtils.trim(roleInfo.duty)) + "</textformat></textformat><br>";
+					if (!StringUtils.isEmpty(roleInfo.risk))
+						htmlContent+="<textformat leftmargin='20' leading='6'>" + StringUtils.getHTMLContent("廉政风险:", "#0000FF", "12", true) + "<br><textformat leftmargin='30' leading='6'>" + StringUtils.str2HTML(StringUtils.trim(roleInfo.risk)) + "</textformat></textformat><br>";
+					if (!StringUtils.isEmpty(roleInfo.control))
+						htmlContent+="<textformat leftmargin='20' leading='6'>" + StringUtils.getHTMLContent("防控措施:", "#0000FF", "12", true) + "<br><textformat leftmargin='30' leading='6'>" + StringUtils.str2HTML(StringUtils.trim(roleInfo.control)) + "</textformat></textformat><br>";
+				}
+				htmlContent+="</textformat>";
+
+				dutyInfo.htmlText=htmlContent;
+			}
+
+			private var dataGridColumns0:Array=new Array();
+			private var dataGridColumns1:Array=new Array();
+			private var dataGridColumns2:Array=new Array();
+			private var dataGridColumns3:Array=new Array();
+
+			//待办事项
+			private var queryDataGridColumns0:ArrayCollection=new ArrayCollection([{headerText: "编号", dataField: "ID", width: '50', linkable: true}, {headerText: "标题", dataField: "Process_Name", width: '250', linkable: true}, {headerText: "发布人", dataField: "Process_Caption", width: '100', linkable: false}, {headerText: "发布时间", dataField: "Create_Date", width: '80', linkable: false}]);
+
+			//通知公告
+			private var queryDataGridColumns1:ArrayCollection=new ArrayCollection([{headerText: "编号", dataField: "ID", width: '50', linkable: true}, {headerText: "标题", dataField: "BT", width: '250', linkable: true}, {headerText: "发布人", dataField: "FBR", width: '100', linkable: false}, {headerText: "发布时间", dataField: "FBSJ", width: '80', linkable: false}]);
+			//廉政教育 IID ,ZLMC 资料名称,CJSJ 创建时间,CJRID 创建人ID 
+			private var queryDataGridColumns3:ArrayCollection=new ArrayCollection([{headerText: "编号", dataField: "ID", width: '50', linkable: true}, {headerText: "资料名称", dataField: "ZLMC", width: '250', linkable: true}, {headerText: "发布人", dataField: "REALNAME", width: '100', linkable: false}, {headerText: "发布时间", dataField: "CJSJ", width: '100', linkable: false}]);
+
+			private function preinit():void
+			{
+			}
+
+			private function creationComplete(event:FlexEvent):void
+			{
+				generateContent();
+				//createDataGrid();
+				//this.addEventListener("DataGridLinkButtonClickEvent", linkButtonClickHander);
+				WinQuestion.execute();
+			}
+
+
+			private function createDataGrid():void
+			{
+				//datagrid0.columns=dataGridColumns0;
+				//datagrid1.columns=dataGridColumns1;
+				//datagrid3.columns=dataGridColumns3;
+				//this.addElement(datagrid1);
+			}
+
+			private function linkButtonClickHander(event:LinkButtonDynamicEvent):void
+			{
+				Alert.show(event.rowObject.ID);
+			}
+
+			protected function textarea1_linkHandler(event:TextEvent):void
+			{
+				var url:String=event.text;
+				flash.net.navigateToURL(new flash.net.URLRequest("../ext/" + url), "news");
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+
+	<s:VGroup width="100%" height="100%" gap="5">
+		<ext:PanelStyleGroup width="100%" height="100%">
+			<s:NavigatorContent label="待办业务" width="100%" height="100%">
+				<ext:DataGrid4Case refreshDesktopContentFunction="generateContent" width="100%" height="100%" id="datagridCommonCase"/>
+			</s:NavigatorContent>
+		</ext:PanelStyleGroup>
+
+		<ext:PanelStyleGroup width="100%" height="100%">
+			<mx:ViewStack width="100%" height="100%" selectedIndex="0">
+				<s:NavigatorContent label="新闻公告" width="100%" height="100%">
+					<mx:DataGrid id="datagridNews" width="100%" height="100%" borderVisible="false" headerHeight="0" rowHeight="25" alternatingItemColors="{['0xFFFFFF']}">
+						<mx:columns>
+							<mx:DataGridColumn dataField="CAPTION">
+								<mx:itemRenderer>
+									<fx:Component>
+										<mx:Label click="label2_clickHandler(event)" mouseChildren="false" buttonMode="true" useHandCursor="true" color="0x0000FF" paddingLeft="4">
+											<fx:Script>
+												<![CDATA[
+													protected function label2_clickHandler(event:MouseEvent):void
+													{
+														var url:String="../ext/viewnews.jsp?id=" + data.ID + "&type=0";
+														flash.net.navigateToURL(new flash.net.URLRequest(url), "_news_");
+													}
+												]]>
+											</fx:Script>
+										</mx:Label>
+
+									</fx:Component>
+								</mx:itemRenderer>
+							</mx:DataGridColumn>
+							<mx:DataGridColumn dataField="LX" textAlign="center" width="60"/>
+							<mx:DataGridColumn width="90" dataField="FBSJ" textAlign="center"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</s:NavigatorContent>
+
+
+				<s:NavigatorContent label="三重一大" width="100%" height="100%">
+					<mx:DataGrid dataProvider="{importanceRecords}" id="datagridImportanceNews" width="100%" height="100%" borderVisible="false" headerHeight="0" rowHeight="25" alternatingItemColors="{['0xFFFFFF']}">
+						<mx:columns>
+							<mx:DataGridColumn dataField="CAPTION">
+								<mx:itemRenderer>
+									<fx:Component>
+										<mx:Label mouseChildren="false" buttonMode="true" useHandCursor="true" color="0x0000FF" paddingLeft="4" click="label1_clickHandler(event)">
+											<fx:Script>
+												<![CDATA[
+													import flash.net.navigateToURL;
+
+													protected function label1_clickHandler(event:MouseEvent):void
+													{
+														var url:String="../ext/viewnews.jsp?id=" + data.ID + "&type=1";
+														flash.net.navigateToURL(new flash.net.URLRequest(url), "_news_");
+													}
+												]]>
+											</fx:Script>
+										</mx:Label>
+									</fx:Component>
+								</mx:itemRenderer>
+							</mx:DataGridColumn>
+							<mx:DataGridColumn width="90" dataField="SJ" textAlign="center"/>
+						</mx:columns>
+					</mx:DataGrid>
+				</s:NavigatorContent>
+
+
+				<s:NavigatorContent label="廉政教育" width="100%" height="100%">
+					<mx:TextArea link="textarea1_linkHandler(event)" htmlText="{studyHTMLContent}" focusThickness="0" width="100%" height="100%" editable="false" dropShadowVisible="false" borderVisible="false"/>
+
+				</s:NavigatorContent>
+
+			</mx:ViewStack>
+		</ext:PanelStyleGroup>
+
+
+	</s:VGroup>
+	<s:VGroup width="100%" height="100%" gap="5">
+		<ext:PanelStyleGroup width="100%" height="100%">
+			<mx:ViewStack width="100%" height="100%" selectedIndex="0">
+				<s:NavigatorContent label="工作监控" width="100%" height="100%">
+					<ext:DataGrid4Case portalName="综合业务监控" width="100%" height="100%" id="datagridAllCaseList" dataProvider="{allCaseList}"/>
+				</s:NavigatorContent>
+				<s:NavigatorContent label="风险预警" width="100%" height="100%">
+					<ext:DataGrid4Case portalName="综合业务监控" dataProvider="{warningCaseList}" width="100%" height="100%"/>
+				</s:NavigatorContent>
+			</mx:ViewStack>
+		</ext:PanelStyleGroup>
+
+		<s:BorderContainer width="100%" height="100%">
+			<s:layout>
+				<s:VerticalLayout gap="0"/>
+			</s:layout>
+			<s:Group width="100%" height="30" id="headerGroup">
+				<s:Rect width="100%" height="100%">
+					<s:fill>
+						<s:LinearGradient rotation="90">
+							<s:GradientEntry color="#F3FEFF"/>
+							<s:GradientEntry color="#EBF8FF"/>
+							<s:GradientEntry color="#F3FEFF"/>
+						</s:LinearGradient>
+					</s:fill>
+				</s:Rect>
+				<s:HGroup paddingLeft="3" fontWeight="bold" height="100%" id="navigatorLableContain" verticalAlign="middle">
+					<s:Image source="@Embed('/assets/common/users.png')"/>
+					<s:Label text="欢迎您:"/>
+					<s:Label text="{systemUserName}"/>
+					<s:Label text="{StringUtils.replace(systemUserDuty,'null','')}"/>
+				</s:HGroup>
+			</s:Group>
+			<s:Line id="line" width="100%" height="0">
+				<s:stroke>
+					<s:SolidColorStroke color="#D2DFF3"/>
+				</s:stroke>
+			</s:Line>
+
+			<mx:TextArea id="dutyInfo" focusThickness="0" width="100%" height="100%" editable="false" dropShadowVisible="false" borderVisible="false"/>
+
+		</s:BorderContainer>
+	</s:VGroup>
+</s:Application>

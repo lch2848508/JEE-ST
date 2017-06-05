@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:AdvancedDataGridGroupItemRenderer verticalCenter="0" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" dataChange="advanceddatagridgroupitemrenderer1_dataChangeHandler(event)"
+									  creationComplete="advanceddatagridgroupitemrenderer1_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+
+			protected function advanceddatagridgroupitemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				listData.label=listData.label;// + " (总数:" + data.children.length + ")";
+			}
+
+			protected function advanceddatagridgroupitemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.setStyle("fontWeight", "bold");
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+</mx:AdvancedDataGridGroupItemRenderer>

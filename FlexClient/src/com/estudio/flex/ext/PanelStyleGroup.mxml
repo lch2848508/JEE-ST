@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer creationComplete="bordercontainer1_creationCompleteHandler(event)" initialize="bordercontainer1_initializeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.components.Navigation;
+			import com.estudio.flex.component.ToolbarVertline;
+			
+			import mx.containers.ViewStack;
+			import mx.controls.Label;
+			import mx.controls.VRule;
+			import mx.events.FlexEvent;
+			
+			import spark.components.NavigatorContent;
+
+			protected function bordercontainer1_initializeHandler(event:FlexEvent):void
+			{
+				this.addElementAt(headerGroup, 0);
+				this.addElementAt(line, 1);
+			}
+
+			//////////////////////////////////////////////////////////////////////////
+			private var viewStack:ViewStack=null;
+
+			protected function bordercontainer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				for (var i:int=0; i < this.numElements; i++)
+				{
+					var element:Object=this.getElementAt(i);
+					if (element is ViewStack)
+					{
+						viewStack=element as ViewStack;
+						for (var j:int=0; j < viewStack.numElements; j++)
+							createNavigatorLabel(viewStack.getElementAt(j));
+					}
+					else if (element is NavigatorContent)
+					{
+						createNavigatorLabel(element);
+					}
+				}
+			}
+			//////////////////////////////////////////////////////////////////////
+			private var label2NavigatorContain:Object={};
+
+			//////////////////////////////////////////////////////////////////////
+			private function createNavigatorLabel(element:Object):void
+			{
+				var isFirst:Boolean = true;
+				if (navigatorLableContain.numElements != 0)
+				{
+					var role:VRule=new VRule();
+					role.height=12;
+					navigatorLableContain.addElement(role);
+					isFirst = false;
+				}
+				var label:Label=new Label();
+				label.setStyle("fontWeight", "bold");
+				label.setStyle("color",isFirst?"0x1E8AE5":"#000000");
+				label.text=element.label;
+				label.mouseChildren=false;
+				label.buttonMode=true;
+				label.useHandCursor=true;
+				label.addEventListener(MouseEvent.CLICK, function(event:Event):void
+				{
+					if (viewStack != null)
+					{
+						viewStack.selectedChild=label2NavigatorContain[event.currentTarget];
+						event.currentTarget.setStyle("fontSize","12");
+						event.currentTarget.setStyle("color","0x1E8AE5");
+						for(var i:int=0;i<navigatorLableContain.numElements;i++)
+						{
+							var e:Object = navigatorLableContain.getElementAt(i);
+							if(e is Label && e!=event.currentTarget)
+								e.setStyle("color","0x000000");
+						}
+					}
+				});
+				navigatorLableContain.addElement(label);
+				label2NavigatorContain[label]=element;
+			}
+			///////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:Group width="100%" height="30" id="headerGroup">
+			<s:Rect width="100%" height="100%">
+				<s:fill>
+					<s:LinearGradient rotation="90">
+						<s:GradientEntry color="#F3FEFF"/>
+						<s:GradientEntry color="#EBF8FF"/>
+						<s:GradientEntry color="#F3FEFF"/>
+					</s:LinearGradient>
+				</s:fill>
+			</s:Rect>
+			<s:HGroup paddingLeft="3" height="100%" id="navigatorLableContain" verticalAlign="middle">
+
+			</s:HGroup>
+		</s:Group>
+		<s:Line id="line" width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#D2DFF3"/>
+			</s:stroke>
+		</s:Line>
+	</fx:Declarations>
+</s:BorderContainer>

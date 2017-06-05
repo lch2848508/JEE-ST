@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer height="25" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" autoDrawBackground="true">
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.listClasses.ListData;
+		]]>
+	</fx:Script>
+	<s:Label text="{data}" height="100%" verticalAlign="middle" paddingTop="3" color="{!ListData.geometry? 0xCCCCCC:0x000000}"/>
+</s:ItemRenderer>

@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				xmlns:esri="http://www.esri.com/2008/ags"
+				width="100%" height="100%"
+				close="PopUpManager.removePopUp(this)">
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.ags.events.PrintEvent;
+			import com.esri.ags.tasks.supportClasses.DataFile;
+			import com.esri.ags.tasks.supportClasses.JobInfo;
+			import com.esri.ags.tasks.supportClasses.ParameterValue;
+			import com.esri.ags.tasks.supportClasses.PrintServiceInfo;
+			import com.esri.ags.tasks.supportClasses.LegendOptions;
+			import com.esri.ags.tasks.supportClasses.LegendLayer;
+			
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import com.esri.ags.layers.*;
+			
+			[Bindable]          
+			public  var  map:Map;
+			
+			//打印结束后处理 
+			private function printTask_executeCompleteHandler(event:PrintEvent):void
+			{
+				var paramValue:ParameterValue = event.executeResult.results[0];
+				var dataFile:DataFile = paramValue.value as DataFile;
+				navigateToURL(new URLRequest(dataFile.url));
+			}
+			
+			private function printTask_getResultDataCompleteHandler(event:PrintEvent):void
+			{
+				
+				var dataFile:DataFile = event.parameterValue.value as DataFile;
+				navigateToURL(new URLRequest(dataFile.url));
+			}
+			
+			private function printTask_jobCompleteHandler(event:PrintEvent):void
+			{
+				
+				var jobInfo:JobInfo = event.jobInfo;
+				if (jobInfo.jobStatus == JobInfo.STATUS_SUCCEEDED)
+				{
+					printTask.getResultData(jobInfo.jobId);
+				}
+				else
+				{
+					Alert.show(jobInfo.jobStatus);
+				}
+			}
+			
+			//获取打印参数（模版和格式）
+			protected function printTask_getServiceInfoCompleteHandler(event:PrintEvent):void
+			{                
+				initLayoutTemplates(event.serviceInfo);
+				initFormats(event.serviceInfo);
+				printButton.enabled = true;
+			}
+			
+			//获得所有支持的打印格式
+			private function initFormats(serviceInfo:PrintServiceInfo):void
+			{
+				var formatsVisibility:Boolean = true;
+				var formats:IList = serviceInfo.formats;
+				formatsDDL.selectedItem = serviceInfo.defaultFormat;
+			}
+			
+			//获得所有模版
+			private function initLayoutTemplates(serviceInfo:PrintServiceInfo):void
+			{
+				var layoutTemplatesVisibility:Boolean = true;                                
+				layoutTemplatesFI.label = "模版";        
+				var layoutTemplates:IList = serviceInfo.layoutTemplates;                
+				layoutTemplatesDDL.selectedItem = serviceInfo.defaultLayoutTemplate;
+			}
+			
+			
+			//获取打印比例尺
+			private function printButton_exportWebMapClickHandler(event:MouseEvent):void
+			{
+				layoutOptions.title = txtTitle.text;
+				
+				layoutOptions.legendOptions = getLegendOptions();
+				
+				var oldscale:Number;
+				var oldLODs:Array;
+				if (scaleCheckbox.selected)
+				{
+					oldscale =map.scale;
+					oldLODs = map.lods;
+					
+					map.lods = null; //prevent LOD snapping
+					map.scale = Number(scaleInput.text);
+				}
+				
+				if (printTask.getServiceInfoLastResult.isServiceAsynchronous)
+				{
+					printTask.submitJob(printParameters);
+				}
+				else
+				{
+					printTask.execute(printParameters);
+				}
+				
+				if (scaleCheckbox.selected)
+				{
+					map.scale = oldscale;
+					map.lods = oldLODs;
+				}
+			}
+			
+			private function getLegendOptions():LegendOptions
+			{
+				var result:LegendOptions = new LegendOptions();
+				var legendLayers:Array = [];
+				
+				for each (var layer:Layer in map.layers)
+				{
+					if (layer.name.indexOf("hiddenLayer_") == -1 && !(layer is GraphicsLayer && !(layer is FeatureLayer)))
+					{                        
+						var legendLayer:LegendLayer = new LegendLayer();
+						legendLayer.layerId = layer.id;
+						legendLayers.push(legendLayer);                        
+					}
+				}
+				result.legendLayers = legendLayers;
+				return result;
+			}
+			
+			protected function printTask_faultHandler(event:FaultEvent):void
+			{
+				
+				Alert.show(event.fault.toString());
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<esri:PrintTask id="printTask" url="http://192.168.10.3:6080/arcgis/rest/services/GDS/ExportWebMap_01/GPServer"    
+						executeComplete="printTask_executeCompleteHandler(event)"
+						fault="printTask_faultHandler(event)"
+						getResultDataComplete="printTask_getResultDataCompleteHandler(event)"
+						getServiceInfoComplete="printTask_getServiceInfoCompleteHandler(event)"
+						jobComplete="printTask_jobCompleteHandler(event)"
+						showBusyCursor="true"/>
+		<esri:PrintParameters id="printParameters"
+							  format="{formatsDDL.selectedItem}"
+							  layoutTemplate="{layoutTemplatesDDL.selectedItem}"
+							  map="{map}"
+							  preserveScale="{scaleCheckbox.selected}">
+			<esri:layoutOptions>
+				<esri:LayoutOptions id="layoutOptions"/>
+			</esri:layoutOptions>
+		</esri:PrintParameters>
+	</fx:Declarations>
+	
+	<mx:FormItem id="titleFI"  width="100%" label="标题" >                
+		<s:TextInput id="txtTitle"  width="100%"  text="请输入标题"/>                
+	</mx:FormItem>
+	<mx:FormItem id="layoutTemplatesFI"  includeInLayout="true" width="100%" label="模版"  visible="true">                
+		<s:DropDownList id="layoutTemplatesDDL" width="175"     
+						dataProvider="{printTask.getServiceInfoLastResult.layoutTemplates}"
+						requireSelection="true"/>                            
+	</mx:FormItem>
+	<mx:FormItem id="formatsFI"  width="100%" label="格式"  visible="true">            
+		<s:DropDownList id="formatsDDL"   dataProvider="{printTask.getServiceInfoLastResult.formats}"    width="100" requireSelection="true"/>                    
+	</mx:FormItem>
+	<s:HGroup id="scaleFI"
+			  width="100%"
+			  horizontalAlign="center"
+			  visible="true">
+		<s:CheckBox id="scaleCheckbox" label="打印比例尺"/>
+		<s:TextInput id="scaleInput"
+					 width="100%"  
+					 enabled="{scaleCheckbox.selected}"
+					 restrict="0-9"/>
+	</s:HGroup>
+	<s:HGroup width="100%" horizontalAlign="center" >
+		<s:Button id="printButton" label="打印"      click="printButton_exportWebMapClickHandler(event)"         
+				  enabled="false"/>
+	</s:HGroup>
+</mx:TitleWindow>

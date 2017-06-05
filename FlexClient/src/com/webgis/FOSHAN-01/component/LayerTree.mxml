@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Tree itemRenderer="com.webgis.component.LayerTreeItemRender" creationComplete="tree1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.webgis.MapLayerManager;
+			import com.webgis.map.MapControl;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			public var selectedFieldName:String="selected";
+			public var map:MapControl=null;
+			private var mapLayerManagerInstance:MapLayerManager=null;
+			public var checkEnabled:Boolean = true;
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function set mapLayerManager(value:MapLayerManager):void
+			{
+				mapLayerManagerInstance=value;
+				dataProvider=new ArrayCollection(value.getDynamicLayerTree());
+				invalidateList();
+				validateNow();
+				callLater(function():void
+				{
+					expandItem(ArrayCollection(dataProvider).source[0], true);
+				});
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function get mapLayerManager():MapLayerManager
+			{
+				return mapLayerManagerInstance;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function switchDynamicLayerVisible(data:Object, selectedFieldName:String):void
+			{
+				mapLayerManager.switchDynamicLayerVisible(map, data, selectedFieldName);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			protected function tree1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var contextMenu:ContextMenu=new ContextMenu();
+				contextMenu.hideBuiltInItems();
+				var menuItems:Array=["展开所有图层","缩回所有图层", "只选择此图层", "只选择同目录下的图层", "取消选择此目录下的图层"];
+				for (var i:int=0; i < menuItems.length; i++)
+				{
+					var menuItem:ContextMenuItem=new ContextMenuItem(menuItems[i]);
+					menuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4ContextMenuItem);
+					contextMenu.customItems.push(menuItem);
+				}
+				this.contextMenu=contextMenu;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			private function event4ContextMenuItem(event:ContextMenuEvent):void
+			{
+				var item:Object=this.selectedItem;
+				if (!item)
+					return;
+
+				var menuItem:ContextMenuItem=event.currentTarget as ContextMenuItem;
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(dataProvider.source, list);
+				if (menuItem.caption == "展开所有图层")
+				{
+					expandChildrenOf(dataProvider.source[0], true);
+				}
+				else if (menuItem.caption == "缩回所有图层")
+				{
+					expandChildrenOf(dataProvider.source[0], false);
+					expandItem(dataProvider.source[0], true);
+				}
+				else if (menuItem.caption == "只选择此图层")
+				{
+					for (var i:int=0; i < list.length; i++)
+					{
+						var treeItem:Object=list[i];
+						if (treeItem != item)
+							treeItem[selectedFieldName]=false;
+					}
+					item[selectedFieldName]=true;
+					invalidateList();
+					switchDynamicLayerVisible(null, selectedFieldName);
+				}
+				else if (menuItem.caption == "只选择同目录下的图层")
+				{
+					var pItem:Object=getParentItem(item);
+					if (pItem == null)
+						return;
+					var subList:Array=[];
+					ArrayCollectionUtils.TreeData2List(pItem.children, subList);
+					for (var i:int=0; i < list.length; i++)
+					{
+						var treeItem:Object=list[i];
+						if (!ArrayUtils.contain(subList, treeItem))
+							treeItem[selectedFieldName]=false;
+					}
+					invalidateList();
+					switchDynamicLayerVisible(null, selectedFieldName);
+				}
+				else if (menuItem.caption == "取消选择此目录下的图层")
+				{
+					if (!item.children)
+						return;
+					var subList:Array=[];
+					ArrayCollectionUtils.TreeData2List(item.children, subList);
+					for (var i:int=0; i < subList.length; i++)
+					{
+						subList[i][selectedFieldName]=false;
+					}
+					invalidateList();
+					switchDynamicLayerVisible(null, selectedFieldName);
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+</mx:Tree>

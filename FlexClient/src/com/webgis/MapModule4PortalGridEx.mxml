@@ -1,0 +1,850 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module currentState="min" currentStateChange="module1_currentStateChangeHandler(event)" creationComplete="module1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+		  xmlns:map="com.webgis.map.*" xmlns:navigator="com.webgis.module.navigator.*" xmlns:component="com.webgis.component.*" xmlns:ns="http://www.esri.com/2008/ags" width="100%" height="100%">
+	<fx:Style source="MapApp.css"/>
+
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.events.MapMouseEvent;
+			import com.esri.ags.events.ZoomEvent;
+			
+			import flash.utils.setTimeout;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.StateChangeEvent;
+
+			protected function map_zoomEndHandler(event:ZoomEvent):void
+			{
+				if (legendVisible)
+					legend.updateLayersLegend();
+			}
+
+			protected function map_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+
+			}
+			
+			public var get_project_attr:Function=null;
+			protected function map_mapClickHandler(event:MapMouseEvent):void
+			{
+				isIdentify=true;
+				if (isIdentify)
+				{
+					identifyFunction(event.mapPoint, map);
+				}
+				var target=event.originalTarget;
+				var geo_attr:Object=null;
+				if(target&&target is Graphic){
+					if(target.attributes!=null&&target.attributes.geotablename!=null){
+						geo_attr=target.attributes;
+						get_project_attr(geo_attr.id,geo_attr.geotablename);
+					}
+				}
+			}
+
+			protected function module1_currentStateChangeHandler(event:StateChangeEvent):void
+			{
+				setTimeout(function():void
+				{
+					if (drawLayer.graphicProvider.source.length > 0)
+					{
+						var extent:Extent=null;
+						for (var i:int=0; i < drawLayer.graphicProvider.source.length; i++)
+						{
+							var geometry:Geometry=drawLayer.graphicProvider.source[i].geometry as Geometry;
+							var geoExtent:Extent=null;
+							if (geometry is MapPoint)
+							{
+								var p:MapPoint=MapPoint(geometry);
+								geoExtent=new Extent(p.x, p.y, p.x, p.y);
+							}
+							else
+								geoExtent=geometry.extent;
+							if (extent == null)
+								extent=geoExtent;
+							else
+								extent=geoExtent.union(extent);
+						}
+						map.zoomTo(extent);
+					}
+				}, 750);
+
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////
+			protected function inputLineWidth_creationCompleteHandler(event:FlexEvent):void
+			{
+				inputLineWidth.textInput.editable=false;
+			}
+
+			protected function toolbarItemPostEditingFeature_clickHandler(event:MouseEvent):void
+			{
+				map.closePopupControl();
+				currentEditingGeometry.attributes={caption: StringUtils.trim(textInputCaption.text)};
+				currentEditingGeometry.toolTip=StringUtils.trim(textInputCaption.text);
+				if (currentEditingGeometryType == 1)
+				{
+					currentEditingGeometry.symbol=new SimpleLineSymbol("solid", lineColor.selectedColor, 1, inputLineWidth.selectedIndex + 1);
+				}
+				else if (currentEditingGeometryType == 2)
+				{
+					currentEditingGeometry.symbol=new SimpleFillSymbol("solid", fillColor.selectedColor, 0.5, new SimpleLineSymbol("solid", lineColor.selectedColor, 1, inputLineWidth.selectedIndex + 1));
+				}
+				event4ToolbarItemClick(toolbarItemPost);
+			}
+
+			protected function toolbarItemDeleteEditingFeature_clickHandler(event:MouseEvent):void
+			{
+				(drawLayer.graphicProvider as ArrayCollection).removeItem(currentEditingGeometry);
+				currentEditingGeometry=null;
+			}
+		]]>
+	</fx:Script>
+
+	<s:states>
+		<s:State name="max"/>
+		<s:State name="min"/>
+	</s:states>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.events.DrawEvent;
+			import com.esri.ags.events.MapEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polygon;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.TiledMapServiceLayer;
+			import com.esri.ags.layers.supportClasses.LOD;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.component.ToolbarTextButton;
+			import com.webgis.event.MapModeEvent;
+			import com.webgis.module.plotting.ExtTextSymbol;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.events.IndexChangeEvent;
+			import spark.modules.ModuleLoader;
+			
+			private var mapServiceClient:MapServiceClient=new MapServiceClient;
+			private var mapLayerManager:MapLayerManager=new MapLayerManager;
+			private var isInitMapParams:Boolean=false;
+			private var mapIndex:int=0;
+			private var mapParams:Object=null;
+			public var callFunction4AfterEdit:Function=null;
+			public var callFunction4Post:Function=null;
+			public var callFunction4GetALL:Function=null;
+			public var callFunction4GetGeoByConditon:Function=null;
+			private var maxScale:int=800000;
+			private var minScale:int=4000;
+			private var minParent:UIComponent=null;
+			private var modualLoader:ModuleLoader=null;
+			[Bindable]
+			private var legendVisible:Boolean=false;
+			private var initGeometrys:String="";
+
+			private var currentEditingGeometry:Graphic=null;
+			[Bindable]
+			private var currentEditingGeometryType:int=0;
+
+			////////////////////////////////////////////////////////////////////////////
+			public function initParams(params:Object):void
+			{
+				if (isInitMapParams)
+					return;
+				mapLayerManager.enabledLayerAlpha=false;
+				mapParams=params;
+				mapServiceClient.USER_ID=-1;
+				mapServiceClient.getAppConfigByName(mapParams.mapName, -1, createMapInstance);
+				isInitMapParams=true;
+				maxScale=Math.max(params.MaxScale, params.MinScale);
+				minScale=Math.min(params.MaxScale, params.MinScale);
+			}
+
+			///////////////////////////////////////////////////////////////////////////
+			private function createMapInstance(json:Object):void
+			{
+				map.removeAllLayers();
+				mapLayerManager.init(map, json);
+				//if (json.userMapExtent)
+				//	map.userMapExtent=new Extent(json.userMapExtent[0], json.userMapExtent[1], json.userMapExtent[2], json.userMapExtent[3]);
+				createControls();
+			}
+
+			////////////////////////////////////////////////////////////////////////////
+			protected function btnLayerTreeClick(event:MouseEvent):void
+			{
+				panelNavigator.height=map.height + 1;
+				popupPanel.displayPopUp=true;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			protected function map_loadHandler(event:MapEvent):void
+			{
+//				map.zoomToInitialExtent();
+//				map.addLayer(drawLayer);
+//				if (!StringUtils.isEmpty(initGeometrys))
+//					addGeometrys(initGeometrys);
+//				initGeometrys="";
+				map.zoomToInitialExtent();
+				map.addLayer(drawLayer);
+				map.addLayer(lineRefDrawLayer);
+				map.addLayer(labelDrawLayer);
+				if(jsonGeometries!=null&&jsonGeometries!=""){
+					addGeometrys4JSON(jsonGeometries);
+				}
+				initGeometrys="";
+				jsonGeometries="";
+			}
+
+			private function setGraphicDefaultSymbol(g:Graphic):void
+			{
+				if (g.geometry is MapPoint)
+					g.symbol=ssPoint;
+				else if (g.geometry is Polyline)
+					g.symbol=ssPolyline;
+				else
+					g.symbol=ssPolygon;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////
+			public function addGeometrys(geometrys:String):void
+			{
+				var setGeometrySymbol
+				if (map && map.loaded)
+				{
+					drawLayer.clear();
+					var list:Array=JSON.parse(geometrys) as Array;
+					var g:Graphic=null;
+					for (var i:int=0; i < list.length; i++)
+					{
+						var json:Object=list[i];
+						if (!json.geometry)
+						{
+							g=new Graphic(Geometry.fromJSON(json));
+							g.attributes={};
+							setGraphicDefaultSymbol(g);
+						}
+						else
+						{
+							g=Graphic.fromJSON(json);
+							g.toolTip=g.attributes.caption;
+							setGraphicDefaultSymbol(g);
+							if (json.symbol)
+							{
+								if (json.symbol.hasOwnProperty("fillColor"))
+									g.symbol=new SimpleFillSymbol("solid", json.symbol.fillColor, 0.5, new SimpleLineSymbol("solid", json.symbol.lineColor, 1, json.symbol.width));
+								else
+									g.symbol=new SimpleLineSymbol("solid", json.symbol.lineColor, 1, json.symbol.width);
+							}
+						}
+						drawLayer.add(g);
+					}
+					if (g && g.geometry)
+					{
+						map.zoomTo(g.geometry);
+					}
+					event4ToolbarItemClick(toolbarItemPan);
+				}
+				else
+					initGeometrys=geometrys;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			protected function editTool_drawStartHandler(event:DrawEvent):void
+			{
+				if (!chkIsMultiEnabled.selected)
+					drawLayer.clear();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			protected function editTool_drawEndHandler(event:DrawEvent):void
+			{
+				currentEditingGeometry=event.graphic;
+				popupFeatureEditWindow(event.graphic.geometry);
+				callFunction4AfterEdit(getGeometrys());
+				//event4ToolbarItemClick(toolbarItemPan);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			//创建控件
+			public function createControls():void
+			{
+				//首先处理底图
+				for (var i:int=0; i < mapLayerManager.getBaseLayers().length; i++)
+				{
+					var layerInfo:Object=mapLayerManager.getBaseLayers()[i];
+					var barItem:com.webgis.component.ToolbarTextButton=new ToolbarTextButton();
+					barItem.height=25;
+					barItem.label=layerInfo.label;
+					toolbarBaseMap.addElement(barItem);
+					if (i == 0)
+						barItem.selected=true;
+					barItem.addEventListener(MouseEvent.CLICK, event4BaseMapToolbarClick);
+				}
+				if (mapLayerManager.getBaseLayers().length < 2)
+					group4ToolbarContain.removeElement(toolbarBaseMap);
+
+				isBindCallFunction=mapParams.IsIdentify;
+				var isDynamicLayer:Boolean=mapParams.IsDyanmicLayer;
+				var isPoint:Boolean=mapParams.IsDrawPoint;
+				var isPolyline:Boolean=mapParams.IsDrawPolyline;
+				var isPolygon:Boolean=mapParams.IsDrawPolygon;
+				var isPost:Boolean=mapParams.IsPost;
+				var isClear:Boolean=mapParams.IsClear;
+				var isIdentify:Boolean=mapParams.IsIdentify;
+				var isBrowse:Boolean=isPoint || isPolyline || isPolygon || isIdentify;
+				
+				isIdentify=false;
+				
+				if (!isDynamicLayer)
+					toolbarPopupButton.visible=false;
+
+				if (!isBrowse)
+					drawToolbar.removeElement(toolbarItemPan);
+				if (!isPoint)
+					drawToolbar.removeElement(toolbarItemPoint);
+				if (!isPolyline)
+					drawToolbar.removeElement(toolbarItemPolyline);
+				if (!isPolygon)
+					drawToolbar.removeElement(toolbarItemPolygon);
+				if (!isIdentify)
+					drawToolbar.removeElement(toolbarItemIdent);
+				if (!isClear)
+					drawToolbar.removeElement(toolbarItemClear);
+				//if (!isPost)
+				drawToolbar.removeElement(toolbarItemPost);
+
+				chkIsMultiEnabled.visible=drawToolbar.numElements != 0;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			private function event4BaseMapToolbarClick(event:MouseEvent):void
+			{
+				var barItem:ToolbarTextButton=event.currentTarget as ToolbarTextButton;
+				if (barItem.selected)
+					return;
+				for (var i:int=0; i < toolbarBaseMap.numElements; i++)
+				{
+					if (toolbarBaseMap.getElementAt(i) != barItem)
+						toolbarBaseMap.getElementAt(i)["selected"]=false;
+
+				}
+				barItem.selected=true;
+				map.changeBaseMap(toolbarBaseMap.getElementIndex(barItem));
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			public function getGeometrys():String
+			{
+				var result:Array=[];
+				for (var i:int=0; i < drawLayer.graphicProvider.source.length; i++)
+				{
+					var g:Graphic=drawLayer.graphicProvider.source[i] as Graphic;
+					var json:Object=g.toJSON();
+					if (g.geometry is Polyline)
+					{
+						var lineSymbol:SimpleLineSymbol=g.symbol as SimpleLineSymbol;
+						json.symbol={width: lineSymbol.width, lineColor: lineSymbol.color};
+					}
+					if (g.geometry is Polygon)
+					{
+						var fillSymbol:SimpleFillSymbol=g.symbol as SimpleFillSymbol;
+						var lineSymbol:SimpleLineSymbol=fillSymbol.outline;
+						json.symbol={width: lineSymbol.width, lineColor: lineSymbol.color, fillColor: fillSymbol.color};
+					}
+					result.push(json);
+				}
+				return JSON.stringify(result);
+			}
+
+			protected function map_layerAddHandler(event:MapEvent):void
+			{
+				if (event.layer == drawLayer)
+					return;
+				map.removeLayer(drawLayer);
+				map.addLayer(drawLayer);
+			}
+
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (mapParams != null)
+					initParams(mapParams);
+
+				featureProperty.mapServiceClient=mapServiceClient;
+				FlexGlobals.topLevelApplication.addEventListener(MapModeEvent.SWITCHLAYER, function(event:MapModeEvent):void
+				{
+					if (event.map == map && legendVisible)
+					{
+						legend.layers=mapLayerManager.getLegendLayers("selected");
+					}
+				});
+				var p:UIComponent=this.parent as UIComponent;
+				while (p && !(p is ModuleLoader))
+					p=p.parent as UIComponent;
+				modualLoader=p as ModuleLoader;
+
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function toolbarItemClick(event:MouseEvent):void
+			{
+				var barItem:ToolbarButton=event.currentTarget as ToolbarButton;
+				event4ToolbarItemClick(barItem);
+			}
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			private var isIdentify:Boolean=false;
+
+			private function event4ToolbarItemClick(barItem:com.webgis.component.ToolbarButton):void
+			{
+				map.closePopupControl();
+				drawTool.deactivate();
+				featureProperty.visible=false;
+				isIdentify=false;
+				var type:String=barItem.tag;
+				if (type == "point")
+					drawTool.activate(DrawTool.MAPPOINT);
+				else if (type == "line")
+					drawTool.activate(DrawTool.POLYLINE);
+				else if (type == "polygon")
+					drawTool.activate(DrawTool.POLYGON);
+				else if (type == "circle")
+					drawTool.activate(DrawTool.CIRCLE);
+				else if (type == "rectangle")
+					drawTool.activate(DrawTool.EXTENT);
+				else if (type == "identify")
+				{
+					isIdentify=true;
+				}
+				else if (type == "clear")
+				{
+					featureProperty.clear();
+					drawLayer.clear();
+					//callFunction4AfterEdit("[]"); 
+					callFunction4Post(getGeometrys());
+					event4ToolbarItemClick(toolbarItemPan);
+				}
+				else if (type == "post")
+				{
+					callFunction4Post(getGeometrys());
+					event4ToolbarItemClick(toolbarItemPan);
+				}
+				else if (type == "legend")
+				{
+					legendVisible=!legendVisible;
+					toolbarItemLegend.selected=legendVisible;
+					if (legendVisible)
+					{
+						map_zoomEndHandler(null);
+						legend.layers=mapLayerManager.getLegendLayers("selected");
+					}
+				}
+				var groupIndex:int=barItem.groupIndex;
+				if (groupIndex != 0) //分组
+				{
+					for (var i:int=0; i < drawToolbar.numElements; i++)
+					{
+						var item:Object=drawToolbar.getElementAt(i);
+						if (item is ToolbarButton && item != barItem && item.groupIndex == barItem.groupIndex)
+							item.selected=false;
+					}
+					barItem.selected=true;
+				}
+				else if (barItem.toggle)
+				{
+					barItem.selected=!barItem.selected;
+				}
+				map.isFocused=true;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function toolbarMax_clickHandler(event:MouseEvent):void
+			{
+				if(this.currentState=="min"){
+					minParent=modualLoader.parent as UIComponent;
+					var instance:Object=FlexGlobals.topLevelApplication.cache["ViewPictureContain"];
+					if (instance == null)
+					{
+						instance=new BorderContainer();
+						FlexGlobals.topLevelApplication.cache["ViewPictureContain"]=instance;
+					}
+					var top:UIComponent=FlexGlobals.topLevelApplication as UIComponent;
+					instance.width=top.width;
+					instance.height=FlexGlobals.topLevelApplication.getWorkAreaHeight() + 23;
+					PopUpManager.addPopUp(instance as UIComponent, top, true);
+					instance.move(0, top.height - instance.height);
+					(instance as BorderContainer).addElement(modualLoader);
+					event4ToolbarItemClick(toolbarItemPan);
+					featureProperty.width=350;
+					popupPanel.displayPopUp=false;
+					toolbarMax.visible=false;
+					this.currentState="max";
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function toolbarMin_clickHandler(event:MouseEvent):void
+			{
+				if(this.currentState=="max"){
+					(minParent as Object).addElement(modualLoader);
+					PopUpManager.removePopUp(FlexGlobals.topLevelApplication.cache["ViewPictureContain"] as UIComponent);
+					event4ToolbarItemClick(toolbarItemPan);
+					featureProperty.width=250;
+					popupPanel.displayPopUp=false;
+					map.isFocused=true;
+					toolbarMax.visible=true;
+					this.currentState="min";
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//识别实体
+			public function identifyFunction(geometry:Geometry, map:MapControl):void
+			{
+				var resolution:Number=map.extent.width / map.width*4;
+				var layerAndServerIds:Array=mapLayerManager.getIdentifyLayerIds(map, "selected");
+				mapServiceClient.identify(geometry, layerAndServerIds, resolution, function(json:Object):void
+				{
+					if (json.records && json.records.length != 0)
+					{
+						featureProperty.visible=true;
+						featureProperty.clear();
+						featureProperty.registerFeatures(json);
+					}else{
+						featureProperty.visible=false;
+						featureProperty.clear();
+					}
+				});
+				map.isFocused=true;
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////
+			[Bindable]
+			private var isBindCallFunction:Boolean=false;
+
+			private function callFunction4Pick(graphic:Graphic, caption:String):void
+			{
+				event4ToolbarItemClick(toolbarItemPan);
+				if (!chkIsMultiEnabled.selected)
+					drawLayer.clear();
+				var geometry:Geometry=Geometry.fromJSON(graphic.geometry.toJSON());
+				var g:Graphic=new Graphic(geometry);
+				if (g.geometry is MapPoint)
+					g.symbol=ssPoint;
+				else if (g.geometry is Polyline)
+					g.symbol=ssPolyline;
+				else
+					g.symbol=ssPolygon;
+				drawLayer.add(g);
+				if (!map.extent.contains(g.geometry))
+					map.zoomTo(g.geometry);
+				currentEditingGeometry=g;
+				popupFeatureEditWindow(g.geometry, caption);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			private function popupFeatureEditWindow(geometry:Geometry, caption:String=""):void
+			{
+				event4ToolbarItemClick(toolbarItemPan);
+				map.closePopupControl();
+				var p:MapPoint=null;
+				if (geometry is MapPoint)
+				{
+					p=geometry as MapPoint;
+					currentEditingGeometryType=0;
+				}
+				else if (geometry is Polyline)
+				{
+					p=(Polyline(geometry)).getPoint(0, Polyline(geometry).paths[0].length - 1);
+					currentEditingGeometryType=1;
+				}
+				else if (geometry is Polygon)
+				{
+					p=(Polygon(geometry)).getPoint(0, Polygon(geometry).rings[0].length - 2);
+					currentEditingGeometryType=2;
+				}
+				textInputCaption.text=caption;
+				map.popupControlAt(p, contain4EditFeatureAttributes, "编辑标题", 350, geometry is MapPoint ? 39 : 70);
+			}
+			//在模块未加载完成前 保存图形数据
+			public var jsonGeometries:Object=null;
+			//存储前一地图图斑信息
+			public var json4PreView:Object=null;
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			public function addGeometrys4JSON(json:Object):void
+			{
+				json4PreView=json;
+				var geometrys:String=null;
+				if(json.geometry){
+					geometrys=json.geometry;
+				}
+				
+				var geometry4all:Object=json.geometry4all;
+				if(geometry4all){
+					if (map && map.loaded)
+					{
+						labelDrawLayer.clear();
+						lineRefDrawLayer.clear();
+						for(var i:int=0;i<geometry4all.length;i++){
+							addGeometry4Condition(geometry4all[i]);
+						}
+					}else{
+						jsonGeometries=json;
+						initGeometrys=geometrys;	
+					}
+				}
+				if(geometrys){
+					if (map && map.loaded)
+					{
+						drawLayer.clear();
+						var list:Array=JSON.parse(geometrys) as Array;
+						var g:Graphic=null;
+						for (var i:int=0; i < list.length; i++)
+						{
+							var json:Object=list[i];
+							if (!json.geometry)
+							{
+								g=new Graphic(Geometry.fromJSON(json));
+								g.attributes={};
+								setGraphicDefaultSymbol(g);
+							}
+							else
+							{
+								g=Graphic.fromJSON(json);
+								g.toolTip=g.attributes.caption;
+								setGraphicDefaultSymbol(g);
+								if (json.symbol)
+								{
+									if (json.symbol.hasOwnProperty("fillColor"))
+										g.symbol=new SimpleFillSymbol("solid", json.symbol.fillColor, 0.5, new SimpleLineSymbol("solid", json.symbol.lineColor, 1, json.symbol.width));
+									else
+										g.symbol=new SimpleLineSymbol("solid", json.symbol.lineColor, 1, json.symbol.width);
+								}
+							}
+							drawLayer.add(g);
+						}
+						if (g && g.geometry)
+						{
+							map.zoomTo(g.geometry);
+						}
+						event4ToolbarItemClick(toolbarItemPan);
+					}
+					else{
+						initGeometrys=geometrys;
+						jsonGeometries=json;
+					}
+				}
+			}
+			/**
+			 *添加道路标签 
+			 * @param name   标签名称
+			 * @param angle  旋转角度
+			 * @param geostr 线对象
+			 * 
+			 */
+			private function add_road_label(name:String,angle:int,geostr:Object,Vertical:Boolean):void
+			{
+				var midindexpath:int=geostr.paths.length/2;
+				var midindexlength:int=geostr.paths[midindexpath].length/2;
+				var midObject:Object=geostr.paths[midindexpath][midindexlength];
+				var mygeometry:Geometry=new MapPoint(midObject[0],midObject[1]);
+				var textSymbol:ExtTextSymbol=new ExtTextSymbol(Vertical,name,null,0xEE0000,0.8,true,0xEE0000,true,0xFF9900,"middle",angle,0,0,new TextFormat("宋体",12));
+				//构建标签
+				var grahic2:Graphic=new Graphic(mygeometry,textSymbol);
+				//添加标签
+				labelDrawLayer.add(grahic2);
+				
+			}
+			
+			//////////////////////////////////////////////////////////
+			//加载全部项目路线
+			public function addGeometrys4All(json:Object):void{
+				labelDrawLayer.clear();
+				var geometry4all:Object=json.geometry4all;
+				lineRefDrawLayer.clear();
+				for(var i:int=0;i<geometry4all.length;i++){
+					//var json4geometry:Object=JSON.parse(geometry4all[i]);
+					addGeometry4Condition(geometry4all[i]);
+				}
+			}
+			//////////////////////////////////////////////////////////////////////////////
+			//在模块未加载完成前 保存图形数据
+			public function addGeometry4Condition(json:Object):void{
+				
+				var json4geometry:Object=JSON.parse(json.geometry);
+				var geometry:Object=json4geometry.geometries;
+				
+				var geoid:String=json.id;
+				var geotablename:String=json.tablename;
+				var xlbh:String=json.xlbh; 
+				
+				if(map&&map.loaded){
+					var wkid:int=map.spatialReference.wkid;
+					//var p:Geometry=WebMercatorUtil.webMercatorToGeographic(Geometry.fromJSON(geometry[0]));
+					add_road_label(xlbh,0,geometry[0],false);
+					var p:Geometry=Geometry.fromJSON(geometry[0]);
+					var g:Graphic=new Graphic(p);
+					if (g.geometry is MapPoint)
+						g.symbol=ssPoint;
+					else if (g.geometry is Polyline)
+						g.symbol=ssPolylineWid4;
+					else
+						g.symbol=ssPolygon;
+					g.attributes={"id":geoid,"geotablename":geotablename};
+					lineRefDrawLayer.add(g);
+					glows.play();
+					if (g && g.geometry)
+					{
+						if (g.geometry.extent && g.geometry.extent.center)
+							map.zoomTo(g.geometry.extent.center);
+						else
+							map.zoomTo(g.geometry);
+					}
+				}
+			}
+			//////////////////////////////////////////////////////////////////////
+			//相识项目信息
+			public function showProjectInfo(json:Object):void{
+				if (json.projectinfo && json.projectinfo.length != 0)
+				{
+					featureProperty.visible=true;
+					featureProperty.clear();
+					featureProperty.registerFeatures(json);
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<ns:GraphicsLayer id="drawLayer"/>
+<!--
+		<<<<<<< .working -->
+		<ns:GraphicsLayer id="lineRefDrawLayer"/>
+		<ns:GraphicsLayer id="labelDrawLayer"/>
+		<!--<ns:PictureMarkerSymbol yoffset="16" width="19" height="32" source="/assets/webgis/gis/market-32.png" id="ssPoint"/>
+=======-->
+		<ns:PictureMarkerSymbol yoffset="16" width="19" height="32" source="../images/gis/market-32.png" id="ssPoint"/>
+		<!--	>>>>>>> .merge-right.r113-->
+		<ns:SimpleLineSymbol id="ssPolyline" width="2" color="0xFF0000"/>
+		<ns:SimpleLineSymbol id="ssPolylineWid4" width="3" color="0x7CFC00"/>
+		<ns:SimpleFillSymbol id="ssPolygon" color="#FFFF00">
+			<ns:SimpleLineSymbol width="2" color="#FF0000"/>
+		</ns:SimpleFillSymbol>
+		<ns:DrawTool drawEnd="editTool_drawEndHandler(event)" markerSymbol="{ssPoint}" lineSymbol="{ssPolyline}" fillSymbol="{ssPolygon}" drawStart="editTool_drawStartHandler(event)" id="drawTool" map="{map}" graphicsLayer="{drawLayer}"/>
+		<mx:Glow id="glows" target="{lineRefDrawLayer}" alphaFrom="1.0" alphaTo="0" blurXFrom="0.0" blurXTo="20.0" blurYFrom="0.0" blurYTo="20.0" color="0xFF0000" duration="500" repeatCount="5" repeatDelay="0"/>
+	</fx:Declarations>
+
+	<s:BorderContainer width="250" height="50" id="contain4EditFeatureAttributes" visible="false" backgroundColor="0xF5F5F5">
+		<s:layout>
+			<s:VerticalLayout gap="0" paddingTop="3"/>
+		</s:layout>
+		<s:HGroup width="100%" paddingBottom="4" paddingLeft="2" paddingRight="2" paddingTop="2" gap="4" verticalAlign="middle">
+			<s:Label text="标题："/>
+			<s:TextInput width="100%" id="textInputCaption"/>
+			<component:ToolbarButton click="toolbarItemPostEditingFeature_clickHandler(event)" borderVisible="true" id="toolbarItemPostEditingFeature" height="{textInputCaption.height}" width="{textInputCaption.height}" icon="@Embed('/assets/common/save.png')" toolTip="保存图斑" groupIndex="0"
+									 selected="false"/>
+			<component:ToolbarButton click="toolbarItemDeleteEditingFeature_clickHandler(event)" borderVisible="true" id="toolbarItemDeleteEditingFeature" height="{textInputCaption.height}" width="{textInputCaption.height}" icon="@Embed('/assets/common/delete.png')" toolTip="删除图斑" groupIndex="0"
+									 selected="false"/>
+		</s:HGroup>
+		<s:HGroup width="100%" padding="4" gap="4" visible="{currentEditingGeometryType!=0}" verticalAlign="middle">
+			<s:Label text="线宽："/>
+			<s:ComboBox width="60" creationComplete="inputLineWidth_creationCompleteHandler(event)" dataProvider="{new ArrayCollection([1,2,3,4,5,6,7,8,9,10])}" selectedIndex="0" id="inputLineWidth"/>
+			<s:Label text="线颜色："/>
+			<mx:ColorPicker selectedColor="0xFF0000" id="lineColor" width="30" height="{inputLineWidth.height}"/>
+			<s:Label text="填充色：" visible="{currentEditingGeometryType==2}"/>
+			<mx:ColorPicker visible="{currentEditingGeometryType==2}" selectedColor="0xFFFF00" id="fillColor" width="30" height="{inputLineWidth.height}"/>
+		</s:HGroup>
+	</s:BorderContainer>
+
+	<s:VGroup width="100%" height="100%" gap="0">
+		<s:Group width="100%" height="30">
+			<s:Rect id="fill" width="100%" height="100%" left="0" top="0">
+				<s:fill>
+					<s:LinearGradient rotation="90">
+						<s:GradientEntry color="#E0EEFF"/>
+						<s:GradientEntry color="#D4E7FF"/>
+						<s:GradientEntry color="#E0EEFF"/>
+					</s:LinearGradient>
+				</s:fill>
+			</s:Rect>
+			<component:ToolbarTextPopupButton id="toolbarPopupButton" top="4" left="1" width="70" label="自定义图层" click="btnLayerTreeClick(event)"/>
+			<s:PopUpAnchor id="popupPanel" focusOut="{popupPanel.displayPopUp=false;}" left="-1" bottom="1" height="0" popUpPosition="below">
+				<s:BorderContainer id="panelNavigator" borderColor="#000000" backgroundColor="0xFFFFFF" width="300">
+					<s:layout>
+						<s:VerticalLayout gap="0">
+
+						</s:VerticalLayout>
+					</s:layout>
+					<s:BorderContainer width="100%" borderVisible="false" height="28" backgroundColor="#F8F8F8">
+						<s:Label verticalCenter="0" color="#7C7070" left="4" text="自定义图层" fontWeight="bold"/>
+						<component:ToolbarButton right="3" top="3" icon="@Embed('assets/common/close.png')" click="{popupPanel.displayPopUp=false;}"/>
+					</s:BorderContainer>
+					<s:Line width="100%" height="0">
+						<s:stroke>
+							<s:SolidColorStroke color="0xE6EDF1"/>
+						</s:stroke>
+					</s:Line>
+					<component:LayerTree map="{map}" mapLayerManager="{mapLayerManager}" width="100%" height="100%" borderVisible="false" id="layerTree" selectedFieldName="selected"/>
+				</s:BorderContainer>
+			</s:PopUpAnchor>
+			<s:HGroup id="group4ToolbarContain" gap="2" right="2" top="-1" height="100%" verticalAlign="middle">
+				<s:CheckBox id="chkIsMultiEnabled" selected="false" label="允许多选"/>
+				<s:HGroup id="drawToolbar" paddingLeft="16" gap="-1">
+
+					<component:ToolbarButton borderVisible="true" selected="true" id="toolbarItemPan" click="toolbarItemClick(event)" height="25" width="25" icon="@Embed('assets/webgis/pan.png')" toolTip="拖动模式" groupIndex="1" tag="pan"/>
+					<component:ToolbarButton borderVisible="true" id="toolbarItemPoint" click="toolbarItemClick(event)" height="25" width="25" icon="@Embed('assets/webgis/edit_point.png')" toolTip="点" groupIndex="1" selected="false" tag="point"/>
+					<component:ToolbarButton borderVisible="true" id="toolbarItemPolyline" click="toolbarItemClick(event)" height="25" width="25" icon="@Embed('assets/webgis/edit_line.png')" toolTip="线" groupIndex="1" selected="false" tag="line"/>
+					<component:ToolbarButton borderVisible="true" id="toolbarItemPolygon" click="toolbarItemClick(event)" height="25" width="25" icon="@Embed('assets/webgis/edit_polygon.png')" toolTip="面" groupIndex="1" selected="false" tag="polygon"/>
+					<!--
+					<component:ToolbarButton id="toolbarItemCircle" click="toolbarItemClick(event)" height="25" width="25" icon="@Embed('assets/webgis/edit_circle.png')" toolTip="圆形" groupIndex="1" selected="false" tag="circle"/>
+					<component:ToolbarButton id="toolbarItemRectangle" click="toolbarItemClick(event)" height="25" width="25" icon="@Embed('assets/webgis/edit_rectangle.png')" toolTip="矩形" groupIndex="1" selected="false" tag="rectangle"/>
+					-->
+					<component:ToolbarButton borderVisible="true" id="toolbarItemIdent" height="25" width="25" click="toolbarItemClick(event)" icon="@Embed('assets/webgis/IdentifyTool16.png')" toolTip="点选选择地图上的实体" groupIndex="1" selected="false" tag="identify"/>
+					<component:ToolbarButton borderVisible="true" id="toolbarItemClear" height="25" width="25" click="toolbarItemClick(event)" icon="@Embed('assets/common/delete.png')" toolTip="清除实体" groupIndex="0" selected="false" tag="clear"/>
+					<component:ToolbarButton borderVisible="true" id="toolbarItemPost" height="25" width="25" click="toolbarItemClick(event)" icon="@Embed('assets/common/save.png')" toolTip="保存实体" groupIndex="0" selected="false" tag="post"/>
+				</s:HGroup>
+
+				<component:ToolbarButton id="toolbarItemLegend" borderVisible="true" height="25" width="25" click="toolbarItemClick(event)" icon="@Embed('assets/webgis/Legend16.png')" toolTip="显示图例" groupIndex="0" selected="false" tag="legend"/>
+
+				<s:HGroup gap="-1" id="toolbarBaseMap">
+				</s:HGroup>
+				<!--
+				<component:ToolbarButton  click="toolbarMax_clickHandler(event)" mouseChildren="false" buttonMode="true" useHandCursor="true" id="toolbarMax" height="25" width="25" selected="true" icon="@Embed('/assets/webgis/max.png')" toolTip="最大化"/>
+				<component:ToolbarTextButton   height="25" mouseChildren="false" buttonMode="true" useHandCursor="true" fontWeight="bold"  label="关闭" color="0xFF0000" id="toolbarMin" click="toolbarMin_clickHandler(event)"/>
+				-->
+			    <component:ToolbarButton includeIn="min" click="toolbarMax_clickHandler(event)" mouseChildren="false" buttonMode="true" useHandCursor="true" id="toolbarMax" height="25" width="25" selected="true" icon="@Embed('/assets/webgis/max.png')" toolTip="最大化"/>
+			    <component:ToolbarTextButton includeIn="max"  height="25" mouseChildren="false" buttonMode="true" useHandCursor="true" fontWeight="bold"  label="关闭" color="0xFF0000" id="toolbarMin" click="toolbarMin_clickHandler(event)"/>
+				  
+			</s:HGroup>
+			<s:Line left="0" bottom="0" width="100%" height="0" id="bottomLine">
+				<s:stroke>
+					<s:SolidColorStroke caps="square" color="0x606976" weight="1"/>
+				</s:stroke>
+			</s:Line>
+		</s:Group>
+
+		<!-- 地图 -->
+		<s:Group width="100%" height="100%">
+			<map:MapControl click="map_clickHandler(event)" mapClick="map_mapClickHandler(event)" zoomEnd="map_zoomEndHandler(event)" layerAdd="map_layerAddHandler(event)" mapLayerManager="{mapLayerManager}" load="map_loadHandler(event)" visible="true" width="100%" height="100%" id="map"/>
+			<s:BorderContainer visible="{legendVisible}" right="-1" bottom="-1" top="-1" id="panelLegend" borderColor="#BDCBD3" backgroundColor="0xFFFFFF" width="300">
+				<component:LegendPanel mapLayerManager="{mapLayerManager}" width="100%" height="100%" id="legend" map="{map}"/>
+			</s:BorderContainer>
+			<component:FeatureProperty isExtPropertyEnabled="true" pickCallFunction="{isBindCallFunction?callFunction4Pick:null}" borderVisible="true" map="{map}" visible="false" id="featureProperty" right="-1" top="-1" bottom="-1" width="350" height="{this.height/2}"/>
+		</s:Group>
+	</s:VGroup>
+	<navigator:Navigation map="{map}" id="mapNavigation" left="5" top="35"/>
+
+</s:Module>

@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx close="titlewindowex1_closeHandler(event)" creationComplete="titlewindowex1_creationCompleteHandler(event)" title="显示统计图表" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" 
+						 xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:component="com.estudio.flex.component.*" width="100" height="300" xmlns:component1="com.estudio.flex.module.component.*" xmlns:component2="com.webgis.component.*" xmlns:acm="com.acm.*">
+	<fx:Script>
+		<![CDATA[
+			import com.acm.ComboCheckBox;
+			import com.devaldi.controls.flexpaper.About;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+			private static var instance:Win4Chart=null;
+
+			public static function execute(allRecords:Array, filterRecords:Array, fieldList:Array,statistics_standard:String):void
+			{
+				if (!instance)
+					instance=new Win4Chart();
+				instance.allRecords=allRecords;
+				instance.filterRecords=filterRecords;
+				instance.fieldList=fieldList;
+				instance.statistics_standard=statistics_standard;
+				var app:UIComponent=FlexGlobals.topLevelApplication as UIComponent;
+				instance.width=app.width - 20;
+				instance.height=app.height - 20;
+				PopUpManager.addPopUp(instance, app, true);
+				PopUpManager.centerPopUp(instance);
+				if (instance.isCompleted)
+					instance.fillField2Combobox();
+			}
+
+			private var isCompleted:Boolean=false;
+			private var allRecords:Array=[];
+			private var filterRecords:Array=[];
+			private var fieldList:Array=[];
+			private var statistics_standard:String="";
+
+			protected function titlewindowex1_creationCompleteHandler(event:FlexEvent):void
+			{
+				isCompleted=true;
+				fillField2Combobox();
+			}
+
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(instance);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function cbGroupField_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (event.currentTarget is ComboBox)
+					ComboBox(event.currentTarget).textInput.editable=false;
+				else if (event.currentTarget is ComboCheckBox)
+					ComboCheckBox(event.currentTarget).textInput.editable=false;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function fillField2Combobox():void
+			{
+				var groupFields:Array=[];
+				var valueFields:Array=[];
+				var groupMaxWidth:int=measureText("全部").width;
+				var valueMaxWidth:int=groupMaxWidth;
+
+				for (var i:int=0; i < fieldList.length; i++)
+				{
+					var field:Object=fieldList[i];
+					if (field.isenum)
+					{
+						groupFields.push(field);
+						groupMaxWidth=Math.max(groupMaxWidth, measureText(field.comment).width);
+					}
+					else
+					{
+						field.label=field.comment;
+						valueFields.push(field);
+						valueMaxWidth=Math.max(valueMaxWidth, measureText(field.comment).width);
+					}
+				}
+
+				cbGroupField.dataProvider=new ArrayCollection(groupFields);
+				if (groupFields.length != 0)
+				{
+					cbGroupField.selectedItem=groupFields[0];
+					cbGroupField.selectedIndex=0;
+				}
+				else
+				{
+					cbGroupField.selectedItem=null;
+					cbGroupField.selectedIndex=-1;
+				}
+				cbGroupField.width=groupMaxWidth + 50;
+
+				cbValueField.dataProvider=new ArrayCollection(valueFields);
+				if (valueFields.length != 0)
+				{
+					cbValueField.selectedItem=valueFields[0];
+					cbValueField.selectedIndex=0;
+				}
+				else
+				{
+					cbValueField.selectedItem=null;
+					cbValueField.selectedIndex=-1;
+				}
+				cbValueField.width=valueMaxWidth + 50;
+
+				cbSumType.selectedItem=cbSumType.dataProvider.getItemAt(0);
+				cbSumType.selectedIndex=0;
+
+				btnChartColumn.selected=true;
+				btnChartPie.selected=false;
+				btnChartLine.selected=false;
+
+				generateChart();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function generateChart():void
+			{
+				if (!cbGroupField.selectedItem)
+					return;
+				if (cbValueField.selectedIndex == 1 && !cbValueField.selectedItem)
+					return;
+				var params:Object={};
+				params.type=btnChartPie.selected ? 0 : btnChartColumn.selected ? 1 : 2;
+				params.caption=cbGroupField.selectedItem.comment;
+				params.groupFieldLabel=cbGroupField.selectedItem.comment;
+				params.groupFieldName=cbGroupField.selectedItem.name;
+				params.valueFields=[];
+				if (cbSumType.selectedIndex != 0)
+				{
+					for (var m:int=0; m < cbValueField.dataProvider.length; m++)
+					{
+						var item:Object=cbValueField.dataProvider.getItemAt(m);
+						if (item.selected)
+							params.valueFields.push({label: item.comment, field: item.name});
+					}
+					if (params.valueFields.length == 0)
+						return;
+				}
+				else
+					params.valueFields.push({label: "总数", field: "C"});
+
+				var groupFieldName:String=params.groupFieldName;
+				var chartRecords:Array=[];
+				var str2ChartRecord:Object={};
+				var records:Array=cbDataSource.selectedIndex == 0 ? allRecords : filterRecords;
+				
+				var strStatistics_Field:Object={};
+				for (var i:int=0; i < records.length; i++)
+				{
+					var record:Object=records[i];
+					var groupValue:String=records[i][groupFieldName];
+					
+					var strStatistics_Standard:String=records[i][statistics_standard];
+					var isExist:String= strStatistics_Field[strStatistics_Standard];
+					if(!isExist){
+						strStatistics_Field[strStatistics_Standard]=strStatistics_Standard;
+					}else{
+						continue;
+					}
+					
+					if (StringUtils.isEmpty(groupValue))
+						groupValue="空值";
+					var statRecord:Object=str2ChartRecord[groupValue];
+					if (!statRecord)
+					{
+						statRecord={};
+						statRecord[groupFieldName]=groupValue;
+						str2ChartRecord[groupValue]=statRecord;
+						chartRecords.push(statRecord);
+					}
+					for (var j:int=0; j < params.valueFields.length; j++)
+					{
+						var vParam:Object=params.valueFields[j];
+						if (cbSumType.selectedIndex == 0)
+							statRecord[vParam.field]=Convert.str2int(statRecord[vParam.field], 0) + 1;
+						else if (cbSumType.selectedIndex == 1)
+							statRecord[vParam.field]=Convert.str2Number(record[vParam.field], 0) + Convert.str2Number(statRecord[vParam.field], 0);
+					}
+				}
+				chartPanel.buildChartDataEx(params, new ArrayCollection(chartRecords));
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function btnChartTypeClick(event:MouseEvent):void
+			{
+				var items:Array=[btnChartColumn, btnChartPie, btnChartLine];
+				for (var i:int=0; i < items.length; i++)
+				{
+					items[i].selected=event.currentTarget == items[i];
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function btnGenerateChart_clickHandler(event:MouseEvent):void
+			{
+				generateChart();
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%" height="100%" gap="0">
+		<s:BorderContainer width="100%" height="28" borderVisible="false" backgroundColor="#F4F7F8">
+			<s:HGroup gap="3" height="100%" verticalAlign="middle" width="100%" paddingTop="2" paddingRight="2" paddingLeft="2" paddingBottom="2">
+				<s:Label text=" 分组字段:"/>
+				<s:ComboBox id="cbGroupField" labelField="comment" creationComplete="cbGroupField_creationCompleteHandler(event)"/>
+				<s:Label text=" 汇总方式:"/>
+				<s:ComboBox id="cbSumType" width="100" selectedIndex="0" dataProvider="{new ArrayCollection(['汇总个数','汇总总数'])}" creationComplete="cbGroupField_creationCompleteHandler(event)"/>
+				<s:Label text=" 值字段:"/>
+				<acm:ComboCheckBox rowCount="8" selectedLabelField="selected" id="cbValueField" enabled="{cbSumType.selectedIndex!=0}" labelField="label" creationComplete="cbGroupField_creationCompleteHandler(event)"/>
+				<s:Label text=" 数据来源:"/>
+				<s:ComboBox id="cbDataSource" selectedIndex="0" width="100" dataProvider="{new ArrayCollection(['全部数据','查询数据'])}" creationComplete="cbGroupField_creationCompleteHandler(event)"/>
+				<component2:ToolbarButton toolTip="柱状图" id="btnChartColumn" click="btnChartTypeClick(event)" selected="true" width="{cbValueField.height}" height="{cbValueField.height}" icon="@Embed('/assets/common/chart_2.png')"/>
+				<component2:ToolbarButton toolTip="饼图" id="btnChartPie" click="btnChartTypeClick(event)" selected="false" width="{cbValueField.height}" height="{cbValueField.height}" icon="@Embed('/assets/common/chart_1.png')"/>
+				<component2:ToolbarButton toolTip="折线图" id="btnChartLine" click="btnChartTypeClick(event)" selected="false" width="{cbValueField.height}" height="{cbValueField.height}" icon="@Embed('/assets/common/chart_3.png')"/>
+				<component2:ToolbarTextButton label="生成图表" selected="true" click="btnGenerateChart_clickHandler(event)" id="btnGenerateChart" height="{cbValueField.height}"/>
+			</s:HGroup>
+		</s:BorderContainer>
+		<s:Line width="100%" bottom="0" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#DDE1E5"/>
+			</s:stroke>
+		</s:Line>
+		<component1:ChartPanel width="100%" height="100%" borderVisible="false" id="chartPanel">
+
+		</component1:ChartPanel>
+	</s:VGroup>
+
+</component:TitleWindowEx>

@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx  title="编辑列标题" xmlns:fx="http://ns.adobe.com/mxml/2009" close="titlewindowex1_closeHandler(event)" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="500"
+						 height="400">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+
+			[Bindable]
+			private var columns:Array=null;
+
+			private var columnIndex:int=0;
+			private var winCallFunction:Function=null;
+
+			private static var instance:WinExcelColumn=null;
+
+			public static function execute(columns:Array, columnIndex:int, callFunction:Function):void
+			{
+				if (instance == null)
+					instance=new WinExcelColumn();
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(instance);
+				instance.winCallFunction=callFunction;
+				instance.columns=columns;
+				instance.columnIndex=columnIndex;
+			}
+
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(instance);
+			}
+
+			protected function btnClick(event:MouseEvent):void
+			{
+				var id:String=event.currentTarget.id;
+				if (id == "btnOK")
+				{
+					if (winCallFunction != null)
+						winCallFunction(columns, columnIndex);
+					titlewindowex1_closeHandler(null);
+				}
+				else if (id == "btnClose")
+				{
+					titlewindowex1_closeHandler(null);
+				}
+				else if (id == "btnAdd")
+				{
+					columns.push({columnLabel: "新增列", columnName: generateColumnName(), columnWidth: 120});
+					datagrid.invalidateList();
+					datagrid.selectedIndex=columns.length - 1;
+				}
+				else if (id == "btnDelete")
+				{
+					var item:Object=datagrid.selectedItem;
+					if (!item)
+						return;
+					var pItem:Object=datagrid.getParentItem(item);
+					if (pItem)
+						ArrayUtils.remove(pItem.children, ArrayUtils.indexOf(pItem.children, item));
+					else
+						ArrayUtils.remove(columns, ArrayUtils.indexOf(columns, item));
+					datagrid.invalidateList();
+
+				}
+				else if (id == "btnAsGroup")
+				{
+					var item:Object=datagrid.selectedItem;
+					if (!item.children)
+					{
+						item.children=[];
+						datagrid.expandItem(item,true);
+						datagrid.invalidateList();
+					}
+				}
+				else if (id == "btnPaste")
+				{
+					var str:String=flash.external.ExternalInterface.call("getClipboard");
+					if (!StringUtils.isEmpty(str))
+						generateColumnHeader(str);
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			private function generateColumnHeader(str:String):void
+			{
+				str=StringUtils.replace(str, "\"\"", "__K_$$$$_K__");
+				var newStr:String="";
+				var hasEnter:Boolean=false;
+				for (var i:int=0; i < str.length; i++)
+				{
+					var char:String=str.charAt(i);
+					if (char == "\"")
+						hasEnter=!hasEnter;
+					else
+						newStr+=(hasEnter && (char == "\n" || char == "\r" || char == "\t")) ? "" : char;
+				}
+				newStr=StringUtils.replace(newStr, "__K_$$$$_K__", "\"");
+				newStr=StringUtils.trim(newStr);
+				var groupColumns:Array=newStr.split("\n");
+				for (var i:int=0; i < groupColumns.length; i++)
+				{
+					groupColumns[i]=groupColumns[i].split("\t");
+					for (var j:int=0; j < groupColumns[i].length; j++)
+					{
+						if (!StringUtils.isEmpty(groupColumns[i][j]))
+						{
+							groupColumns[i][j]={columnLabel: StringUtils.trim(groupColumns[i][j]), columnName: generateColumnName(), columnWidth: 120, children: []};
+							if (i != 0)
+								groupColumns[i - 1][j].children.push(groupColumns[i][j]);
+						}
+						else
+						{
+							if (j != 0)
+								groupColumns[i][j]=groupColumns[i][j - 1];
+							else
+								groupColumns[i][j]=groupColumns[i - 1][j];
+						}
+
+					}
+				}
+				for (var i:int=groupColumns[0].length - 1; i >= 1; i--)
+				{
+					if (groupColumns[0][i] == groupColumns[0][i - 1])
+						ArrayUtils.remove(groupColumns[0], i);
+				}
+				for (var i:int=0; i < groupColumns[0].length; i++)
+					columns.push(groupColumns[0][i]);
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(columns, list);
+				for (var i:int=0; i < list.length; i++)
+				{
+					if (list[i].children && list[i].children.length == 0)
+					{
+						delete list[i].children;
+					}
+				}
+				datagrid.dataProvider=columns;
+				datagrid.invalidateList();
+			}
+
+
+
+			private function generateColumnName():String
+			{
+				return "F" + (columnIndex++);
+			}
+		]]>
+	</fx:Script>
+	<mx:Tree dataProvider="{columns}" labelField="columnLabel" dropEnabled="true" dragEnabled="true" dragMoveEnabled="true" editable="true" borderColor="#303030" rowHeight="28" left="-1" top="-1" right="80" bottom="-1" id="datagrid" borderVisible="true">
+	</mx:Tree>
+	<s:Button click="btnClick(event)" label="确定" width="70" top="5" right="5" height="25" id="btnOK"/>
+	<s:Button click="btnClick(event)" label="关闭" width="70" top="35" right="5" height="25" id="btnClose"/>
+	<s:Button click="btnClick(event)" label="增加列" width="70" top="70" right="5" height="25" id="btnAdd"/>
+	<s:Button click="btnClick(event)" label="分组列" width="70" top="100" right="5" height="25" id="btnAsGroup"/>
+	<s:Button click="btnClick(event)" label="删除" width="70" top="130" right="5" height="25" id="btnDelete"/>
+	<s:Button click="btnClick(event)" label="粘贴" width="70" top="160" right="5" height="25" id="btnPaste"/>
+
+	<s:Line width="75" right="2" top="65">
+		<s:stroke>
+			<s:SolidColorStroke color="#7B889C"/>
+		</s:stroke>
+	</s:Line>
+</component:TitleWindowEx>

@@ -1,0 +1,101 @@
+15:25:47 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+15:25:47 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+15:31:18 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+15:31:18 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:15:44 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:15:44 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:17:21 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:17:21 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:18:50 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:18:50 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:20:51 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:20:51 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:29:30 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:29:30 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:54:20 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:54:20 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:55:11 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+16:55:11 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+17:06:36 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 61, active 0, maxActive 50 
+17:06:36 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+17:07:37 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+17:07:37 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+17:09:44 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+17:09:44 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+17:14:00 - com.estudio.define.db.DBException: 索引中丢失  IN 或 OUT 参数:: 1 
+17:14:00 - java.sql.SQLException: 索引中丢失  IN 或 OUT 参数:: 1
+	at oracle.jdbc.driver.OraclePreparedStatement.processCompletedBindRow(OraclePreparedStatement.java:2076)
+	at oracle.jdbc.driver.OraclePreparedStatement.executeInternal(OraclePreparedStatement.java:4790)
+	at oracle.jdbc.driver.OraclePreparedStatement.executeQuery(OraclePreparedStatement.java:4845)
+	at oracle.jdbc.driver.OraclePreparedStatementWrapper.executeQuery(OraclePreparedStatementWrapper.java:1501)
+	at com.alibaba.druid.filter.FilterChainImpl.preparedStatement_executeQuery(FilterChainImpl.java:2714)
+	at com.alibaba.druid.filter.FilterEventAdapter.preparedStatement_executeQuery(FilterEventAdapter.java:465)
+	at com.alibaba.druid.filter.FilterChainImpl.preparedStatement_executeQuery(FilterChainImpl.java:2711)
+	at com.alibaba.druid.proxy.jdbc.PreparedStatementProxyImpl.executeQuery(PreparedStatementProxyImpl.java:145)
+	at com.alibaba.druid.pool.DruidPooledPreparedStatement.executeQuery(DruidPooledPreparedStatement.java:227)
+	at com.estudio.impl.db.DBCommand.executeQuery(DBCommand.java:175)
+	at com.estudio.gis.oracle.WebGISQueryService4Oracle.getLayerFeatures(WebGISQueryService4Oracle.java:1127)
+	at com.estudio.gis.oracle.WebGISQueryService4Oracle.getLayerFeatures(WebGISQueryService4Oracle.java:1070)
+	at com.estudio.blazeds.services.WebGISService.getLayerFeatures(WebGISService.java:219)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:606)
+	at flex.messaging.services.remoting.adapters.JavaAdapter.invoke(JavaAdapter.java:418)
+	at flex.messaging.services.RemotingService.serviceMessage(RemotingService.java:183)
+	at flex.messaging.MessageBroker.routeMessageToService(MessageBroker.java:1400)
+	at flex.messaging.endpoints.AbstractEndpoint.serviceMessage(AbstractEndpoint.java:1005)
+	at flex.messaging.endpoints.amf.MessageBrokerFilter.invoke(MessageBrokerFilter.java:103)
+	at flex.messaging.endpoints.amf.LegacyFilter.invoke(LegacyFilter.java:158)
+	at flex.messaging.endpoints.amf.SessionFilter.invoke(SessionFilter.java:44)
+	at flex.messaging.endpoints.amf.BatchProcessFilter.invoke(BatchProcessFilter.java:67)
+	at flex.messaging.endpoints.amf.SerializationFilter.invoke(SerializationFilter.java:166)
+	at flex.messaging.endpoints.BaseHTTPEndpoint.service(BaseHTTPEndpoint.java:291)
+	at flex.messaging.MessageBrokerServlet.service(MessageBrokerServlet.java:353)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:731)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:303)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:52)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:241)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:208)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:220)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:122)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:505)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:170)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:103)
+	at org.apache.catalina.valves.AccessLogValve.invoke(AccessLogValve.java:950)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:116)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:423)
+	at org.apache.coyote.http11.AbstractHttp11Processor.process(AbstractHttp11Processor.java:1079)
+	at org.apache.coyote.AbstractProtocol$AbstractConnectionHandler.process(AbstractProtocol.java:620)
+	at org.apache.tomcat.util.net.AprEndpoint$SocketProcessor.doRun(AprEndpoint.java:2476)
+	at org.apache.tomcat.util.net.AprEndpoint$SocketProcessor.run(AprEndpoint.java:2465)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.lang.Thread.run(Thread.java:745)
+
+DebugInfo:
+SQL:
+SELECT *
+FROM (SELECT XX.*, ROWNUM AS RN
+	FROM (SELECT Q_UID, Q_OBJECTID, LMKD, LDBM, SFXZ
+			, DEPTNAME, ISQYTC, GJTIME, STARTNAME, HDCOUNT
+			, XZQH, ISYFGS, LMLX, YLH, ROADNAME
+			, CDTZ, STARTZH, OBJECTID, SJSS, ROADCODE
+			, KLH, ISCHENGGUA, ENDX, to_char(STARTTIME, 'YYYY-MM-DD HH24:MI:SS') AS STARTTIME, ENDY
+			, STARTX, ENDNAME, STARTY, LJKD, SHAPE_LENGTH
+			, LDXZ, ENDZH, JCTIME, LYQK, XZDJ
+			, LINKID, to_char(ENDTIME, 'YYYY-MM-DD HH24:MI:SS') AS ENDTIME, DIMAO, JSDJ, LYZJ
+		FROM SPATIAL_FS_895818 t
+		WHERE t.Q_UID IN (19389, 20415, 21488, 21430, 14901, 15602, 14988, 15372, 14541, 14879, 14934, 15291, 15377, 15295, 19294, 20618, 19382, 20408, 19281, 21369, 19381, 19351, 20620, 21462, 15319, 15334, 15598, 14903, 21487, 21486, 20414, 19387, 21510, 20413, 21426, 19377, 21469, 20619, 21493, 23739, 23079, 23108, 23477, 23084, 23552, 23546, 23197, 23476, 23533, 23088, 22179, 23534, 23572, 23375, 23478, 23571, 23507, 23553, 22181, 23087, 22183, 23479, 23107, 22187, 23550, 22182, 23510, 23527, 22178, 23078, 21530, 23475, 19417, 20059, 20053, 20452, 20048, 20052, 20061, 21535, 20450, 20051, 20047, 20034, 19415, 19420, 22322, 20058, 20050, 21529, 20045, 20032, 20044, 20082, 20451, 20031, 18855, 21541, 18854, 19414, 19416, 20088, 20040, 18853, 19425, 21531, 20180, 21532, 21538, 20178, 20062, 20041, 21542, 20049, 20179, 19422, 20046, 20177, 20449, 20033, 19526, 20043, 21537, 19424, 20038, 20083, 20081, 23490, 23374, 22937, 23484, 23482, 23485, 23483, 23486, 22939, 23487, 22186, 23106, 22180, 22940, 23516, 22716, 22184, 23551, 23081, 23522, 23480, 22936, 22185, 23540, 23530, 22941, 23543, 23513, 23489, 23117, 23083, 23492, 22748, 23512, 23080, 23524, 23539, 23494, 23082, 23495, 23532, 23518, 22877, 23523, 23541, 23085, 23499, 23498, 22942, 23535, 23519, 23471, 20104, 19898, 20039, 19423, 20085, 19418, 18857, 21539, 18856, 21533, 20036, 20086, 21540, 19765, 20035, 20084, 20087, 21536, 20037, 22101, 22458, 23501, 22879, 23525, 23496, 23509, 23508, 23086, 22938, 22191, 23481, 23504, 22188, 22192, 23116, 23529)
+		) XX
+	WHERE ROWNUM <= :R
+	) XXX
+WHERE RN > :B
+Params:  Name:B	obj:0
+ 
+17:14:45 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+17:14:45 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+17:16:04 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+17:16:04 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 

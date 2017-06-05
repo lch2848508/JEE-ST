@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer fontWeight="bold" color="0x0000FF" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import spark.components.BorderContainer;
+			import spark.components.Label;
+
+			public function createLegend(items:Array, colors:Array):void
+			{
+				this.removeAllElements();
+				var w:int=0;
+				for (var i:int=0; i < items.length; i++)
+				{
+					var item:Object=items[i];
+					var color:Object=colors[i % colors.length];
+					var b:BorderContainer=new BorderContainer();
+					b.setStyle("backgroundColor", color);
+					b.width=16;
+					b.height=16;
+					b.left=10;
+					b.top=10 + i * 25;
+					this.addElement(b);
+
+					var text:Label=new Label;
+					text.text=items[i].label;
+					text.left=36;
+					text.top=b.top + 2;
+					this.addElement(text);
+
+					w=Math.max(measureText(items[i].label).width, w);
+				}
+				this.height=items.length * 25 + 20;
+				this.width=w + 46
+			}
+		]]>
+	</fx:Script>
+</s:BorderContainer>

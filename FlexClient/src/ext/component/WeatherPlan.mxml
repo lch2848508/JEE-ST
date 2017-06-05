@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel title="今日天气预报" dropShadowVisible="false" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="300" height="300" minWidth="400" minHeight="280" fontSize="14" initialize="group1_initializeHandler(event)">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import be.wellconsidered.services.Operation;
+			import be.wellconsidered.services.WebService;
+			import be.wellconsidered.services.events.OperationEvent;
+
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.controls.Text;
+			import mx.events.FlexEvent;
+
+			private var _city:String="";
+			private var timer:Timer;
+
+
+			public function get city():String
+			{
+				return _city;
+			}
+
+			public function set city(value:String):void
+			{
+				_city=value;
+				getWeatherByCity(value);
+			}
+
+
+			public function getWeatherByCity(cityName:String):void
+			{
+				if (!StringUtils.isEmpty(cityName))
+					op.getWeatherbyCityName(cityName);
+			}
+			var op:Operation=null;
+
+			protected function group1_initializeHandler(event:FlexEvent):void
+			{
+				op=new Operation(new WebService("http://www.webxml.com.cn/WebServices/WeatherWebService.asmx?wsdl"));
+				op.addEventListener(OperationEvent.COMPLETE, WebServiceComplete);
+				op.addEventListener(OperationEvent.FAILED, WebServiceFailed);
+
+				timer=new Timer(1000 * 3600 * 2);
+				timer.addEventListener(TimerEvent.TIMER, function()
+				{
+					getWeatherByCity(_city);
+				});
+			}
+
+			private function WebServiceComplete(event:OperationEvent):void
+			{
+				var strs:Array=event.data as Array;
+				this.title=strs[0] + strs[1] + "天气情况";
+				img1.source="../images/weather/b_" + strs[8];
+				img2.source="../images/weather/b_" + strs[9];
+				day1_1.text=strs[6];
+				day1_2.text=strs[5];
+				day1_3.text=strs[7];
+				day1Detail.text="　　" + strs[10];
+
+				img3.source="../images/weather/b_" + strs[15];
+				img4.source="../images/weather/b_" + strs[16];
+				day2_1.text=strs[13];
+				day2_2.text=strs[12];
+				day2_3.text=strs[14];
+
+				img5.source="../images/weather/b_" + strs[20];
+				img6.source="../images/weather/b_" + strs[21];
+				//day3.Text = "<span>" + strs[18] + "</span>" + strs[17] + "\n" + strs[19];
+				day3_1.text=strs[18];
+				day3_2.text=strs[17];
+				day3_3.text=strs[19];
+			}
+
+			private function WebServiceFailed(event:OperationEvent):void
+			{
+			}
+		]]>
+	</fx:Script>
+
+	<s:Label id="labelCity" left="0" top="0" width="100%" fontSize="16" fontWeight="bold">
+	</s:Label>
+
+	<s:Image id="img1" left="8" top="4" width="50" height="46">
+	</s:Image>
+	<s:Image id="img2" left="60" top="4" width="50" height="46">
+	</s:Image>
+	<s:Label id="day1" left="120" right="8" top="8">
+	</s:Label>
+	<s:RichText left="130" right="8" top="8">
+		<s:content>
+			<s:span id="day1_1" fontWeight="bold">
+			</s:span>
+			<s:br/>
+			<s:span id="day1_2">
+			</s:span>
+			<s:br/>
+			<s:span id="day1_3">
+			</s:span>
+		</s:content>
+	</s:RichText>
+	<s:Label id="day1Detail" left="8" right="8" top="60">
+
+	</s:Label>
+
+	<s:Image id="img3" left="8" top="110" width="50" height="46">
+	</s:Image>
+	<s:Image id="img4" left="60" top="110" width="50" height="46">
+	</s:Image>
+	<s:RichText left="130" right="8" top="110">
+		<s:content>
+			<s:span id="day2_1" fontWeight="bold">
+			</s:span>
+			<s:br/>
+			<s:span id="day2_2">
+			</s:span>
+			<s:br/>
+			<s:span id="day2_3">
+			</s:span>
+		</s:content>
+	</s:RichText>
+
+	<s:Image id="img5" left="8" top="170" width="50" height="46">
+	</s:Image>
+	<s:Image id="img6" left="60" top="170" width="50" height="46">
+	</s:Image>
+	<s:RichText left="130" right="8" top="170">
+		<s:content>
+			<s:span id="day3_1" fontWeight="bold">
+			</s:span>
+			<s:br/>
+			<s:span id="day3_2">
+			</s:span>
+			<s:br/>
+			<s:span id="day3_3">
+			</s:span>
+		</s:content>
+	</s:RichText>
+</s:Panel>

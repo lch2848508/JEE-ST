@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module creationComplete="application1_creationCompleteHandler(event)" implements="com.webgis.intf.MapWidgetContainIntf" xmlns:widgetcontain="com.webgis.module.widgetcontain.*" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:component="com.webgis.component.*">
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.webgis.intf.MapWidgetContainIntf;
+
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+
+			import spark.modules.ModuleLoader;
+
+			private var cap2Contain:Object={};
+
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (extParams != null)
+				{
+					var caps:Array=[];
+					var status:Object=extParams.contain.status;
+					var exts:Array=extParams.contain.exts;
+					if (exts && exts.length != 0)
+					{
+						for (var j:int=0; j < exts.length; j++)
+						{
+							var contain:NavigatorContent=new NavigatorContent();
+							contain.enabled=true;
+							contain.label=exts[j];
+							cap2Contain[contain.label]=contain;
+						}
+					}
+
+					layerTreeContain.enabled=status.layerTree[0];
+					layerTreeContain.label=status.layerTree[1];
+					cap2Contain[layerTreeContain.label]=layerTreeContain;
+
+					spatialAnalyzeContain.enabled=status.spatialAnalyse[0];
+					spatialAnalyzeContain.label=status.spatialAnalyse[1];
+					cap2Contain[spatialAnalyzeContain.label]=spatialAnalyzeContain;
+
+					searchResultContain.enabled=status.searchResult[0];
+					searchResultContain.label=status.searchResult[1];
+					cap2Contain[searchResultContain.label]=searchResultContain;
+
+					plottingContain.enabled=status.plotting[0];
+					plottingContain.label=status.plotting[1];
+					cap2Contain[plottingContain.label]=plottingContain;
+
+					favoriteContain.enabled=status.favorite[0];
+					favoriteContain.label=status.favorite[1];
+					cap2Contain[favoriteContain.label]=favoriteContain;
+
+					projectContain.enabled=status.project[0];
+					projectContain.label=status.project[1];
+					cap2Contain[projectContain.label]=projectContain;
+
+					statisticContain.enabled=status.statistic[0];
+					statisticContain.label=status.statistic[1];
+					cap2Contain[statisticContain.label]=statisticContain;
+
+
+
+					navigatorViewStack.removeAllElements();
+					for (var i:int=0; i < extParams.contain.sort.length; i++)
+					{
+						var navi:NavigatorContent=cap2Contain[extParams.contain.sort[i]];
+						if (navi && navi.enabled)
+							navigatorViewStack.addElement(navi);
+					}
+
+					navigatorToolbar.viewStack=navigatorViewStack;
+					navigatorToolbar.createItems();
+				}
+			}
+			[Bindable]
+			private var leftAreaWidth:int=320;
+			private var constLeftAreaWidth:int=320;
+
+			[Embed(source="1.png")] //退回
+			[Bindable]
+			public var png1:Class;
+
+			[Embed(source="2.png")] //退回
+			[Bindable]
+			public var png2:Class;
+
+			[Bindable]
+			public var rightContainCaption:String="";
+			[Bindable]
+			public var rightContainWidth:int=0;
+
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				leftAreaWidth=(leftAreaWidth == constLeftAreaWidth) ? 0 : constLeftAreaWidth;
+				imgExpand.source=leftAreaWidth == 0 ? png2 : png1;
+			}
+
+			protected function navigatorViewStack_changeHandler(event:IndexChangedEvent):void
+			{
+				var oldIndex:int=event != null ? event.oldIndex : -1;
+				var newIndex:int=event != null ? event.newIndex : navigatorViewStack.selectedIndex;
+				navigatorViewStackChange(oldIndex, newIndex);
+			}
+
+			private function navigatorViewStackChange(oldIndex:int, newIndex:int):void
+			{
+				if (oldIndex != -1)
+				{
+					var oldControl:NavigatorContent=navigatorViewStack.getElementAt(oldIndex) as NavigatorContent;
+					if (oldControl.numElements != 0)
+					{
+						var m:Object=oldControl.getElementAt(oldControl.numElements - 1);
+						if (m is ModuleLoader)
+							m=m.child;
+						if (m && m.hasOwnProperty("inactive"))
+							m.inactive();
+					}
+				}
+				if (newIndex != -1)
+				{
+					var newControl:NavigatorContent=navigatorViewStack.getElementAt(newIndex) as NavigatorContent;
+					if (newControl.numElements != 0)
+					{
+						var m:Object=newControl.getElementAt(newControl.numElements - 1);
+						if (m is ModuleLoader)
+							m=m.child;
+						if (m && m.hasOwnProperty("active"))
+							m.active();
+					}
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////
+			protected function closeBtnClick(event:MouseEvent):void
+			{
+				rightContainWidth=0;
+			}
+			//////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.components.Navigation;
+			import com.webgis.intf.MapControlFavorite;
+			import com.webgis.intf.MapControlMultiMapIntf;
+			import com.webgis.intf.MapControlSearchContainIntf;
+			import com.webgis.intf.MapControlStatisticIntf;
+			import com.webgis.intf.MapControlShare;
+			import mx.core.UIComponent;
+
+			private var toolbarHeight:int=28;
+
+			//////////////////////////////////////////////////////////////////////
+			public function getMapContain():UIComponent //地图容器
+			{
+				return mapContain;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function getNavigatorContain():UIComponent //导航面板容器
+			{
+				return mapContain;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function getOverviewMapContain():UIComponent //鹰眼图容器
+			{
+				return mapContain;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function getDynamicLayerTreeContain():UIComponent //动态图层树状列表
+			{
+				return layerTreeContain;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function getToolbarContain():UIComponent //工具条容器
+			{
+				return toolbarContain;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function focusLayerTree():void
+			{
+				var temp:NavigatorContent=layerTreeContain;
+				if (navigatorViewStack.selectedChild != temp)
+				{
+					navigatorViewStackChange(navigatorViewStack.selectedIndex, -1)
+					navigatorViewStack.selectedChild=temp;
+					navigatorToolbar.resetSelectedItem();
+					navigatorViewStackChange(-1, navigatorViewStack.selectedIndex);
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function getNavigatorAreaContain():UIComponent
+			{
+				return null;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function getSearchResultContain():UIComponent
+			{
+				return searchResultContain;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapSearchContainInstance:MapControlSearchContainIntf=null;
+
+			public function get searchContain():MapControlSearchContainIntf
+			{
+				return mapSearchContainInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set searchContain(value:MapControlSearchContainIntf):void
+			{
+				mapSearchContainInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function focusSearchContain():void
+			{
+				var temp:NavigatorContent=searchResultContain;
+				if (navigatorViewStack.selectedChild != temp)
+				{
+					navigatorViewStackChange(navigatorViewStack.selectedIndex, -1)
+					navigatorViewStack.selectedChild=temp;
+					navigatorToolbar.resetSelectedItem();
+					navigatorViewStackChange(-1, navigatorViewStack.selectedIndex);
+				}
+			}
+
+			private var multiMapInstance:MapControlMultiMapIntf=null;
+
+			public function get multiMap():MapControlMultiMapIntf
+			{
+				return multiMapInstance;
+			}
+
+			public function set multiMap(value:MapControlMultiMapIntf):void
+			{
+				multiMapInstance=value;
+			}
+			private var shareInstance:MapControlShare=null;
+			
+			public function get share():MapControlShare
+			{
+				return shareInstance;
+				
+			}
+			
+			public function set share(value:MapControlShare):void
+			{
+				shareInstance=value;
+			}
+			
+			public function getShareContain():UIComponent 
+			{
+				return shareContain;
+			}
+			
+			public function focusShare():void
+			{
+				var temp:NavigatorContent=shareContain;
+				if (navigatorViewStack.selectedChild != temp)
+				{
+					navigatorViewStackChange(navigatorViewStack.selectedIndex, -1)
+					navigatorViewStack.selectedChild=temp;
+					navigatorToolbar.resetSelectedItem();
+					navigatorViewStackChange(-1, navigatorViewStack.selectedIndex);
+				}
+			}
+			private var favoriteInstance:MapControlFavorite=null;
+
+			public function get favorite():MapControlFavorite
+			{
+				return favoriteInstance;
+
+			}
+
+			public function set favorite(value:MapControlFavorite):void
+			{
+				favoriteInstance=value;
+			}
+
+			public function getFavoriteContain():UIComponent //收藏夹
+			{
+				return favoriteContain;
+			}
+
+			public function focusFavorite():void
+			{
+				var temp:NavigatorContent=favoriteContain;
+				if (navigatorViewStack.selectedChild != temp)
+				{
+					navigatorViewStackChange(navigatorViewStack.selectedIndex, -1)
+					navigatorViewStack.selectedChild=temp;
+					navigatorToolbar.resetSelectedItem();
+					navigatorViewStackChange(-1, navigatorViewStack.selectedIndex);
+				}
+			}
+
+			public function getStatisticContain():UIComponent
+			{
+				return statisticContain;
+			}
+
+			private var statisticInstance:MapControlStatisticIntf=null;
+
+			public function get statistic():MapControlStatisticIntf
+			{
+				return statisticInstance;
+			}
+
+			public function set statistic(value:MapControlStatisticIntf):void
+			{
+				statisticInstance=value;
+			}
+
+			public function getPlottingContain():UIComponent
+			{
+				return plottingContain;
+			}
+
+			public function getMISLayerContain():UIComponent
+			{
+				return projectContain;
+			}
+
+			public function getSpatialAnalyContain():UIComponent
+			{
+				return spatialAnalyzeContain;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////
+			//显示隐藏附加信息
+			public function showExtContain(caption:String, control:UIComponent):void
+			{
+				control.visible=true;
+				rightContainCaption=caption;
+				rightContainWidth=300;
+				for (var i:int=0; i < rightContain.numElements; i++)
+				{
+					var navigatorContain:NavigatorContent=rightContain.getElementAt(i) as NavigatorContent;
+					if (navigatorContain.getElementAt(0) == control)
+					{
+						rightContain.selectedIndex=i;
+						return;
+					}
+				}
+				if (control.parent)
+					(control.parent as Object).removeElement(control);
+				navigatorContain=new NavigatorContent();
+				navigatorContain.percentHeight=100;
+				navigatorContain.percentWidth=100;
+				rightContain.addElement(navigatorContain);
+				control.percentHeight=100;
+				control.percentWidth=100;
+				control.left=0;
+				control.right=0;
+				control.top=0;
+				control.bottom=0;
+				navigatorContain.addElement(control);
+				rightContain.selectedChild=navigatorContain;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function hideExtContain(caption:String, control:UIComponent):void
+			{
+				if (rightContain.selectedChild && (rightContain.selectedChild as Object).getElementAt(0) == control)
+					closeBtnClick(null);
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private var extParams:Object=null;
+
+			public function setParams(v:Object):void
+			{
+				extParams=v;
+				application1_creationCompleteHandler(null);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function getContainByLabel(label:String):UIComponent
+			{
+				return cap2Contain[label] as UIComponent;
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup gap="0" width="100%" height="100%" contentBackgroundColor="0xFFFFFF" contentBackgroundAlpha="1">
+		<!-- 做导航区域 -->
+		<s:BorderContainer width="{leftAreaWidth}" id="leftContain" height="100%" borderColor="#CACACA" borderVisible="false">
+			<s:layout>
+				<s:VerticalLayout gap="0">
+				</s:VerticalLayout>
+			</s:layout>
+			<widgetcontain:NavigatorToolbar id="navigatorToolbar" width="100%" height="{toolbarHeight}"/>
+			<mx:ViewStack change="navigatorViewStack_changeHandler(event)" width="100%" height="100%" id="navigatorViewStack">
+				<s:NavigatorContent icon="@Embed('FolderWithGISData16.png')" label="一张图" id="layerTreeContain" width="100%" height="100%"/>
+				<s:NavigatorContent enabled="true" icon="@Embed('Legend16.png')" label="空间分析" id="spatialAnalyzeContain" width="100%" height="100%"/>
+				<s:NavigatorContent icon="@Embed('Legend16.png')" label="查询结果" id="searchResultContain" width="100%" height="100%"/>
+				<s:NavigatorContent enabled="true" icon="@Embed('Legend16.png')" label="地图标绘" id="plottingContain" width="100%" height="100%"/>
+				<s:NavigatorContent enabled="false" icon="@Embed('Legend16.png')" label="分享地图" id="shareContain" width="100%" height="100%"/>
+				<s:NavigatorContent enabled="false" icon="@Embed('Legend16.png')" label="收藏夹" id="favoriteContain" width="100%" height="100%"/>
+				<s:NavigatorContent enabled="false" icon="@Embed('Legend16.png')" label="项目信息" id="projectContain" width="100%" height="100%"/>
+				<s:NavigatorContent enabled="false" icon="@Embed('Legend16.png')" label="统计报表" id="statisticContain" width="100%" height="100%"/>
+			</mx:ViewStack>
+		</s:BorderContainer>
+
+		<s:BorderContainer width="100%" height="100%" backgroundColor="0xFFFFFF" borderVisible="false">
+			<s:VGroup width="100%" height="100%" gap="0">
+
+				<!-- 工具条区域 -->
+				<s:BorderContainer width="100%" height="{toolbarHeight}" backgroundColor="#F6F6F6" backgroundAlpha="0.9" borderVisible="false">
+					<s:Line width="100%" bottom="0" height="0">
+						<s:stroke>
+							<s:SolidColorStroke color="#DDE1E5"/>
+						</s:stroke>
+					</s:Line>
+					<s:Group width="100%" height="100%" id="toolbarContain"/>
+				</s:BorderContainer>
+
+				<!-- 地图区域 -->
+				<s:HGroup gap="0" width="100%" height="100%">
+					<!-- 地图区域 -->
+					<s:Group width="100%" height="100%" id="mapContain"/>
+
+					<!-- 右边的属性区域 -->
+					<s:BorderContainer borderColor="#BDCBD3" borderVisible="false" backgroundColor="0xFFFFFF" width="{rightContainWidth}" height="100%">
+						<s:BorderContainer left="0" top="0" width="100%" borderVisible="false" height="28" backgroundColor="#F8F8F8">
+							<s:Label verticalCenter="0" color="#7C7070" left="4" text="{rightContainCaption}" fontWeight="bold"/>
+							<component:ToolbarButton click="closeBtnClick(event)" right="3" top="3" icon="@Embed('/assets/common/close.png')"/>
+						</s:BorderContainer>
+						<s:Line width="100%" height="0" top="28">
+							<s:stroke>
+								<s:SolidColorStroke color="0xE6EDF1"/>
+							</s:stroke>
+						</s:Line>
+						<s:Line height="100%" width="0" left="0">
+							<s:stroke>
+								<s:SolidColorStroke color="0xE6EDF1"/>
+							</s:stroke>
+						</s:Line>
+						<mx:ViewStack left="1" right="0" top="28" bottom="0" id="rightContain"/>
+					</s:BorderContainer>
+				</s:HGroup>
+
+			</s:VGroup>
+			<s:Line width="0" left="0" height="100%">
+				<s:stroke>
+					<s:SolidColorStroke color="#DDE1E5"/>
+				</s:stroke>
+			</s:Line>
+
+			<s:Image source="{png1}" id="imgExpand" click="image1_clickHandler(event)" left="0" verticalCenter="0" width="15" height="63">
+
+			</s:Image>
+
+		</s:BorderContainer>
+	</s:HGroup>
+</s:Module>

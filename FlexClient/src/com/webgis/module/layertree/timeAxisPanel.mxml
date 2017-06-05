@@ -1,0 +1,741 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layertree:SuperPanel xmlns:fx="http://ns.adobe.com/mxml/2009"
+					  xmlns:s="library://ns.adobe.com/flex/spark"
+					  xmlns:mx="library://ns.adobe.com/flex/mx"
+					  xmlns:layertree="com.webgis.module.layertree.*"
+					  xmlns:component1="com.webgis.component.*"
+					  xmlns:component="com.estudio.flex.component.*"
+					  creationComplete="titlewindowex1_creationCompleteHandler(event)"
+					  title="时间轴"
+					  allowDrag="true"
+					  height="70"
+					  width="100%"
+					  verticalAlign="middle"
+					  allowClose="true"
+					  allowMinimize="true"
+					  headerHeight="0"
+					  borderVisible="false"
+					  dropShadowVisible="false"
+					  titleBackgroundSkin="com.webgis.module.layertree.SuperPanelSkin"
+					  backgroundAlpha="0.75"
+					  styleName="superpanel"
+					  close="superpanel1_closeHandler(event)">
+	<fx:Style>
+		.superpanel
+		{
+			resize-grip-skin:          	Embed(source="com/webgis/module/layertree/assets/images/resizeHandler.png");
+			actionAlpha:		 		0.75;
+			corner-radius: 				6;
+			highlight-alphas: 			0.1, 0;
+			dropShadowEnabled: 			true;
+			shadow-distance:			2;
+			close-button-style-name:	"closeButton";
+			minimize-button-style-name:	"minimizeButton";
+		}
+		.closeButton
+		{
+			icon: 						Embed(source="com/webgis/module/layertree/assets/images/icon_close_up.png");
+			up-icon: 					Embed(source="com/webgis/module/layertree/assets/images/icon_close_up.png");
+			over-icon: 					Embed(source="com/webgis/module/layertree/assets/images/icon_close_over.png");
+			down-icon: 					Embed(source="com/webgis/module/layertree/assets/images/icon_close_down.png");
+			disabled-skin: 				Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+			selected-up-skin: 			Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+			selected-over-skin: 		Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+			selected-down-skin: 		Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+			down-skin: 					Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+			over-skin: 					Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+			up-skin: 					Embed(source="com/webgis/module/layertree/assets/images/clear.png");	
+		}
+		.minimizeButton
+		{
+			icon: 						Embed(source="com/webgis/module/layertree/assets/images/icon_minimize_up.png");
+			up-icon: 					Embed(source="com/webgis/module/layertree/assets/images/icon_minimize_up.png");
+			over-icon: 					Embed(source="com/webgis/module/layertree/assets/images/icon_minimize_over.png");
+			selected-over-icon: 		Embed(source="com/webgis/module/layertree/assets/images/icon_minimize_over.png");
+			down-icon: 					Embed(source="com/webgis/module/layertree/assets/images/icon_minimize_down.png");
+			selected-down-icon: 		Embed(source="com/webgis/module/layertree/assets/images/icon_minimize_down.png");
+			disabled-skin: 				Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+			selected-up-skin: 			Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+			selected-over-skin: 		Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+			selected-down-skin: 		Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+			down-skin: 					Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+			over-skin: 					Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+			up-skin: 					Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+		}
+	</fx:Style>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.layers.supportClasses.LayerDefinition;
+			import com.esri.ags.layers.supportClasses.LayerDrawingOptions;
+			import com.esri.ags.renderers.ClassBreaksRenderer;
+			import com.esri.ags.renderers.UniqueValueRenderer;
+			import com.esri.ags.renderers.supportClasses.ClassBreakInfo;
+			import com.esri.ags.renderers.supportClasses.UniqueValueInfo;
+			import com.esri.ags.symbols.FillSymbol;
+			import com.esri.ags.symbols.SimpleFillSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.estudio.flex.component.InputTextForm;
+			import com.estudio.flex.component.ResizableTitleWindowSkin;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			import com.utilities.ResizeUtils;
+			import com.webgis.MapLayerManager;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.module.layertree.TimeAxisItemRender;
+			import com.webgis.module.layertree.WidgetLayerTree;
+			import com.webgis.service.MapServiceClient;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.ColorPicker;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.utils.ObjectUtil;
+			private var widgetlayertree:WidgetLayerTree=null;
+			import spark.components.DataGroup;
+			import spark.components.supportClasses.ItemRenderer;
+			import spark.events.IndexChangeEvent;
+
+			public var mapLayerManager:MapLayerManager=null;
+			private var serverId:String="";
+			private var layerId:String="";
+			public var mapServiceClient:MapServiceClient=null;
+
+			[Bindable]
+			private var allLayers:Array=null;
+
+			[Embed(source="com/webgis/module/layertree/assets/images/right_arrow_fill.png")]
+			[Bindable]
+			private var rightArrow:Class;
+
+			[Embed(source="com/webgis/module/layertree/assets/images/left_arrow_fill.png")]
+			[Bindable]
+			private var leftArrow:Class;
+
+			[Embed(source="com/webgis/module/layertree/assets/images/right_arrow_blank.png")]
+			[Bindable]
+			private var rightArrow_blank:Class;
+
+			[Embed(source="com/webgis/module/layertree/assets/images/left_arrow_blank.png")]
+			[Bindable]
+			private var leftArrow_blank:Class;
+			[Bindable]
+			private var rightimage=rightArrow_blank;
+			[Bindable]
+			private var leftimage=leftArrow_blank;
+
+			[Embed(source="com/webgis/module/layertree/assets/images/selected.png")]
+			[Bindable]
+			private var selected:Class;
+
+			[Embed(source="com/webgis/module/layertree/assets/images/selected_none.png")]
+			[Bindable]
+			private var selectednone:Class;
+
+			[Bindable]
+			private var cache:Object={};
+			private var resizeUtils:ResizeUtils=null;
+
+			public function hide():void
+			{
+				reborn(null);
+				stopInt();
+				this.visible=false;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function execute(layers:Array, serverId:String, mapLayerManager:MapLayerManager, allLayers:Array):void
+			{
+				this.layers=new ArrayCollection(layers);
+				this.serverId=serverId;
+				this.mapLayerManager=mapLayerManager;
+				this.allLayers=allLayers;
+				if (this.layerCombobox)
+				{
+					this.layerCombobox.selectedIndex=0;
+					this.layerCombobox.selectedItem=layers[0];
+					this.layerCombobox_changeHandler(null);
+				}
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////
+			[Bindable]
+			private var layers:ArrayCollection=new ArrayCollection([]); //图层
+			[Bindable]
+			private var fields:ArrayCollection=new ArrayCollection([]); //字段
+			[Bindable]
+			public var isEnumSpecialType:Boolean=true;
+			[Bindable]
+			private var timeAxisValues:ArrayCollection=new ArrayCollection([]);
+
+			private var enumValueRender4Line1:ClassFactory=new ClassFactory(TimeAxisItemRender);
+			public var currentLayerType:int=0;
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function layerCombobox_changeHandler(event:IndexChangeEvent):void
+			{
+				var item:Object=layerCombobox.selectedItem;
+				if (item)
+				{
+					fields=new ArrayCollection(item.items as Array);
+					fieldCombobox.callLater(function():void
+					{
+						fieldCombobox.selectedIndex=0;
+						fieldCombobox.selectedItem=fields.getItemAt(0);
+						fieldCombobox_changeHandler(null);
+					});
+					currentLayerType=item.type;
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_creationCompleteHandler(event:FlexEvent):void
+			{
+				timeAxisList.setStyle("borderThickness", 20);
+				fieldCombobox.textInput.editable=false;
+				startButton.enabled=true;
+				startButton.visible=true;
+				startButton.includeInLayout=true;
+				stopButton.enabled=false;
+				stopButton.visible=false;
+				stopButton.includeInLayout=false;
+				enumValueRender4Line1.properties={callFunction: function():void
+				{
+					reborn(null);
+					btnApplyClick(null);
+				}};
+			}
+
+			protected function reborn(event:FlexEvent):void
+			{
+				for (var i:int=0; i < fields.length; i++)
+				{
+					
+					var item2:Object=fields.getItemAt(i);
+					isEnumSpecialType=item2 && item2.type;
+					if (!isEnumSpecialType)
+					{
+						item2.minValue=item2.values[0].minValue * 1;
+						item2.maxValue=item2.values[0].maxValue * 1;
+						item2.step=10;
+						item2.values=[];
+						var min:int=Math.floor(item2.minValue);
+						var max:int=Math.ceil(item2.maxValue);
+						max+=item2.step - (max - min) % item2.step;
+						var stepValue:int=(max - min) / item2.step;
+						for (var k:int=0; k < item2.step; k++)
+						{
+							item2.values.push({value: (min + "-" + (min + stepValue)), min: min, max: min + stepValue});
+							min+=stepValue;
+						}
+					}
+
+					//生成预定义值
+					for (var j:int=0; j < item2.values.length; j++)
+					{
+						var value:Object=item2.values[j];
+						value.checked=true;
+						value.style={r: 5, markerType: 0, fillColor: getRandomColor(j), width: 2, lineColor: currentLayerType == 1 ? getRandomColor(j) : 0xFF0000};
+					}
+					timeAxisValues=new ArrayCollection(item2.values);
+					timeAxisValues.refresh();
+				}
+
+
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function fieldCombobox_changeHandler(event:IndexChangeEvent):void
+			{
+				stopInt();
+				var item:Object=fieldCombobox.selectedItem;
+				isEnumSpecialType=item && item.type;
+				if (!item.isSetting)
+				{
+					if (!isEnumSpecialType)
+					{
+						item.minValue=item.values[0].minValue * 1;
+						item.maxValue=item.values[0].maxValue * 1;
+						item.step=10;
+						item.values=[];
+						var min:int=Math.floor(item.minValue);
+						var max:int=Math.ceil(item.maxValue);
+						max+=item.step - (max - min) % item.step;
+						var stepValue:int=(max - min) / item.step;
+						for (var i:int=0; i < item.step; i++)
+						{
+							item.values.push({value: (min + "-" + (min + stepValue)), min: min, max: min + stepValue});
+							min+=stepValue;
+						}
+					}
+
+					//生成预定义值
+					for (var i:int=0; i < item.values.length; i++)
+					{
+
+						var value:Object=item.values[i];
+						if (value.value == "" || value.value == undefined)
+						{
+							value.value="其它";
+						}
+						value.checked=true;
+						value.textColor="#5c5c5c";
+						value.labelColor="0xffcccccc";
+						value.selectImage=selectednone;
+						value.style={r: 5, markerType: 0, fillColor: 0xffffff00, width: 3, lineColor: 0xffffff00};
+					}
+					item.isSetting=true;
+				}
+				for (var i:int=0; i < item.values.length; i++)
+				{
+					var value:Object=item.values[i];
+					value.textColor="#5c5c5c";
+					value.labelColor="0xffcccccc";
+					value.selectImage=selectednone;
+				}
+				timeAxisValues=new ArrayCollection(item.values);
+				timeAxisValues.refresh();
+			}
+			///////////////////////////////////////////////////////////////////////////////////
+			private var randomColors:Array=[0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00, 0xFF00FF, 0x00FFFF, 0x800000, 0x008000, 0x000080, 0x808000, 0x800080, 0x008080, 0xC0C0C0, 0x808080, 0x9999FF, 0x993366, 0xFFFFCC, 0xCCFFFF, 0x660066, 0xFF8080, 0x0066CC, 0xCCCCFF, 0x000080, 0xFF00FF, 0xFFFF00, 0x00FFFF, 0x800080, 0x800000, 0x008080, 0x0000FF, 0x00CCFF, 0xCCFFFF, 0xCCFFCC, 0xFFFF99, 0x99CCFF, 0xFF99CC, 0xCC99FF, 0xFFCC99, 0x3366FF, 0x33CCCC, 0x99CC00, 0xFFCC00, 0xFF9900, 0xFF6600, 0x666699, 0x969696, 0x003366, 0x339966, 0x003300, 0x333300, 0x993300, 0x993366, 0x333399, 0x333333];
+			private var stepColors:Array=[0x2F0000, 0x4D0000, 0x600000, 0x750000, 0x930000, 0xAE0000, 0xCE0000, 0xEA0000, 0xFF0000, 0xFF2D2D, 0xFF5151, 0xff7575, 0xFF9797, 0xFFB5B5, 0xFFD2D2, 0xFFECEC, 0x000000, 0x272727, 0x3C3C3C, 0x4F4F4F, 0x5B5B5B, 0x6C6C6C, 0x7B7B7B, 0x8E8E8E, 0x9D9D9D, 0xADADAD, 0xBEBEBE, 0xd0d0d0, 0xE0E0E0, 0xF0F0F0, 0xFCFCFC, 0xFFFFFF];
+
+			//////////////////////////////////////////////////////////////////////////////////
+			private function getRandomColor(index:int):uint
+			{
+				return isEnumSpecialType ? randomColors[index % randomColors.length] : stepColors[index % stepColors.length];
+			}
+
+
+			private function getSelected():void
+			{
+				var num:int=timeAxisList.selectedIndex;
+				//for (var i:int=0; i < timeAxisValues.length; i++)
+				for (var i:int=0; i <= num; i++)
+				{
+					var item:Object=timeAxisValues.getItemAt(i);
+					item.textColor="0xffffffff";
+					//item.labelColor="0xff0000ff";
+					item.labelColor="#3399FF";
+					item.style.lineColor="0xffffff00";
+					item.style.fillColor="0xffffff00";
+					item.style.width=3;
+					item.checked=true;
+					item.selectImage=selected;
+				}
+				var obj:Object=timeAxisValues.getItemAt(timeAxisList.selectedIndex);
+				obj.style.lineColor="0xff00ff00";
+				obj.style.fillColor="0xff00ff00";
+				obj.style.width=6;
+				for (var i:int=num + 1; i < timeAxisValues.length; i++)
+				{
+					var item:Object=timeAxisValues.getItemAt(i);
+					item.textColor="#5c5c5c";
+					item.labelColor="0xffcccccc";
+					item.lineColor="0xffffffff";
+					item.style.width=3;
+					item.checked=false;
+					item.selectImage=selectednone;
+				}
+				timeAxisValues.refresh();
+			}
+
+			protected function btnApplyClick(event:MouseEvent):void
+			{
+				getSelected();
+				//timeAxisList.horizontalGridLines=true;
+				if (timeAxisValues.length > 6)
+				{
+					if (timeAxisList.horizontalScrollPosition > 0)
+					{
+						leftimage=leftArrow;
+					}
+					else
+						leftimage=leftArrow_blank;
+					if (timeAxisList.selectedIndex >= timeAxisValues.length - 5)
+					{
+						rightimage=rightArrow_blank;
+					}
+					else
+						rightimage=rightArrow;
+				}
+
+
+				if (isEnumSpecialType)
+				{
+					var isNumberDataType:Boolean=fieldCombobox.selectedItem.datatype == 1;
+					var filterValues:Array=[];
+					var uniqueValueRender:UniqueValueRenderer=new UniqueValueRenderer();
+					uniqueValueRender.defaultLabel="其他";
+					uniqueValueRender.field=fieldCombobox.selectedItem.name;
+					uniqueValueRender.infos=[];
+					for (var i:int=0; i < timeAxisValues.length; i++)
+					{
+						var item:Object=timeAxisValues.getItemAt(i);
+						if (!item.checked)
+							continue;
+						if (StringUtils.isEmpty(StringUtils.trim(item.value)))
+						{
+							uniqueValueRender.defaultSymbol=createSymbol(item.style);
+						}
+						else
+						{
+							var uniqueValueInfo:UniqueValueInfo=new UniqueValueInfo(createSymbol(item.style), item.value);
+							uniqueValueInfo.label=(StringUtils.isEmpty(item.value) || "null" == item.value.toLowerCase()) ? "其他" : item.value;
+							uniqueValueRender.infos.push(uniqueValueInfo);
+						}
+						filterValues.push((isNumberDataType ? "" : "'") + StringUtils.replace(item.value, "'", "''") + (isNumberDataType ? "" : "'"));
+					}
+					var layerFilterExpress:String="";
+					if (filterValues.length != timeAxisValues.length)
+					{
+						if (filterValues.indexOf(" ") != -1)
+						{
+							layerFilterExpress="(" + fieldCombobox.selectedItem.name + " is null)";
+							ArrayUtils.remove(filterValues, filterValues.indexOf(" "));
+						}
+						if (filterValues.length != 0)
+						{
+							layerFilterExpress+=StringUtils.isEmpty(layerFilterExpress) ? "(" : " or (";
+							layerFilterExpress+=fieldCombobox.selectedItem.name + " in (" + filterValues.join(",") + ")";
+							layerFilterExpress+=")"
+						}
+					}
+					if (filterValues.length == 0)
+						layerFilterExpress="1!=1";
+
+					var layerDrawOptions:Array=[];
+					var layerDefines:Array=[];
+					for (var i:int=0; i < layerCombobox.selectedItem.names.length; i++)
+					{
+						var layerDrawOption:LayerDrawingOptions=new LayerDrawingOptions();
+						layerDrawOption.renderer=uniqueValueRender;
+						layerDrawOption.layerId=layerCombobox.selectedItem.names[i];
+						layerDrawOptions.push(layerDrawOption);
+
+						if (!StringUtils.isEmpty(layerFilterExpress))
+						{
+							var layerDefine:LayerDefinition=new LayerDefinition();
+							layerDefine.layerId=layerCombobox.selectedItem.names[i];
+							layerDefine.definition=layerFilterExpress;
+							layerDefines.push(layerDefine);
+						}
+					}
+					//mapLayerManager.setSpecialLayer(serverId, layerDefines, layerDrawOptions, "selected", chkHiddleOtherLayer.selected ? allLayers : null);
+					mapLayerManager.setSpecialLayer(serverId, layerDefines, layerDrawOptions, "selected", allLayers);
+				}
+				else
+				{
+					var filterValues:Array=[];
+					var classBreaksRender:ClassBreaksRenderer=new ClassBreaksRenderer();
+					classBreaksRender.field=fieldCombobox.selectedItem.name;
+					classBreaksRender.infos=[];
+					for (var i:int=0; i < timeAxisValues.length; i++)
+					{
+						var item:Object=timeAxisValues.getItemAt(i);
+						if (!item.checked)
+							continue;
+						var breaksInfo:ClassBreakInfo=new ClassBreakInfo(createSymbol(item.style), item.min, item.max);
+						breaksInfo.label=item.min + "-" + item.max;
+						classBreaksRender.infos.push(breaksInfo);
+						filterValues.push("(" + classBreaksRender.field + " between " + item.min + " and " + item.max + ")");
+					}
+					var layerFilterExpress:String="";
+					if (filterValues.length != timeAxisValues.length)
+					{
+						layerFilterExpress=filterValues.join(" or ");
+					}
+					if (filterValues.length == 0)
+						layerFilterExpress="1!=1";
+
+					var layerDrawOptions:Array=[];
+					var layerDefines:Array=[];
+					for (var i:int=0; i < layerCombobox.selectedItem.names.length; i++)
+					{
+						var layerDrawOption:LayerDrawingOptions=new LayerDrawingOptions();
+						layerDrawOption.renderer=classBreaksRender;
+						layerDrawOption.layerId=layerCombobox.selectedItem.names[i];
+						layerDrawOptions.push(layerDrawOption);
+						if (!StringUtils.isEmpty(layerFilterExpress))
+						{
+							var layerDefine:LayerDefinition=new LayerDefinition();
+							layerDefine.layerId=layerCombobox.selectedItem.names[i];
+							layerDefine.definition=layerFilterExpress;
+							layerDefines.push(layerDefine);
+						}
+					}
+					//mapLayerManager.setSpecialLayer(serverId, layerDefines, layerDrawOptions, "selected", chkHiddleOtherLayer.selected ? allLayers : null);
+					mapLayerManager.setSpecialLayer(serverId, layerDefines, layerDrawOptions, "selected", allLayers);
+				}
+
+			}
+
+
+			//////////////////////////////////////////////////////////////////////////////////
+			private function createSymbol(style:Object):Symbol
+			{
+				var result:Symbol=null;
+				if (currentLayerType == 0)
+				{
+					var pSymbol:SimpleMarkerSymbol=new SimpleMarkerSymbol();
+					pSymbol.size=style.r * 2;
+					pSymbol.color=style.fillColor;
+					pSymbol.style=["circle", "diamond", "square", "triangle"][style.markerType];
+					pSymbol.alpha=1;
+					result=pSymbol;
+				}
+				else if (currentLayerType == 1)
+				{
+					var lSymbol:SimpleLineSymbol=new SimpleLineSymbol("solid", style.lineColor, 1, style.width * 1);
+					lSymbol.alpha=1;
+					result=lSymbol;
+				}
+				else
+				{
+					var fSymbol:SimpleFillSymbol=new SimpleFillSymbol();
+					fSymbol.outline=new SimpleLineSymbol("solid", style.lineColor, 1, style.width * 1);
+					fSymbol.color=style.fillColor;
+					fSymbol.alpha=0.9;
+					result=fSymbol;
+				}
+
+				return result;
+			}
+
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function btnCancel_clickHandler(event:MouseEvent):void
+			{
+				mapLayerManager.setSpecialLayer(serverId, [], [], "selected", null);
+			}
+			public var closeTimeAxis:Function=null;
+
+			protected function superpanel1_closeHandler(event:CloseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if (closeTimeAxis)
+				{
+					closeTimeAxis();
+				}
+			}
+
+			public function show():void
+			{
+				this.visible=true;
+			}
+
+			private function scrollLeft(delta:int):void
+			{
+				if (timeAxisList.horizontalScrollPosition > 0)
+				{
+					timeAxisList.horizontalScrollPosition-=delta;
+					leftimage=leftArrow;
+					rightimage=rightArrow;
+				}
+
+				else
+					leftimage=leftArrow_blank;
+			}
+
+			private function scrollRight(delta:int):void
+			{
+				if (timeAxisList.horizontalScrollPosition < timeAxisList.maxHorizontalScrollPosition)
+				{
+					timeAxisList.horizontalScrollPosition+=delta;
+					rightimage=rightArrow;
+					leftimage=leftArrow;
+				}
+				else
+					rightimage=rightArrow_blank;
+
+			}
+
+			private function onMouseWheel(event:MouseEvent):void
+			{
+				if (event.delta > 0)
+					scrollLeft(1);
+				else if (event.delta < 0)
+					scrollRight(1);
+			}
+
+			protected function toolbarbutton1_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				reborn(null);
+				mapLayerManager.setSpecialLayer(serverId, [], [], "selected", null);
+				stopInt();
+				closeTimeAxis();
+			}
+			private var interval:uint;
+
+			private function startInt():void
+			{
+				if (timeAxisList.selectedIndex == -1)
+					timeAxisList.selectedIndex=0;
+				autoMaker();
+				interval=setInterval(autoMaker, 3000); // 1 second
+
+				startButton.enabled=false;
+				startButton.visible=false;
+				startButton.includeInLayout=false;
+				stopButton.enabled=true;
+				stopButton.visible=true;
+				stopButton.includeInLayout=true;
+			}
+
+			private function stopInt():void
+			{
+				if (interval)
+				{
+					clearInterval(interval);
+					startButton.enabled=true;
+					startButton.visible=true;
+					startButton.includeInLayout=true;
+					stopButton.enabled=false;
+					stopButton.visible=false;
+					stopButton.includeInLayout=false;
+				}
+			}
+
+			private function autoMaker():void
+			{
+				var t:int=timeAxisList.selectedIndex;
+				if (t < timeAxisValues.length - 1)
+				{
+					btnApplyClick(new MouseEvent(MouseEvent.CLICK));
+					timeAxisList.selectedIndex++;
+				}
+				else if (t == timeAxisValues.length - 1)
+				{
+					btnApplyClick(new MouseEvent(MouseEvent.CLICK));
+					stopInt();
+				}
+			}
+			private static const UNIT_WIDTH:int=10;
+
+			private function getColumnCount(t:int)
+			{
+				if (t <= 6)
+				{
+					rightimage=rightArrow_blank;
+
+					leftimage=leftArrow_blank;
+					return t;
+				}
+				else
+				{
+					rightimage=rightArrow;
+
+					leftimage=leftArrow_blank;
+					return 6;
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<s:ComboBox includeInLayout="false"
+				visible="false"
+				skinClass="com.estudio.flex.component.ComboBoxSkin4FixMinHeight"
+				height="22"
+				change="layerCombobox_changeHandler(event)"
+				selectedIndex="0"
+				width="100%"
+				id="layerCombobox"
+				dataProvider="{layers}"
+				labelField="title"/>
+
+	<!-- 专题绘制 -->
+	<s:HGroup verticalAlign="middle"
+			  gap="30"
+			  width="100%">
+		<s:HGroup verticalAlign="middle"
+				  gap="5"
+				  width="100%">
+			<s:Label text="字段名："
+					 fontWeight="bold"
+					 left="3"/>
+			<s:ComboBox skinClass="com.estudio.flex.component.ComboBoxSkin4FixMinHeight"
+						height="22"
+						width="100"
+						id="fieldCombobox"
+						change="fieldCombobox_changeHandler(event)"
+						labelField="title"
+						dataProvider="{fields}"/>
+			<component1:ToolbarButton visible="false"
+									  includeInLayout="false"
+									  id="btnCancel"
+									  toolTip="关闭渲染显示"
+									  click="btnCancel_clickHandler(event)"
+									  icon="@Embed('com/webgis/module/layertree/assets/images/forbid.png')"/>
+			<component1:ToolbarButton id="startButton"
+									  toolTip="播放"
+									  click="startInt()"
+									  icon="@Embed('com/webgis/module/layertree/assets/images/play.png')"/>
+			<component1:ToolbarButton id="stopButton"
+									  toolTip="暂停"
+									  click="stopInt()"
+									  icon="@Embed('com/webgis/module/layertree/assets/images/pause.png')"/>
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle"
+				  gap="3"
+				  width="100%">
+
+			<mx:Button buttonDown="scrollLeft(1)"
+					   autoRepeat="true"
+					   id="scrollLeftBtn"
+					   includeInLayout="true"
+					   visible="true"
+					   cornerRadius="0"
+					   label="左移"
+					   icon="{leftimage}"
+					   width="28"
+					   height="28"/>
+			<mx:HorizontalList borderColor="#8e8e8e"
+							   columnWidth="56"
+							   borderStyle="solid"
+							   maxWidth="336"
+							   borderVisible="true"
+							   paddingLeft="0"
+							   paddingTop="0"
+							   paddingBottom="0"
+							   paddingRight="0"
+							   columnCount="{getColumnCount(timeAxisValues.length)}"
+							   click="btnApplyClick(event)"
+							   dataProvider="{timeAxisValues}"
+							   labelField="value"
+							   height="28"
+							   id="timeAxisList"
+							   verticalAlign="middle"
+							   selectable="true"
+							   itemRenderer="{enumValueRender4Line1}"
+							   useRollOver="false"
+							   contentBackgroundAlpha="1"
+							   mouseWheel="onMouseWheel(event)"
+							   horizontalScrollPolicy="off">
+			</mx:HorizontalList>
+			<mx:Button buttonDown="scrollRight(1)"
+					   autoRepeat="true"
+					   id="scrollRightBtn"
+					   includeInLayout="true"
+					   visible="true"
+					   cornerRadius="0"
+					   icon="{rightimage}"
+					   width="28"
+					   height="28"
+					   label="右移"/>
+
+		</s:HGroup>
+
+		<component1:ToolbarButton top="0"
+								  click="toolbarbutton1_clickHandler(event)"
+								  toolTip="关闭时态窗口"
+								  icon="@Embed('com/webgis/module/layertree/assets/images/close.png')"/>
+
+	</s:HGroup>
+
+</layertree:SuperPanel>

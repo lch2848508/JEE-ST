@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx creationComplete="titlewindowex1_creationCompleteHandler(event)" close="titlewindowex1_closeHandler(event)" title="附件管理" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:component="com.estudio.flex.component.*" width="800" height="600">
+	<component:layout>
+		<s:VerticalLayout gap="0"/>
+	</component:layout>
+
+	<fx:Script>
+		<![CDATA[
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			private var callFunction:Function=null;
+			public var fileAttributes:Object=null;
+			public var p_id:String="";
+
+			/////////////////////////////////////////////////////////////////////////////////
+			private static var instance:WinAttachmentFileList=null;
+
+			public static function execute(p_id:String, callFunction:Function, fileAttribtes:Object, w:int=800, h:int=480):void
+			{
+				if (instance == null)
+				{
+					instance=new WinAttachmentFileList();
+				}
+				instance.fileAttributes=fileAttribtes;
+				instance.callFunction=callFunction;
+				instance.width=w;
+				instance.height=h;
+				instance.p_id=p_id;
+				instance.loadFiles();
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(instance);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				inputFileUpload.p_id="-1";
+				PopUpManager.removePopUp(instance);
+				if (callFunction != null)
+					callFunction();
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			protected function button3_clickHandler(event:MouseEvent):void
+			{
+				titlewindowex1_closeHandler(null);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			protected function button4_clickHandler(event:MouseEvent):void
+			{
+				titlewindowex1_closeHandler(null);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+
+			protected function button5_clickHandler(event:MouseEvent):void
+			{
+				if (event.currentTarget == btn_01)
+					inputFileUpload.uploadFiles(instance.width, instance.height);
+				else if (event.currentTarget == btn_02)
+					inputFileUpload.scanFiles(instance.width, instance.height);
+				else if (event.currentTarget == btn_03)
+					inputFileUpload.deleteSelectFiles();
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_creationCompleteHandler(event:FlexEvent):void
+			{
+				loadFiles();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////
+			private function loadFiles():void
+			{
+				if (inputFileUpload)
+				{
+					inputFileUpload.type=fileAttributes.type;
+					inputFileUpload.fileMaxSize=fileAttributes.fileSize;
+					inputFileUpload.fileExtFilter=fileAttributes.fileExts;
+					inputFileUpload.p_id=p_id;
+				}
+			}
+			///////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<s:Group width="100%" height="100%">
+		<component:InputFileUpload currentState="notInForm" fileSizeUnit="-1" left="-1" top="-1" right="-1" bottom="-1" id="inputFileUpload">
+
+		</component:InputFileUpload>
+	</s:Group>
+
+	<s:Line id="line1" width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#CCCCCC"/>
+		</s:stroke>
+	</s:Line>
+	<s:Group width="100%" height="38">
+		<s:Button id="btn_01" width="70" top="5" height="28" left="5" label="选择文件" click="button5_clickHandler(event)"/>
+		<s:Button id="btn_02" width="70" top="5" height="28" left="80" label="扫描文件" click="button5_clickHandler(event)"/>
+		<s:Button id="btn_03" width="70" top="5" height="28" left="155" label="删除文件" click="button5_clickHandler(event)"/>
+
+		<s:Button width="60" top="5" height="28" right="5" label="关闭" click="button3_clickHandler(event)"/>
+		<s:Button width="60" top="5" height="28" right="70" label="确定" click="button4_clickHandler(event)"/>
+	</s:Group>
+</component:TitleWindowEx>

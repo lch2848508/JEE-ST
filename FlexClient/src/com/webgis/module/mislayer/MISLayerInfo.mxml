@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup gap="0" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="450" height="500">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			[Bindable]
+			public var attributes:ArrayCollection=null;
+			[Bindable]
+			public var content:String="";
+
+			private function getDataTipFunction(item:Object):String
+			{
+				var str:String=item.value;
+				if (!StringUtils.isEmpty(str) && measureText(str).width <= columnValue.width)
+					str="";
+				return str;
+			}
+
+			private function getDataTipFunction1(item:Object):String
+			{
+				var str:String=item.name;
+				if (!StringUtils.isEmpty(str) && measureText(str).width <= columnName.width)
+					str="";
+				return str;
+			}
+		]]>
+	</fx:Script>
+	<s:Line width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#7B889C"/>
+		</s:stroke>
+	</s:Line>
+	<mx:DataGrid id="datagrid" width="100%" height="100%" dataProvider="{attributes}" selectionColor="0xFFFF00" alternatingItemColors="{[0xFFFFFF]}" editable="false" headerHeight="25" rowHeight="25" borderVisible="false" borderColor="0xF5F5F5">
+		<mx:columns>
+			<mx:DataGridColumn id="columnName" headerText="属性名称" dataField="name" dataTipFunction="getDataTipFunction1"/>
+			<mx:DataGridColumn id="columnValue" headerText="属性值" dataField="value" showDataTips="true" dataTipFunction="getDataTipFunction"/>
+		</mx:columns>
+	</mx:DataGrid>
+</s:VGroup>

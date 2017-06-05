@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer creationComplete="mxadvanceddatagriditemrenderer1_creationCompleteHandler(event)" dataChange="mxadvanceddatagriditemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009"
+								  xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" focusEnabled="true" xmlns:controls="com.adobe.flex.extras.controls.*" xmlns:component="com.estudio.flex.component.*"
+								  xmlns:ns="http://flex.apache.org/experimental/ns">
+	<mx:PopUpButton id="popupUpButton" width="100%" height="100%" alpha="0">
+		<mx:popUp>
+			<component:DateTimeChoose color="0x000000" callFunction="eventDateTimeSelect" id="panelDateTime" includeTime="{includeTime}">
+
+			</component:DateTimeChoose>
+		</mx:popUp>
+	</mx:PopUpButton>
+	<s:HGroup width="100%" height="100%" gap="0" paddingLeft="2" paddingRight="0" verticalAlign="middle">
+		<ns:MaskedTextInput separators=":-" id="textInput" hideSeparatorInText="false" fontFamily="Courier New" fontStyle="normal" color="0x000000" fontSize="13" maskText="{includeTime?'####-##-## ##:##:##':'####-##-##'}" borderVisible="false" width="100%"
+							height="100%"/>
+		<s:Image click="image1_clickHandler(event)" height="100%" backgroundColor="0xFFFFFF" source="{imgBtn}" mouseChildren="false" buttonMode="true" useHandCursor="true"/>
+	</s:HGroup>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.FormValid;
+			import com.estudio.flex.utils.StringUtils;
+			
+			import mx.events.DropdownEvent;
+			import mx.events.FlexEvent;
+			
+			import spark.events.TextOperationEvent;
+			[Bindable]
+			public var includeTime:Boolean=false;
+			public var fieldName:String="";
+
+			[Embed(source="/assets/common/datefieldex.png")] //新建
+			[Bindable]
+			public var imgBtn:Class;
+
+			public override function get text():String
+			{
+				var v:String=textInput.fullText;
+				var isValidDateTime:Boolean=(includeTime ? FormValid.isDateTime(v) : FormValid.isDate(v));
+				if (!isValidDateTime)
+					v="";
+				return (data[fieldName]=v);
+			}
+
+			protected function mxadvanceddatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				mxadvanceddatagriditemrenderer1_creationCompleteHandler(null);
+			}
+
+			protected function mxadvanceddatagriditemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var v:String = data[fieldName];
+				if(!StringUtils.isEmpty(v)&&v.indexOf(" ")!=-1)v = StringUtils.before(v," ");
+				textInput.text=data[fieldName];
+			}
+
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				popupUpButton.open();
+			}
+
+			private function eventDateTimeSelect(isOK:Boolean, value:String):void
+			{
+				popupUpButton.close();
+				if (isOK)
+					textInput.text=value;
+			}
+		]]>
+	</fx:Script>
+</s:MXAdvancedDataGridItemRenderer>

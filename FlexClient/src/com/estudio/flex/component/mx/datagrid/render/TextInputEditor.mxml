@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer focusEnabled="true" dataChange="mxdatagriditemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.component.FormGrid;
+			import com.estudio.flex.module.FormDataService;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.events.FlexEvent;
+
+			import spark.events.TextOperationEvent;
+
+			[Binadble]
+			public var readonly:Boolean = false;
+
+			[Bindable]
+			public var cellValue:String = "";
+
+			public var dataField:String = "";
+			public var datasetName:String = "";
+			public var formDataService:FormDataService = null;
+			public var formInstance:InterfaceFormUI = null;
+			public var grid:FormGrid = null;
+
+			////////////////////////////////////////////////////////////////////////////
+			protected function mxdatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				cellValue = oldValue = data[dataGridListData.dataField];
+				textEditor.text = this.cellValue;
+			}
+
+			private var oldValue:String = "";
+			private var newValue:String = "";
+
+			public override function get text():String
+			{
+				cellValue = newValue = textEditor.text;
+				if (!StringUtils.equal(oldValue,newValue))
+				{
+					if (!StringUtils.isEmpty(datasetName) && !StringUtils.isEmpty(dataField))
+						formInstance.setDataSetValue(datasetName,dataField,cellValue,[grid]);
+					grid.triggerChangeEvent(dataField,oldValue,cellValue);
+					oldValue = newValue;
+				}
+				return newValue;
+			}
+		]]>
+	</fx:Script>
+	<s:TextInput id="textEditor" borderColor="0xFF0000" left="1" right="1" top="1" bottom="1" paddingLeft="3" paddingRight="3" borderVisible="true" editable="{!readonly}"/>
+</s:MXDataGridItemRenderer>

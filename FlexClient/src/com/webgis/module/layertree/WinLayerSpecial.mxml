@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group creationComplete="titlewindowex1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:component="com.estudio.flex.component.*" width="100%" height="100%" xmlns:component1="com.webgis.component.*" xmlns:layertree="com.webgis.module.layertree.*">
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.layers.supportClasses.LayerDefinition;
+			import com.esri.ags.layers.supportClasses.LayerDrawingOptions;
+			import com.esri.ags.renderers.ClassBreaksRenderer;
+			import com.esri.ags.renderers.UniqueValueRenderer;
+			import com.esri.ags.renderers.supportClasses.ClassBreakInfo;
+			import com.esri.ags.renderers.supportClasses.UniqueValueInfo;
+			import com.esri.ags.symbols.FillSymbol;
+			import com.esri.ags.symbols.SimpleFillSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.estudio.flex.component.ResizableTitleWindowSkin;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.MapLayerManager;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.ColorPicker;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.ColorPicker;
+			import spark.components.supportClasses.ItemRenderer;
+			import spark.events.IndexChangeEvent;
+
+			public var mapLayerManager:MapLayerManager=null;
+			private var serverId:String="";
+			private var layerId:String="";
+
+			[Bindable]
+			private var allLayers:Array=null;
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function execute(layers:Array, serverId:String, mapLayerManager:MapLayerManager, allLayers:Array):void
+			{
+				this.layers=new ArrayCollection(layers);
+				this.serverId=serverId;
+				this.mapLayerManager=mapLayerManager;
+				this.allLayers=allLayers;
+				if (this.layerCombobox)
+				{
+					this.layerCombobox.selectedIndex=0;
+					this.layerCombobox.selectedItem=layers[0];
+					this.layerCombobox_changeHandler(null);
+				}
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////
+			[Bindable]
+			private var layers:ArrayCollection=new ArrayCollection([]); //图层
+			[Bindable]
+			private var fields:ArrayCollection=new ArrayCollection([]); //字段
+			[Bindable]
+			public var isEnumSpecialType:Boolean=true;
+			[Bindable]
+			private var specialValues:ArrayCollection=new ArrayCollection([]);
+
+			private var enumValueRender4Line:ClassFactory=new ClassFactory(SpecialItemRender4Line);
+			public var currentLayerType:int=0;
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function layerCombobox_changeHandler(event:IndexChangeEvent):void
+			{
+				var item:Object=layerCombobox.selectedItem;
+				if (item)
+				{
+					fields=new ArrayCollection(item.items as Array);
+					fieldCombobox.callLater(function():void
+					{
+						fieldCombobox.selectedIndex=0;
+						fieldCombobox.selectedItem=fields.getItemAt(0);
+						fieldCombobox_changeHandler(null);
+					});
+					currentLayerType=item.type;
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_creationCompleteHandler(event:FlexEvent):void
+			{
+				fieldCombobox.textInput.editable=false;
+				layerCombobox.textInput.editable=false;
+				enumValueRender4Line.properties={callFunction: function():void
+				{
+					btnApplyClick(null);
+				}};
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function fieldCombobox_changeHandler(event:IndexChangeEvent):void
+			{
+				var item:Object=fieldCombobox.selectedItem;
+				isEnumSpecialType=item && item.type;
+				if (!item.isSetting)
+				{
+					if (!isEnumSpecialType)
+					{
+						item.minValue=item.values[0].minValue * 1;
+						item.maxValue=item.values[0].maxValue * 1;
+						item.step=10;
+						item.values=[];
+						var min:int=Math.floor(item.minValue);
+						var max:int=Math.ceil(item.maxValue);
+						max+=item.step - (max - min) % item.step;
+						var stepValue:int=(max - min) / item.step;
+						for (var i:int=0; i < item.step; i++)
+						{
+							item.values.push({value: (min + "-" + (min + stepValue)), min: min, max: min + stepValue});
+							min+=stepValue;
+						}
+					}
+
+					//生成预定义值
+					for (var i:int=0; i < item.values.length; i++)
+					{
+						var value:Object=item.values[i];
+						value.checked=true;
+						value.style={r: 5, markerType: 0, fillColor: getRandomColor(i), width: 2, lineColor: currentLayerType == 1 ? getRandomColor(i) : 0xFF0000};
+					}
+					item.isSetting=true;
+				}
+				textStep.value=item.step;
+				specialValues=new ArrayCollection(item.values);
+			}
+			//////////////////////////////////////////////////////////////////////////////////
+			private function getRandomColor(index:int):uint
+			{
+				return isEnumSpecialType ? FlexGlobals.topLevelApplication.randomColor(index) : FlexGlobals.topLevelApplication.stepColor(index);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////
+			//动态显示
+			protected function btnApplyClick(event:MouseEvent):void
+			{
+				if (isEnumSpecialType)
+				{
+					var isNumberDataType:Boolean=fieldCombobox.selectedItem.datatype == 1;
+					var filterValues:Array=[];
+					var uniqueValueRender:UniqueValueRenderer=new UniqueValueRenderer();
+					uniqueValueRender.defaultLabel="其他";
+					uniqueValueRender.field=fieldCombobox.selectedItem.name;
+					uniqueValueRender.infos=[];
+					for (var i:int=0; i < specialValues.length; i++)
+					{
+						var item:Object=specialValues.getItemAt(i);
+						if (!item.checked)
+							continue;
+						if (StringUtils.isEmpty(StringUtils.trim(item.value)))
+						{
+							uniqueValueRender.defaultSymbol=createSymbol(item.style);
+						}
+						else
+						{
+							var uniqueValueInfo:UniqueValueInfo=new UniqueValueInfo(createSymbol(item.style), item.value);
+							uniqueValueInfo.label=(StringUtils.isEmpty(item.value) || "null" == item.value.toLowerCase()) ? "其他" : item.value;
+							uniqueValueRender.infos.push(uniqueValueInfo);
+						}
+						filterValues.push((isNumberDataType ? "" : "'") + StringUtils.replace(item.value, "'", "''") + (isNumberDataType ? "" : "'"));
+					}
+					var layerFilterExpress:String="";
+					if (filterValues.length != specialValues.length)
+					{
+						if (filterValues.indexOf(" ") != -1)
+						{
+							layerFilterExpress="(" + fieldCombobox.selectedItem.name + " is null)";
+							ArrayUtils.remove(filterValues, filterValues.indexOf(" "));
+						}
+						if (filterValues.length != 0)
+						{
+							layerFilterExpress+=StringUtils.isEmpty(layerFilterExpress) ? "(" : " or (";
+							layerFilterExpress+=fieldCombobox.selectedItem.name + " in (" + filterValues.join(",") + ")";
+							layerFilterExpress+=")"
+						}
+					}
+					if (filterValues.length == 0)
+						layerFilterExpress="1!=1";
+
+					var layerDrawOptions:Array=[];
+					var layerDefines:Array=[];
+					for (var i:int=0; i < layerCombobox.selectedItem.names.length; i++)
+					{
+						var layerDrawOption:LayerDrawingOptions=new LayerDrawingOptions();
+						layerDrawOption.renderer=uniqueValueRender;
+						layerDrawOption.layerId=layerCombobox.selectedItem.names[i];
+						layerDrawOptions.push(layerDrawOption);
+
+						if (!StringUtils.isEmpty(layerFilterExpress))
+						{
+							var layerDefine:LayerDefinition=new LayerDefinition();
+							layerDefine.layerId=layerCombobox.selectedItem.names[i];
+							layerDefine.definition=layerFilterExpress;
+							layerDefines.push(layerDefine);
+						}
+					}
+					//mapLayerManager.setSpecialLayer(serverId, layerDefines, layerDrawOptions, "selected", chkHiddleOtherLayer.selected ? allLayers : null);
+					mapLayerManager.setSpecialLayer(serverId, layerDefines, layerDrawOptions, "selected", allLayers);
+				}
+				else
+				{
+					var filterValues:Array=[];
+					var classBreaksRender:ClassBreaksRenderer=new ClassBreaksRenderer();
+					classBreaksRender.field=fieldCombobox.selectedItem.name;
+					classBreaksRender.infos=[];
+					for (var i:int=0; i < specialValues.length; i++)
+					{
+						var item:Object=specialValues.getItemAt(i);
+						if (!item.checked)
+							continue;
+						var breaksInfo:ClassBreakInfo=new ClassBreakInfo(createSymbol(item.style), item.min, item.max);
+						breaksInfo.label=item.min + "-" + item.max;
+						classBreaksRender.infos.push(breaksInfo);
+						filterValues.push("(" + classBreaksRender.field + " between " + item.min + " and " + item.max + ")");
+					}
+					var layerFilterExpress:String="";
+					if (filterValues.length != specialValues.length)
+					{
+						layerFilterExpress=filterValues.join(" or ");
+					}
+					if (filterValues.length == 0)
+						layerFilterExpress="1!=1";
+
+					var layerDrawOptions:Array=[];
+					var layerDefines:Array=[];
+					for (var i:int=0; i < layerCombobox.selectedItem.names.length; i++)
+					{
+						var layerDrawOption:LayerDrawingOptions=new LayerDrawingOptions();
+						layerDrawOption.renderer=classBreaksRender;
+						layerDrawOption.layerId=layerCombobox.selectedItem.names[i];
+						layerDrawOptions.push(layerDrawOption);
+						if (!StringUtils.isEmpty(layerFilterExpress))
+						{
+							var layerDefine:LayerDefinition=new LayerDefinition();
+							layerDefine.layerId=layerCombobox.selectedItem.names[i];
+							layerDefine.definition=layerFilterExpress;
+							layerDefines.push(layerDefine);
+						}
+					}
+					//mapLayerManager.setSpecialLayer(serverId, layerDefines, layerDrawOptions, "selected", chkHiddleOtherLayer.selected ? allLayers : null);
+					mapLayerManager.setSpecialLayer(serverId, layerDefines, layerDrawOptions, "selected", allLayers);
+				}
+
+
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			private function createSymbol(style:Object):Symbol
+			{
+				var result:Symbol=null;
+				if (currentLayerType == 0)
+				{
+					var pSymbol:SimpleMarkerSymbol=new SimpleMarkerSymbol();
+					pSymbol.size=style.r * 2;
+					pSymbol.color=style.fillColor;
+					pSymbol.style=["circle", "diamond", "square", "triangle"][style.markerType];
+					pSymbol.alpha=1;
+					result=pSymbol;
+				}
+				else if (currentLayerType == 1)
+				{
+					var lSymbol:SimpleLineSymbol=new SimpleLineSymbol("solid", style.lineColor, 1, style.width * 1);
+					lSymbol.alpha=1;
+					result=lSymbol;
+				}
+				else
+				{
+					var fSymbol:SimpleFillSymbol=new SimpleFillSymbol();
+					fSymbol.outline=new SimpleLineSymbol("solid", style.lineColor, 1, style.width * 1);
+					fSymbol.color=style.fillColor;
+					fSymbol.alpha=0.9;
+					result=fSymbol;
+				}
+
+				return result;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////
+
+			protected function btnGenerateStepClick(event:MouseEvent):void
+			{
+				if (isEnumSpecialType)
+					return;
+				var item:Object=fieldCombobox.selectedItem;
+				if (!item)
+					return;
+				item.step=textStep.value;
+				item.values=[];
+				var min:int=Math.floor(item.minValue);
+				var max:int=Math.ceil(item.maxValue);
+				max+=item.step - (max - min) % item.step;
+				var stepValue:int=(max - min) / item.step;
+				for (var i:int=0; i < item.step; i++)
+				{
+					item.values.push({value: (min + "-" + (min + stepValue)), min: min, max: min + stepValue});
+					min+=stepValue;
+				}
+				//生成预定义值
+				for (var i:int=0; i < item.values.length; i++)
+				{
+					var value:Object=item.values[i];
+					value.checked=true;
+					value.style={r: 5, markerType: 0, fillColor: getRandomColor(i), width: 2, lineColor: currentLayerType == 1 ? getRandomColor(i) : 0xFFFFFF};
+				}
+				textStep.value=item.step;
+				specialValues=new ArrayCollection(item.values);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			private function stepInputCallFunction(step:int):void
+			{
+				textStep.value=step;
+				btnGenerateStepClick(null);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function btnCancel_clickHandler(event:MouseEvent):void
+			{
+				mapLayerManager.setSpecialLayer(serverId, [], [], "selected", null);
+			}
+
+			protected function chkHiddleOtherLayer_changeHandler(event:Event):void
+			{
+				btnApplyClick(null);
+			}
+		]]>
+	</fx:Script>
+	<s:BorderContainer alpha="0.8" height="54" borderVisible="false" backgroundColor="#F4F7F8" left="0" top="0" right="0">
+		<s:layout>
+			<s:VerticalLayout gap="1"/>
+		</s:layout>
+		<s:HGroup gap="2" height="25" verticalAlign="middle" width="100%" paddingTop="2" paddingRight="2" paddingLeft="2" paddingBottom="2">
+			<s:Label text="图层" paddingTop="2" fontWeight="bold"/>
+			<s:ComboBox change="layerCombobox_changeHandler(event)" selectedIndex="0" width="100%" height="100%" id="layerCombobox" dataProvider="{layers}" labelField="title"/>
+			<!--
+			<s:CheckBox label="其他图层" visible="{allLayers!=null&amp;&amp;allLayers.length}" change="chkHiddleOtherLayer_changeHandler(event)" selected="true" id="chkHiddleOtherLayer"/>
+			-->
+			<component1:ToolbarTextButton id="btnApply" label="应用" toolTip="使用当前的设置来显示地图" click="btnApplyClick(event)" mouseOver="{btnApply.selected=true}" mouseOut="{btnApply.selected=false}"/>
+			<component1:ToolbarTextButton id="btnCancel" label="取消" toolTip="取消专题显示" click="btnCancel_clickHandler(event)" mouseOver="{btnCancel.selected=true}" mouseOut="{btnCancel.selected=false}"/>
+		</s:HGroup>
+		<s:Line width="100%" bottom="0" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#DDE1E5"/>
+			</s:stroke>
+		</s:Line>
+		<s:HGroup gap="2" height="25" verticalAlign="middle" width="100%" paddingTop="2" paddingRight="2" paddingLeft="2" paddingBottom="2">
+			<s:Label text="字段" paddingTop="2" fontWeight="bold"/>
+			<s:ComboBox width="100%" height="100%" id="fieldCombobox" change="fieldCombobox_changeHandler(event)" labelField="title" dataProvider="{fields}"/>
+			<s:Label text="级别" paddingTop="2" fontWeight="bold"/>
+			<layertree:SpinEdit width="40" minValue="5" maxValue="40" stepValue="5" value="10" id="textStep" enabled="{!isEnumSpecialType}"/>
+			<component1:ToolbarTextButton label="分级" id="btnStep" enabled="{!isEnumSpecialType}" click="btnGenerateStepClick(event)" mouseOver="{btnStep.selected=true}"
+										  mouseOut="{btnStep.selected=false}"/>
+		</s:HGroup>
+		<s:Line width="100%" bottom="0" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#DDE1E5"/>
+			</s:stroke>
+		</s:Line>
+	</s:BorderContainer>
+
+	<!-- 专题绘制 -->
+	<mx:List itemRenderer="{enumValueRender4Line}" selectionColor="0xFFFFFF" chromeColor="0xFFFFFF" dataProvider="{specialValues}" labelField="value" left="0" right="0" top="55" bottom="0"
+			 borderVisible="false" id="specialValueList">
+	</mx:List>
+
+</s:Group>

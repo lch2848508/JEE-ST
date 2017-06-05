@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer focusEnabled="true" dataChange="mxdatagriditemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:controls="com.adobe.flex.extras.controls.*"
+						  xmlns:component="com.estudio.flex.component.*" xmlns:ns="http://flex.apache.org/experimental/ns">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.component.FormGrid;
+			import com.estudio.flex.module.FormDataService;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.FormValid;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CalendarLayoutChangeEvent;
+			import mx.events.FlexEvent;
+			import mx.events.FlexMouseEvent;
+			import mx.managers.PopUpManager;
+
+			[Embed(source="/assets/common/datefieldex.png")] //新建
+			[Bindable]
+			public var imgBtn:Class;
+
+			[Binadble]
+			public var readonly:Boolean=false;
+
+			[Bindable]
+			public var cellValue:String="";
+			public var oldValue:String="";
+
+			public var dataField:String="";
+			public var datasetName:String="";
+			public var formDataService:FormDataService=null;
+			public var formInstance:InterfaceFormUI=null;
+			public var grid:FormGrid=null;
+			[Bindable]
+			public var isIncludeTime:Boolean=false;
+
+			////////////////////////////////////////////////////////////////////////////
+			protected function mxdatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				var d:Date=Convert.str2DateTime(data[dataGridListData.dataField]);
+				cellValue=d == null ? "" : Convert.dateTime2Str(d, isIncludeTime ? "YYYY-MM-DD LL:NN:SS" : "YYYY-MM-DD");
+				textInput.text=cellValue;
+				oldValue=cellValue;
+			}
+
+			protected function popupUpButton_clickHandler(event:MouseEvent):void
+			{
+				showPanel();
+			}
+
+			private function eventDateTimeSelect(isOK:Boolean, v:String):void
+			{
+				if (isOK)
+				{
+					textInput.text=v;
+					cellValue=v;
+					if (!StringUtils.isEmpty(datasetName) && !StringUtils.isEmpty(dataField))
+						formInstance.setDataSetValue(datasetName, dataField, cellValue, [grid]);
+					grid.triggerChangeEvent(dataField, oldValue, cellValue);
+					oldValue=cellValue;
+				}
+				hidePanel();
+			}
+
+			private function hidePanel():void
+			{
+				PopUpManager.removePopUp(panelDateTime);
+				grid.grid.invalidateList();
+				panelDateTime.removeEventListener(FlexMouseEvent.MOUSE_DOWN_OUTSIDE,popMouseDownOutsideHandler);
+				panelDateTime.removeEventListener(FlexMouseEvent.MOUSE_WHEEL_OUTSIDE,popMouseDownOutsideHandler);
+			}
+
+			private function showPanel():void
+			{
+				PopUpManager.addPopUp(panelDateTime, FlexGlobals.topLevelApplication as UIComponent, true);
+				var p:Point=localToGlobal(new Point(0, 0));
+				var appWidth:int=FlexGlobals.topLevelApplication.width;
+				var appHeight:int=FlexGlobals.topLevelApplication.height;
+				var l:int=p.x;
+				var t:int=p.y;
+				l=Math.min(l, appWidth - panelDateTime.width);
+				if (t + panelDateTime.height > appHeight)
+					t=appHeight - panelDateTime.height - 28;
+				
+				panelDateTime.move(l, t);
+				panelDateTime.value=cellValue;
+				
+				panelDateTime.addEventListener(FlexMouseEvent.MOUSE_DOWN_OUTSIDE,popMouseDownOutsideHandler);
+				panelDateTime.addEventListener(FlexMouseEvent.MOUSE_WHEEL_OUTSIDE,popMouseDownOutsideHandler);
+			}
+			
+			private function popMouseDownOutsideHandler(event:Event):void
+			{
+				hidePanel();
+			}
+
+			public override function get text():String
+			{
+				cellValue=textInput.fullText;
+				var isValidDateTime:Boolean=(isIncludeTime ? FormValid.isDateTime(cellValue) : FormValid.isDate(cellValue));
+				if (!isValidDateTime)
+				{
+					cellValue="";
+					textInput.text="";
+				}
+				if (!StringUtils.equal(oldValue, cellValue))
+				{
+					if (!StringUtils.isEmpty(datasetName) && !StringUtils.isEmpty(dataField))
+						formInstance.setDataSetValue(datasetName, dataField, cellValue, [grid]);
+					grid.triggerChangeEvent(dataField, oldValue, cellValue);
+					oldValue=cellValue;
+				}
+				return cellValue;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<component:DateTimeChoose callFunction="eventDateTimeSelect" id="panelDateTime" includeTime="{isIncludeTime}">
+
+		</component:DateTimeChoose>
+	</fx:Declarations>
+
+	<s:HGroup width="100%" height="100%" gap="0" verticalAlign="middle">
+		<ns:MaskedTextInput textAlign="left" separators=":-" id="textInput" hideSeparatorInText="false" fontFamily="Courier New" fontStyle="normal" color="0x000000" fontSize="13" maskText="{isIncludeTime?'####-##-## ##:##:##':'####-##-##'}" borderVisible="false" width="100%" height="100%"/>
+		<s:Button skinClass="com.estudio.flex.component.mx.datagrid.render.DateFieldEditorSkin" width="24" height="22" icon="{imgBtn}" click="popupUpButton_clickHandler(event)"/>
+	</s:HGroup>
+</s:MXDataGridItemRenderer>

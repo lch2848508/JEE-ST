@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer implements="com.estudio.flex.module.InterfaceEditableControl" mouseOver="image_mouseOverHandler(event)" mouseOut="image_mouseOutHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" borderVisible="true" creationComplete="bordercontainer1_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.module.EditableControlParams;
+			import com.estudio.flex.module.FormDataService;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+
+			private var _fileRef:FileReference=new FileReference();
+			private var _maxFileSize:int=10;
+			private var _fileSizeUnit:int=0;
+			private var _fileFilter:Array=null;
+			private var _saveToDB:Boolean=false;
+			private var _acceptFileExts:String="";
+			private var _readOnly:Boolean=false;
+			private var _isUploading:Boolean=false;
+			private var _isLocalFile:Boolean=false;
+			private var _type:String="";
+			private var _isModified:Boolean=false;
+			private var _resizeAble:Boolean=true;
+			private var _maxWidth:int=1024;
+			private var _maxHeight:int=768;
+			private var _thumbnailWidth:int=320;
+			private var _thumbnailHeight:int=240;
+			private var _createThumbnail:Boolean=true;
+			private var _showContentAsThumbnail:Boolean=true;
+			private var _url:String="../client/picture"
+			private var _hasPicture:Boolean=false;
+
+			public static const PICTURE_OPERATOR_UPLOAD:String="upload";
+			public static const PICTURE_OPERATOR_DOWNLOAD:String="download";
+			public static const PICTURE_OPERATOR_DELETE:String="delete";
+			public static const PICTURE_OPERATOR_SAVETOLOCAL:String="savetolocal";
+			public static const PICTURE_OPERATOR_CAMERA:String="camera";
+
+			private const M_SIZE:int=1024 * 1024;
+			private const K_SIZE:int=1024;
+
+
+			public function setResizeParams(resizeAble:Boolean, maxWidth:int, maxHeight:int, createThumbnail:Boolean, thumbnailWidth:int, thumbnailHeight:int, showContentAsThumbnail:Boolean):void
+			{
+				this._resizeAble=resizeAble;
+				this._maxWidth=maxWidth;
+				this._maxHeight=maxHeight;
+				this._thumbnailWidth=thumbnailWidth;
+				this._thumbnailHeight=thumbnailHeight;
+				this._createThumbnail=createThumbnail;
+				this._showContentAsThumbnail=showContentAsThumbnail;
+			}
+
+
+			public function get type():String
+			{
+				return _type;
+			}
+
+			public function set type(value:String):void
+			{
+				_type=value;
+			}
+
+			public function get maxFileSize():int
+			{
+				return _maxFileSize;
+			}
+
+			public function set fileSizeUnit(value:int):void
+			{
+				_fileSizeUnit=value;
+			}
+
+			public function get fileSizeUnit():int
+			{
+				return _fileSizeUnit;
+			}
+
+			public function set maxFileSize(value:int):void
+			{
+				_maxFileSize=value;
+			}
+
+
+			public function get isSaveToDB():Boolean
+			{
+				return _saveToDB;
+			}
+
+			public function set isSaveToDB(value:Boolean):void
+			{
+				_saveToDB=value;
+			}
+
+			public function get acceptFileExts():String
+			{
+				return _acceptFileExts;
+			}
+
+			public function set acceptFileExts(value:String):void
+			{
+				_acceptFileExts=value;
+				if (StringUtils.isEmpty(value))
+					return;
+				_fileFilter=[];
+				var l1:Array=value.split("||");
+				for (var i:int=0; i < l1.length; i++)
+				{
+					var str:String=l1[i];
+					var l2:Array=str.split("|");
+					_fileFilter.push(new FileFilter(l2[0], l2[1]));
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			//选择文件
+			private function event4SelectFile():void
+			{
+				_fileRef.browse(_fileFilter);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			private function checkCanModifyControlValue():Boolean
+			{
+				if (!this.isBindDatasource)
+				{
+					AlertUtils.msnMessage("表单", "该图片控件没有同数据库进行关联，不能执行此操作。", true);
+					return false;
+				}
+
+				if (this.readonly)
+				{
+					AlertUtils.msnMessage("表单", "表单只读，不能执行此操作。", true);
+					return false;
+				}
+
+				if (!formInstance.existsRecord(this.databaseName))
+				{
+					AlertUtils.msnMessage("表单", "表单中不存在同该图片文件关联的记录，不能执行此操作。", true);
+					return false;
+				}
+
+				if (!formInstance.save())
+				{
+					AlertUtils.msnMessage("表单", "保存表单失败，不能执行此操作。", true);
+					return false;
+				}
+
+				return true;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			//上传文件
+			private function event4UploadFile():void
+			{
+				setProgressStatus(true);
+				var url:String=getPictureOperationURL(PICTURE_OPERATOR_UPLOAD);
+				AjaxUtils.uploadFile(url, "images", _fileRef.name, _fileRef.data, function(data:String):void
+				{
+					var json:Object=JSON.parse(data);
+					if (json && json.errorCode * 1 == -65535)
+					{
+						FlexGlobals.topLevelApplication.raiseSessionMissError();
+						return;
+					}
+					setProgressStatus(false);
+					_isUploading=false;
+					_isLocalFile=false;
+					loadPicture();
+					_fileRef.cancel();
+				}, function(w:int, t:int):void
+				{
+					var p:int=w * 100 / t;
+					progress.text="上传进度:" + p + "%";
+					progress.invalidateDisplayList();
+				}, function(event:Event):void
+				{
+					AlertUtils.alert("上传文件失败！！！", AlertUtils.ALERT_WARNING);
+					setProgressStatus(false);
+					this.invalidateDisplayList();
+					_isUploading=false
+					_fileRef.cancel();
+				});
+
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			//下载文件
+			private function event4SaveToLocal():void
+			{
+				if (!_isLocalFile && image.source != null && image.bitmapData != null)
+				{
+					var url:String=getPictureOperationURL(PICTURE_OPERATOR_SAVETOLOCAL);
+					AjaxUtils.postData(url, {}, function(text:String, token:Object):void
+					{
+						var obj:Object=JSON.parse(text);
+						if (obj)
+						{
+							if (obj.r)
+							{
+								var url:String=obj.url;
+								flash.net.navigateToURL(new flash.net.URLRequest(url), "_blank");
+							}
+							else if (obj.errorCode * 1 == -65535)
+							{
+								FlexGlobals.topLevelApplication.raiseSessionMissError();
+							}
+						}
+
+					});
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			//删除文件
+			private function event4Delete():void
+			{
+				if (image.source == null)
+					return;
+				AlertUtils.confirm("您确定要删除该图片？", function()
+				{
+					image.source=null;
+					var url:String=getPictureOperationURL(PICTURE_OPERATOR_DELETE);
+					AjaxUtils.postData(url, {}, function(data:String, token:Object):void
+					{
+						var json:Object=JSON.parse(data);
+						if (json && json.errorCode * 1 == -65535)
+						{
+							FlexGlobals.topLevelApplication.raiseSessionMissError();
+							return;
+						}
+					});
+				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			//工具条按钮点击事件
+			protected function buttonbar1_clickHandler(event:MouseEvent):void
+			{
+				switch (Toolbar.selectedIndex)
+				{
+					case 0:
+					{
+						if (readonly)
+							event4SaveToLocal();
+						else if (checkCanModifyControlValue())
+							event4SelectFile();
+						break;
+					}
+					case 1:
+					{
+						if (checkCanModifyControlValue())
+							event4GetCamera();
+						break;
+					}
+					case 2:
+					{
+						event4SaveToLocal();
+						break;
+					}
+					case 3:
+					{
+						if (checkCanModifyControlValue())
+							event4Delete();
+						break;
+					}
+				}
+				Toolbar.selectedItem=null;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			//加载完成
+			protected function bordercontainer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				_fileRef.addEventListener(Event.SELECT, fileRef_select);
+				_fileRef.addEventListener(Event.COMPLETE, fileRef_loadLocalFile);
+
+				//_fileRef.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, fileRef_complete);
+				//_fileRef.addEventListener(IOErrorEvent.IO_ERROR, fileRef_ioError);
+				setProgressStatus(false);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////
+			//选择文件
+			private function fileRef_select(evt:Event):void
+			{
+				if (_fileRef.size == 0 || _fileRef.size > _maxFileSize * (_fileSizeUnit == 0 ? M_SIZE : K_SIZE))
+				{
+					_fileRef.cancel();
+					var msgStr:String=_fileRef.size == 0 ? "您选择的图片文件为空文件,不能上传!" : "您选择的图片文件大小超过" + (_maxFileSize + (_fileSizeUnit == 0 ? "MB" : "KB")) + ",不能上传";
+					AlertUtils.alert(msgStr, AlertUtils.ALERT_WARNING);
+				}
+				else
+				{
+					_isLocalFile=true;
+					_fileRef.load();
+				}
+
+			}
+
+
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////
+			private function fileRef_loadLocalFile(evt:Event):void
+			{
+				image.source=_fileRef.data;
+				event4UploadFile();
+			}
+
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			//显示工具条状体
+			private function setProgressStatus(isUpload:Boolean):void
+			{
+				if (isUpload)
+				{
+					progress.visible=true;
+					progress.text="开始上传图片文件...";
+				}
+				else
+				{
+					progress.visible=false;
+				}
+				this.invalidateDisplayList();
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			//显示工具条状体
+			protected function image_completeHandler(event:Event):void
+			{
+				if (_isLocalFile && image.bitmapData != null)
+					_isModified=true;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getPictureSize():Array
+			{
+				return image.bitmapData != null ? [image.bitmapData.width, image.bitmapData.height] : [0, 0];
+			}
+
+			//根据Grid设置其他相关控件的Enabled
+			private function getPictureOperationURL(type:String):String
+			{
+				var result:String="";
+				if (isBindDatasource)
+				{
+					var picSize:Array=this.getPictureSize();
+					var uid:String=controlParams.dataservice.getDataSetValue(controlParams.databaseName, controlParams.fieldName);
+					result="../client/picture?w=" + picSize[0] + "&h=" + picSize[1] + "&savetodb=" + (isSaveToDB ? "1" : "0") + "&o=" + type + "&type=" + this.type + "&id=" + uid + "&resize=" + (_resizeAble ? 1 : 0) + "&maxwidth=" + _maxWidth + "&maxheight=" + _maxHeight + "&thumbnailwidth=" + this._thumbnailWidth + "&thumbnailheight=" + this._thumbnailHeight + "&createthumbnail=" + (this._createThumbnail ? 1 : 0) + "&showthumbnail=" + (this._showContentAsThumbnail ? 1 : 0);
+				}
+				return result;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function loadPicture():void
+			{
+				var url:String=getPictureOperationURL(PICTURE_OPERATOR_DOWNLOAD);
+				//image.source=url;
+				AjaxUtils.postData(url, {}, function(text:String, token:Object):void
+				{
+					var obj:Object=JSON.parse(text);
+					if (obj)
+					{
+						if (obj.r)
+						{
+							var url:String=obj.url;
+							image.source=url;
+						}
+						else if (obj.errorCode * 1 == -65535)
+						{
+							FlexGlobals.topLevelApplication.raiseSessionMissError();
+						}
+						else
+						{
+							image.source="../images/nopic.jpg";
+						}
+					}
+
+					_hasPicture=image.source != "../images/nopic.jpg";
+				});
+				_isLocalFile=false;
+			}
+
+			//鼠标移出
+			protected function image_mouseOutHandler(event:MouseEvent):void
+			{
+				if (event.localX > 0 && event.localX < this.width && event.localY > 0 && event.localY < this.height)
+					return;
+				Toolbar.visible=false;
+			}
+
+			protected function image_mouseOverHandler(event:MouseEvent):void
+			{
+				if (!Toolbar.visible)
+					Toolbar.visible=true;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			//实现接口 InterfceEditableControl
+			private var controlParams:EditableControlParams=new EditableControlParams();
+
+			public function get databaseName():String
+			{
+				return controlParams.databaseName;
+			}
+
+			public function set databaseName(value:String):void
+			{
+				controlParams.databaseName=value;
+			}
+
+			public function get fieldName():String
+			{
+				return controlParams.fieldName;
+			}
+
+			public function set fieldName(value:String):void
+			{
+				controlParams.fieldName=value;
+			}
+
+			public function get extFieldName():String
+			{
+				return controlParams.extFieldName;
+			}
+
+			public function set extFieldName(value:String):void
+			{
+				controlParams.extFieldName=value;
+			}
+
+			public function get controlValue():String
+			{
+				return "";
+			}
+
+			public function get controlExtValue():String
+			{
+				return controlValue;
+			}
+
+			public function setControlValue(value:String, extValue:String, isSettingDatabase:Boolean):void
+			{
+				this.loadPicture();
+			}
+
+			//是否只读
+			public function get readonly():Boolean
+			{
+				return controlParams.readonly;
+			}
+
+			public function set readonly(value:Boolean):void
+			{
+				if (controlParams.readonly != value)
+				{
+					controlParams.readonly=value;
+					if (Toolbar)
+					{
+						Toolbar.dataProvider=readonly ? toolbars_readonly : toolbars_normal;
+						Toolbar.width=readonly ? 24 : 120;
+					}
+				}
+			}
+
+			public function get defaultReadonly():Boolean
+			{
+				return controlParams.defaultReadOnly;
+			}
+
+			public function set defaultReadonly(value:Boolean):void
+			{
+				controlParams.defaultReadOnly=value;
+			}
+
+
+			public function get controlType():int
+			{
+				return EditableControlParams.CONST_PICTURE;
+			}
+
+			public function reset():void
+			{
+				if (this.formInstance)
+					this.readonly=this.defaultReadonly || this.formInstance.readonly;
+				//loadPicture();
+			}
+
+			public function set dataservice(value:FormDataService):void
+			{
+				controlParams.dataservice=value;
+			}
+
+			public function get dataservice():FormDataService
+			{
+				return controlParams.dataservice;
+			}
+
+			public function setDataBindParams(formInstance:InterfaceFormUI, formDataService:FormDataService, databaseName:String, fieldName:String, extFieldName:String):void
+			{
+				controlParams.formInstance=formInstance;
+				controlParams.dataservice=formDataService;
+				controlParams.databaseName=databaseName;
+				controlParams.fieldName=fieldName;
+				controlParams.extFieldName=extFieldName;
+				controlParams.isBindDatasource=!(StringUtils.isEmpty(databaseName) && !StringUtils.isEmpty(fieldName));
+			}
+
+			public function get isBindDatasource():Boolean
+			{
+				return controlParams.isBindDatasource;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			//从摄像头中获取图像
+			private function event4GetCamera():Boolean
+			{
+				WinCamera.execute(callFunction4GetCameraBitmapBytes, getPictureOperationURL(PICTURE_OPERATOR_UPLOAD) + "&forceresize=1");
+				return true;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			//上传图片
+			private function callFunction4GetCameraBitmapBytes():void
+			{
+				loadPicture();
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			private function submitOrderCompleteHandler(event:Event):void
+			{
+
+			}
+
+
+			private function uploadCameraBytes(imageBytes:ByteArray, photoFilename:String, url:String):void
+			{
+
+			}
+
+			public function get formInstance():InterfaceFormUI
+			{
+				return controlParams.formInstance;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			private var isBindEvented:Boolean=false;
+
+			public function bindEvent():void
+			{
+				if (!isBindEvented)
+				{
+					isBindEvented=true;
+					for (var eventName:String in controlParams.eventMap)
+						this.addEventListener(eventName, controlParams.eventMap[eventName]);
+				}
+			}
+
+			public function unBindEvent():void
+			{
+				if (isBindEvented)
+				{
+					for (var eventName:String in controlParams.eventMap)
+						this.removeEventListener(eventName, controlParams.eventMap[eventName]);
+					isBindEvented=false;
+				}
+			}
+
+			public function registerEvent(eventName:String, eventFun:Function):void
+			{
+				controlParams.eventMap[eventName]=eventFun;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////
+			public function resetPid():void
+			{
+				//if (formInstance && this.isBindDatasource && (StringUtils.isEmpty(_p_id) || StringUtils.equal(_p_id, "-1")))
+				//	p_id=formInstance.getDataSetValue(this.databaseName, this.fieldName);
+				this.loadPicture();
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:ArrayList id="toolbars_normal">
+			<fx:Object label="" icon="@Embed('/assets/common/folder.png')"/>
+			<fx:Object label="" icon="@Embed('/assets/common/scan.png')"/>
+			<fx:Object label="" icon="@Embed('/assets/common/save.png')"/>
+			<fx:Object label="" icon="@Embed('/assets/common/delete.png')"/>
+		</s:ArrayList>
+
+		<s:ArrayList id="toolbars_readonly">
+			<fx:Object label="" icon="@Embed('/assets/common/save.png')"/>
+		</s:ArrayList>
+
+
+	</fx:Declarations>
+	<s:Image id="image" left="0" top="0" width="100%" height="100%" complete="image_completeHandler(event)" smooth="true">
+	</s:Image>
+	<s:Label id="progress" left="0" bottom="-18" fontWeight="bold" color="#FF0000">
+	</s:Label>
+	<s:ButtonBar dataProvider="{readonly ? toolbars_readonly : toolbars_normal}" buttonMode="true" useHandCursor="true" visible="false" id="Toolbar" right="2" bottom="2" iconField="icon" width="{readonly?24:120}" height="24"
+				 click="buttonbar1_clickHandler(event)">
+	</s:ButtonBar>
+</s:BorderContainer>

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel creationComplete="panel1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="400" height="300" layout="absolute">
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+            import mx.controls.Image;
+            import mx.core.UIComponent;
+            import mx.events.FlexEvent;
+
+            var btn:Image = null;
+
+            [Embed(source = "/assets/common/left_arrow.png")]
+            [Bindable]
+            private var iconLeft:Class;
+            private var index:int;
+            private var box:CollageBox = null;
+
+            /////////////////////////////////////////////////////////////////////////////////
+            //创建按钮
+            protected override function createChildren():void
+            {
+                super.createChildren ();
+                btn = new Image ();
+                btn.width = 9;
+                btn.height = 9;
+                btn.source = iconLeft;
+                btn.useHandCursor = true;
+                btn.mouseChildren = false;
+                btn.buttonMode = true;
+
+                btn.addEventListener (MouseEvent.CLICK , eventBtnClick);
+                rawChildren.addChild (btn);
+
+            }
+
+            //////////////////////////////////////////////////////////////////////////////////
+            protected override function layoutChrome(unscaledWidth:Number , unscaledHeight:Number):void
+            {
+                super.layoutChrome (unscaledWidth , unscaledHeight);
+                var y:int = (this.titleBar.height - btn.height) / 2 + 2;
+                var x:int = this.width - btn.width - 8;
+                btn.move (x , y);
+            }
+
+            public function getMinTitleWidth(maxTextlength:int):int
+            {
+                var result:int = this.titleBar.measureText ("欢").width * Math.max (maxTextlength , this.title.length) + 60;
+                return result;
+            }
+
+            //////////////////////////////////////////////////////////////////////////////////
+            function eventBtnClick(event:MouseEvent):void
+            {
+                if (!box)
+                {
+                    box = new CollageBox ();
+                    box.title = this.title;
+                    box.visible = true;
+                    box.width = 25;
+                    box.panel = this;
+                }
+
+                var p:UIComponent = this.parent as UIComponent;
+                index = this.parent.getChildIndex (this);
+                p.removeChild (this);
+                p.addChildAt (this.box , index);
+            }
+
+            protected function panel1_creationCompleteHandler(event:FlexEvent):void
+            {
+
+            }
+        ]]>
+    </fx:Script>
+</mx:Panel>

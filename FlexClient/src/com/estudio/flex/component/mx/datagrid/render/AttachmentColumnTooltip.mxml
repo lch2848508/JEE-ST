@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" implements="mx.core.IToolTip" xmlns:mx="library://ns.adobe.com/flex/mx" width="300" height="200">
+	<fx:Script>
+		<![CDATA[
+			private static var instance=null;
+
+			public static function getInstance():AttachmentColumnTooltip
+			{
+				if (instance == null)
+					instance=new AttachmentColumnTooltip();
+				return instance;
+			}
+			
+			public function get text():String
+			{
+				return "";
+			}
+			
+			public function set text(v:String):void
+			{
+				return 
+			}
+		]]>
+	</fx:Script>
+	
+	<mx:DataGrid borderColor="0x000000" id="datagridFiles" width="100%" height="100%" headerHeight="25" horizontalScrollPolicy="auto" lockedColumnCount="3" rowHeight="25" sortableColumns="false" verticalScrollPolicy="auto">
+		<mx:columns>
+			<mx:DataGridColumn width="25" dataField="icon" headerText="" resizable="false">
+				<mx:itemRenderer>
+					<fx:Component>
+						<mx:Canvas>
+							<mx:Image width="16" height="16" horizontalAlign="center" horizontalCenter="0" source="{&quot;../../images/filetype_images/16x16/&quot; + data.fileext+&quot;.png&quot;}" verticalAlign="middle" verticalCenter="0">
+							</mx:Image>
+						</mx:Canvas>
+					</fx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn width="{datagridFiles.width-480}" minWidth="250" dataField="filename" headerText="文件名" resizable="true">
+				<mx:itemRenderer>
+					<fx:Component>
+						<mx:Label buttonMode="true" click="label1_clickHandler(event)" color="0x0000FF" mouseChildren="false" selectable="false" text="{data.caption}" useHandCursor="true">
+							<fx:Script>
+								<![CDATA[
+									import mx.controls.Alert;
+									import mx.core.FlexGlobals;
+									
+									protected function label1_clickHandler(event:MouseEvent):void
+									{
+										var url:String=owner["selectedItem"].url;
+										FlexGlobals.topLevelApplication.goURL(url);
+									}
+								]]>
+							</fx:Script>
+						</mx:Label>
+					</fx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+</s:Group>

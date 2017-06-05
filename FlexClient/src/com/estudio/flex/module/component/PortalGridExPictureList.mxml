@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:PortalGridExControl creationComplete="portalgridexcontrol2_creationCompleteHandler(event)" currentState="editStatus" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+							   xmlns:component="com.estudio.flex.module.component.*" width="100%" height="100%" xmlns:workflow="com.estudio.flex.module.component.workflow.*" xmlns:component1="com.webgis.component.*">
+	<component:states>
+		<s:State name="editStatus"/>
+		<s:State name="viewStatus"/>
+	</component:states>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.common.InterfacePortalGridEx;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.estudio.flex.utils.UIUtils;
+			import com.webgis.component.WinInputText;
+			import com.webgis.service.MapServiceClient;
+
+			import flash.net.navigateToURL;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.DragEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.events.ModuleEvent;
+			import mx.managers.PopUpManager;
+			import mx.managers.SystemManager;
+
+			import spark.events.IndexChangeEvent;
+
+			///////////////////////////////////////////////////////////////////////
+			private var url:String="../client/attachment_ex";
+			[Bindable]
+			private var pictureTypes:ArrayCollection=new ArrayCollection([]);
+			[Bindable]
+			private var pictureArrayCollection:ArrayCollection=new ArrayCollection([]);
+			private var _recordId:String="";
+			public var recordPrefix:String="";
+			public var parentControlName:String="";
+
+			public override function resetCurrentState():void
+			{
+				this.currentState=controlParams.IsReadonly || readonly ? "viewStatus" : "editStatus";
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			public function set recordId(v:String):void
+			{
+				_recordId=v;
+				AjaxUtils.postData(url, {o: "getPicture", recordId: _recordId}, function(text:String, token:Object):void
+				{
+					var json:Object=JSON.parse(text);
+					if (json.r)
+						pictureArrayCollection=new ArrayCollection(json.pictures ? json.pictures : []);
+				});
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			public function get recordId():String
+			{
+				return _recordId;
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			public function set Content(v:String):void
+			{
+
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			public function get Content():String
+			{
+				return JSON.stringify(pictureArrayCollection.source);
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			override public function initParams(controlParams:Object):void
+			{
+				super.initParams(controlParams);
+				readonly=controlParams.IsReadonly || readonly;
+				this.currentState=readonly ? "viewStatus" : "editStatus";
+				this.recordPrefix=StringUtils.nvl(controlParams.RecordPrefix, "");
+				this.parentControlName=StringUtils.nvl(controlParams.ParentControlName, "");
+				var tempStr:String="全部图片";
+				if (!StringUtils.isEmpty(controlParams.PictureTypes))
+					tempStr+="," + controlParams.PictureTypes;
+				this.pictureTypes=new ArrayCollection(StringUtils.split(tempStr));
+				if (this.pictureTypes.length != 0)
+				{
+					callLater(function():void
+					{
+						categoryCombobox.selectedIndex=0;
+						categoryCombobox.selectedItem=pictureTypes.getItemAt(0);
+					});
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function btnUpload_clickHandler(event:MouseEvent):void
+			{
+				WinUploadPicture.execute(uploadPictureCallFunction, {recordId: recordId, pictureTypes: pictureTypes, selectedIndex: categoryCombobox.selectedIndex});
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			private function uploadPictureCallFunction(json:Object):void
+			{
+				pictureArrayCollection.addItem(json);
+				pictureArrayCollection.refresh();
+				var selectIndex:int=ArrayUtils.indexOf(pictureTypes.source, json.category);
+				if (categoryCombobox.selectedIndex != selectIndex)
+				{
+					categoryCombobox.selectedIndex=selectIndex;
+					categoryCombobox.selectedItem=pictureTypes.getItemAt(selectIndex);
+					categoryCombobox_changeHandler(null);
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function btnDelete_clickHandler(event:MouseEvent):void
+			{
+				var items:Array=[];
+				var ids:Array=[];
+				for (var i:int=0; i < pictureArrayCollection.length; i++)
+				{
+					var item:Object=pictureArrayCollection.getItemAt(i);
+					if (item.selected)
+					{
+						ids.push(item.id);
+						items.push(item);
+					}
+				}
+				if (ids.length != 0)
+				{
+					AlertUtils.confirm("确定要删除选择的图片？", function():void
+					{
+						AjaxUtils.postData(url, {o: "deletePicture", id: ids.join(",")}, null);
+						for (var i:int=0; i < items.length; i++)
+						{
+							pictureArrayCollection.removeItemAt(pictureArrayCollection.getItemIndex(items[i]));
+						}
+						imageList.invalidateDisplayList();
+					});
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////
+			protected function categoryCombobox_changeHandler(event:IndexChangeEvent):void
+			{
+				pictureArrayCollection.filterFunction=function(item:Object):Boolean
+				{
+					if (categoryCombobox.selectedIndex < 1)
+						return true;
+					return StringUtils.equal(item.category, categoryCombobox.selectedItem);
+				};
+				pictureArrayCollection.refresh();
+				imageList.invalidateDisplayList();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+
+			protected function imageList_doubleClickHandler(event:MouseEvent):void
+			{
+				var selectedItem:Object=imageList.selectedItem;
+				if (selectedItem)
+				{
+					WinPictureView.execute(pictureArrayCollection, imageList.selectedItem, (categoryCombobox.selectedIndex >= 0 ? categoryCombobox.selectedItem as String : categoryCombobox.dataProvider.getItemAt(0) as String), function()
+					{
+					});
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			//图片上移
+			protected function toolbarbutton1_clickHandler(event:MouseEvent):void
+			{
+				var index:int=imageList.selectedIndex;
+				if (index == 0 || index < 0)
+					return;
+				var item:Object=pictureArrayCollection.getItemAt(index);
+				var item2:Object=pictureArrayCollection.getItemAt(index - 1);
+				var temp:String=item.sortorder;
+				item.sortorder=item2.sortorder;
+				item2.sortorder=temp;
+				var ids:Array=[item.id, item.sortorder, item2.id, item2.sortorder];
+				pictureArrayCollection.removeItemAt(pictureArrayCollection.getItemIndex(item));
+				pictureArrayCollection.addItemAt(item, index - 1);
+				pictureArrayCollection.refresh();
+				imageList.invalidateDisplayList();
+				imageList.callLater(function():void
+				{
+					imageList.selectedItem=item;
+					imageList.ensureIndexIsVisible(index - 1);
+				});
+				AjaxUtils.postData(url, {o: "exchangePicturePosition", id: ids.join(",")}, function(text:String, token:Object):void
+				{
+				});
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////
+			//图片下移
+			protected function toolbarbutton2_clickHandler(event:MouseEvent):void
+			{
+				var index:int=imageList.selectedIndex;
+				if (index == pictureArrayCollection.length - 1 || index < 0)
+					return;
+
+				var item:Object=pictureArrayCollection.getItemAt(index);
+				var item2:Object=pictureArrayCollection.getItemAt(index + 1);
+				var temp:String=item.sortorder;
+				item.sortorder=item2.sortorder;
+				item2.sortorder=temp;
+				var ids:Array=[item.id, item.sortorder, item2.id, item2.sortorder];
+				pictureArrayCollection.removeItemAt(pictureArrayCollection.getItemIndex(item));
+				pictureArrayCollection.addItemAt(item, index + 1);
+				pictureArrayCollection.refresh();
+				imageList.invalidateDisplayList();
+				imageList.callLater(function():void
+				{
+					imageList.selectedItem=item;
+					imageList.ensureIndexIsVisible(index + 1);
+				});
+				AjaxUtils.postData(url, {o: "exchangePicturePosition", id: ids.join(",")}, function(text:String, token:Object):void
+				{
+				});
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function categoryCombobox_creationCompleteHandler(event:FlexEvent):void
+			{
+				categoryCombobox.textInput.editable=false;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			private var contextMenuItems:Array=[];
+
+			protected function portalgridexcontrol2_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (!readonly)
+				{
+					var event4MenuItemSelect=function(event:ContextMenuEvent):void
+					{
+						var index:int=ArrayUtils.indexOf(contextMenuItems, event.currentTarget);
+						if (index == 0)
+							btnUpload_clickHandler(null);
+						else if (index == 1)
+							toolbarbutton1_clickHandler(null);
+						else if (index == 2)
+							toolbarbutton2_clickHandler(null);
+						else if (index == 3)
+							btnDelete_clickHandler(null);
+					};
+					var contextMenu:ContextMenu=new ContextMenu();
+					contextMenu.hideBuiltInItems();
+
+					var contentMenuItem:ContextMenuItem=new ContextMenuItem("上传图片...");
+					contextMenu.customItems.push(contentMenuItem);
+					contextMenuItems.push(contentMenuItem);
+					contentMenuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4MenuItemSelect);
+
+					contentMenuItem=new ContextMenuItem("图片上移");
+					contextMenu.customItems.push(contentMenuItem);
+					contextMenuItems.push(contentMenuItem);
+					contentMenuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4MenuItemSelect);
+
+					contentMenuItem=new ContextMenuItem("图片下移");
+					contextMenu.customItems.push(contentMenuItem);
+					contextMenuItems.push(contentMenuItem);
+					contentMenuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4MenuItemSelect);
+
+					contentMenuItem=new ContextMenuItem("删除图片...");
+					contextMenu.customItems.push(contentMenuItem);
+					contextMenuItems.push(contentMenuItem);
+					contentMenuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4MenuItemSelect);
+
+					imageList.contextMenu=contextMenu;
+
+				}
+				_isCreateCompleted=true;
+			}
+		]]>
+	</fx:Script>
+
+	<component:ToolbarGroup width="100%" height="30" bottomBorder="true">
+		<s:HGroup gap="2" paddingLeft="2" paddingRight="2" height="28" width="100%" verticalAlign="middle">
+			<s:Label text="类别"/>
+			<s:ComboBox width="100%" selectedIndex="0" change="categoryCombobox_changeHandler(event)" id="categoryCombobox" dataProvider="{pictureTypes}" creationComplete="categoryCombobox_creationCompleteHandler(event)"/>
+			<component1:ToolbarButton includeIn="editStatus" click="btnUpload_clickHandler(event)" selected="true" id="btnUpload" toolTip="上传图片" icon="@Embed('/assets/common/upload.png')"/>
+			<component1:ToolbarButton includeIn="editStatus" click="toolbarbutton1_clickHandler(event)" selected="true" toolTip="向上移动" icon="@Embed('/assets/common/up.png')"/>
+			<component1:ToolbarButton includeIn="editStatus" click="toolbarbutton2_clickHandler(event)" selected="true" toolTip="向下移动" icon="@Embed('/assets/common/down.png')"/>
+			<component1:ToolbarButton includeIn="editStatus" click="btnDelete_clickHandler(event)" selected="true" id="btnDelete" toolTip="删除选择的图片" icon="@Embed('/assets/common/delete.png')"/>
+		</s:HGroup>
+	</component:ToolbarGroup>
+
+	<s:List selectionColor="0xFFFF00" id="imageList" doubleClickEnabled="true" doubleClick="imageList_doubleClickHandler(event)" width="100%" height="100%" itemRenderer="com.estudio.flex.module.component.ListItemRender4PictureView" dataProvider="{pictureArrayCollection}">
+	</s:List>
+</component:PortalGridExControl>

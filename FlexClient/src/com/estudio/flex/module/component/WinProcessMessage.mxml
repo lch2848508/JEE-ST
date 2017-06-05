@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:ResizableTitleWindow skinClass="com.estudio.flex.component.ResizableTitleWindowSkin" creationComplete="resizabletitlewindow1_creationCompleteHandler(event)" backgroundColor="#F5F5F5" title="业务督办(问责)信息" close="resizabletitlewindow1_closeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark"
+								xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="600" height="500">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.component.ResizableTitleWindowSkin;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.JSFunUtils;
+			import com.estudio.flex.utils.StringUtils;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+			[Bindable]
+			private var isReadonly:Boolean=false;
+			private var processOrStepId:String="";
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function resizabletitlewindow1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(instance);
+			}
+			private static var instance:WinProcessMessage=null;
+
+			public static function execute(processOrStepId:String, isReadonly:Boolean):void
+			{
+				if (instance == null)
+				{
+					instance=new WinProcessMessage();
+				}
+				else
+				{
+					instance.cbType.selectedIndex=0;
+					instance.textInput.text="";
+				}
+				instance.isReadonly=isReadonly;
+				instance.processOrStepId=processOrStepId;
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(instance);
+				instance.callLater(function():void
+				{
+					instance.loadProcessMessage();
+				});
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function loadProcessMessage():void
+			{
+				if (content == null)
+				{
+					callLater(loadProcessMessage);
+				}
+				else
+				{
+					var json:Object=JSFunUtils.JSFun("WORKFLOW_GET_PROCESS_MESSAGE", processOrStepId);
+					var rows:Array=json.rows;
+
+					var htmlContent:String="<textformat leftmargin='6' rightmargin='4' leading='6'>";
+					for (var i:int=0; i < rows.length; i++)
+					{
+						var record:Object=rows[i];
+						htmlContent+="<font color='#0000FF' size='12'>" + cbType.dataProvider.getItemAt(record.MSG_TYPE) + " " + record.REALNAME + "(" + record.REGDATE + ")</font>";
+						htmlContent+="<br>";
+						htmlContent+="<textformat leftmargin='10' leading='6'>";
+						htmlContent+="<font color='#000080' size='12'><b>" + record.CONTENT + "</b></font>";
+						htmlContent+="</textformat><br>"
+					}
+					htmlContent+="</textformat>";
+					content.htmlText=htmlContent;
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var content:String=StringUtils.trim(textInput.text);
+				if (!StringUtils.isEmpty(content))
+				{
+					var json:Object=JSFunUtils.JSFun("WORKFLOW_SAVE_PROCESS_MESSAGE", [processOrStepId, cbType.selectedIndex, content]);
+					if (json.r)
+					{
+						AlertUtils.msnMessage("系统", "成功添加" + cbType.textInput.text, false);
+					}
+
+				}
+				resizabletitlewindow1_closeHandler(null);
+			}
+
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				resizabletitlewindow1_closeHandler(null);
+			}
+
+			protected function resizabletitlewindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				cbType.textInput.editable=false;
+				cbType.selectedIndex=0;
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%" height="100%" gap="0">
+		<mx:TextArea id="content" focusThickness="0" width="100%" height="100%" editable="false" dropShadowVisible="false" borderVisible="false"/>
+		<s:Line width="100%" height="0" visible="{!isReadonly}">
+			<s:stroke>
+				<s:SolidColorStroke color="#313131"/>
+			</s:stroke>
+		</s:Line>
+		<s:Group width="100%" height="{isReadonly?0:60}">
+			<s:Label visible="{!isReadonly}" text="督办类型" top="9" left="5"/>
+			<s:ComboBox visible="{!isReadonly}" left="60" top="5" id="cbType" dataProvider="{new ArrayCollection(['一般信息','督办信息','问责信息'])}"/>
+			<s:Label visible="{!isReadonly}" text="督办内容" left="5" bottom="9"/>
+			<s:TextInput visible="{!isReadonly}" id="textInput" left="60" right="5" bottom="5">
+
+			</s:TextInput>
+		</s:Group>
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#313131"/>
+			</s:stroke>
+		</s:Line>
+		<s:Group width="100%" height="40">
+			<s:Button label="确定" width="75" verticalCenter="0" right="85" height="30" click="button1_clickHandler(event)" enabled="{!isReadonly}"/>
+			<s:Button label="关闭" right="5" verticalCenter="0" width="75" height="30" click="button2_clickHandler(event)"/>
+		</s:Group>
+	</s:VGroup>
+</component:ResizableTitleWindow>

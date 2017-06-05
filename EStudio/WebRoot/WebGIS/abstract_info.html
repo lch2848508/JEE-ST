@@ -1,0 +1,182 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta http-equiv="pragma" content="no-cache" />
+	<meta http-equiv="cache-control" content="no-cache" />
+	<meta http-equiv="expires" content="0" />
+	<script type="text/javascript" src="../js/jslib/jquery/jquery.js"></script>
+	<script type="text/javascript" src="../js/jslib/jquery/jquery.json.js"></script>
+	<script type="text/javascript" src="../js/jslib/utils.js"></script>
+	<script type="text/javascript"
+		src="../js/jslib/echarts-2.2.7/build/dist/echarts.pie.js"></script>
+
+	<script language="javascript" type="text/javascript">
+		var echartInstance = null;
+		var echartOption = {
+			tooltip : {
+				trigger : 'item',
+				formatter : "{b}({d}%)"
+			},
+			legend : {
+				orient : 'vertical',
+				x : 'left',
+				data : []
+			},
+			calculable : true,
+			series : [ {
+				type : 'pie',
+				data : [ ]
+			} ]
+		};
+
+		var layerInfos = null;
+		var statisticInfos = null;
+		var statisticCategory2Values = {};
+
+		/////////////////////////////////////////////////////////////////////////////////////
+		function setHTMLContent(contents) {
+			var content = contents[0];
+			$("#div_content").html(content);
+		}
+
+		////////////////////////////////////////////////////////////////////////////////////
+		//元数据信息
+		function setLayerInfos(layers) {
+			layerInfos = layers[0];
+			var filterHtml = "<div style='padding-bottom:4px;font-size:16px'><span><b>图层列表: </b></span><select name='comboboxMetaLayers' id='comboboxMetaLayers'>";
+			for ( var i = 0; i < layerInfos.length; i++) {
+				var layerInfo = layerInfos[i];
+				filterHtml += "<option value='" + layerInfo.layerName + "'>"
+						+ layerInfo.layerName + "</option>";
+				var tableHtml = "<table width='100%' border='1' cellpadding='0' cellspacing='0'><tr><th scope='col' width='60'>序号</th><th scope='col'>属性名称</th><th scope='col'>属性备注</th><th scope='col'>数据类型</th></tr>";
+				for ( var j = 0; j < layerInfo.children.length; j++) {
+					var rowItem = layerInfos[i].children[j];
+					tableHtml += "<tr><td>" + rowItem.no + "</td><td>"
+							+ rowItem.name + "</td><td>" + rowItem.title
+							+ "</td><td>" + rowItem.datatype + "</td></tr>"
+				}
+				tableHtml += "</table>"
+				layerInfo.tableHtml = tableHtml;
+			}
+			filterHtml += "</select></div>";
+			if (layerInfos.length == 1)
+				setHTMLContent([ layerInfos[0].tableHtml ]);
+			else {
+				setHTMLContent([ filterHtml + "<div id='divDetail'>"
+						+ layerInfos[0].tableHtml + "</div>" ]);
+				$("#comboboxMetaLayers").change(layerMetaComboboxChange);
+			}
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////
+		//统计汇总信息
+		function setStatisticInfos(statistics) {
+			statisticCategory2Values = {};
+			statisticInfos = statistics[0];
+			var filterHtml = "<div style='padding-bottom:4px;font-size:16px'><span><b>图层及分类: </b></span><select name='comboboxStatisticLayers' id='comboboxStatisticLayers'>";
+			for ( var i = 0; i < statisticInfos.length; i++) {
+				var layerInfo = statisticInfos[i];
+				var layerName = layerInfo.layerName;
+				filterHtml += "<optgroup label='"+layerName+"'>";
+				for ( var j = 0; j < layerInfo.children.length; j++) {
+					var fieldInfo = layerInfo.children[j];
+					var fieldKey = layerName + "-" + fieldInfo.fieldTitle;
+					filterHtml += "<option value='" + fieldKey + "'>"
+							+ fieldInfo.fieldTitle + "</option>";
+					statisticCategory2Values[fieldKey] = fieldInfo.children;
+				}
+				filterHtml += "</optgroup>";
+			}
+			filterHtml += "</select></div>";
+			setHTMLContent([ filterHtml
+					+ "<div id='divChart' style='height:400px'></div>" ]);
+			echartInstance = echarts.init(document.getElementById("divChart"));
+			$("#comboboxStatisticLayers").change(layerStatisticComboboxChange);
+			layerStatisticComboboxChange();
+		}
+		///////////////////////////////////////////////////////////////////////////////////
+		function layerMetaComboboxChange() {
+			var index = comboboxMetaLayers.selectedIndex;
+			$("#divDetail").html(layerInfos[index].tableHtml);
+		}
+		////////////////////////////////////////////////////////////////////////////////////
+		function layerStatisticComboboxChange() {
+			var value = $("#comboboxStatisticLayers").val();
+			var statisticValues = statisticCategory2Values[value];
+			echartOption.legend.data = [];
+			echartOption.series[0].data = [];
+			var total = 0;
+			for ( var i = 0; i < statisticValues.length; i++) {
+				echartOption.legend.data.push(statisticValues[i].name);
+				echartOption.series[0].data.push({
+					name : statisticValues[i].name,
+					value : statisticValues[i].value
+				});
+				total += statisticValues[i].value;
+			}
+			echartInstance.clear();
+			echartOption.legend.data.push("总计:(" + total + ")");
+			echartInstance.setOption(echartOption);
+
+		}
+	</script>
+
+	<style>
+* {
+	font-size: 12px;
+	zoom: 1;
+}
+
+html {
+	width: 100%;
+	height: 100%;
+}
+
+body {
+	margin: 0px;
+	padding: 0px;
+	background-color: #FFFFFF;
+	width: 100%;
+	height: 100%;
+	zoom: 1;
+}
+
+table {
+	border-collapse: collapse;
+	border-color: #009;
+}
+
+tr {
+	height: 28px;
+}
+
+th {
+	font-weight: bold;
+	background: #FFc;
+}
+
+td {
+	padding-left: 5px;
+}
+
+#div_content {
+	font-family: "微软雅黑", "新宋体";
+	font-size: 4px;
+	padding: 4px;
+}
+
+#div_content * {
+	line-height: 150%;
+}
+
+#divDetail {
+	
+}
+</style>
+</head>
+<body>
+  <div id="div_content"></div>
+</body>
+</html>

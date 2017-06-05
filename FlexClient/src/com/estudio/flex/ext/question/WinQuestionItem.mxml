@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow title="{winCaption}" creationComplete="{loadFile();}" close="titlewindow1_closeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="600" height="400">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.ext.QuestionItem;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.controls.Alert;
+			import mx.controls.RadioButton;
+			import mx.controls.RadioButtonGroup;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+			[Bindable]
+			var stlx:String=null;
+			[Bindable]
+			var stnr:String=null;
+			[Bindable]
+			var rightAnswer:String=null;
+
+			private var comp2Value:Object={};
+			private var compList:Array=[];
+			private var questionInfo:Object=null;
+			private var choices:Array=null;
+
+			var myRadioButtonGroup:RadioButtonGroup=new RadioButtonGroup();
+			private static var url:String="../servlet/question";
+			[Bindable]
+			private var winCaption:String="";
+			private var otherParams:Object=null;
+			[Bindable]
+			private var isPostAnswer:Boolean=false;
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function loadFile()
+			{
+				stlx=questionInfo.caption;
+				stnr=questionInfo.question;
+				choiceGroup.removeAllElements();
+				myRadioButtonGroup.selectedValue="";
+				myRadioButtonGroup.selection=null;
+				for (var i:int=0; i < choices.length; i++)
+				{
+					var answerItem:QuestionItem=new QuestionItem();
+					answerItem.label=choices[i].xxms;
+					answerItem.group=myRadioButtonGroup;
+					answerItem.value=choices[i].xxbh;
+					if (StringUtils.equal(questionInfo.yourAnswer, answerItem.value))
+						answerItem.selected=true;
+					choiceGroup.addElement(answerItem);
+					var zqx:String=choices[i].sfzq;
+					if (zqx == '1')
+						rightAnswer=choices[i].xxbh;
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////
+			private function postResult():void
+			{
+				if (myRadioButtonGroup.selectedValue != null)
+				{
+					var result:String=myRadioButtonGroup.selectedValue.toString();
+					questionInfo.answer=rightAnswer == result ? 1 : 0;
+					otherParams.cell.setStyle("backgroundColor", questionInfo.answer ? "0x00FF00" : "0xFF0000");
+					questionInfo.yourAnswer=myRadioButtonGroup.selectedValue;
+					var answerParams:Object={o: "monthItemResult"};
+					answerParams["uid"]=questionInfo.uid;
+					answerParams["score"]=questionInfo.answer ? 100 : 0;
+					answerParams["yourAnswer"]=myRadioButtonGroup.selectedValue;
+					var url="../servlet/question";
+					AjaxUtils.postData(url, answerParams, null);
+				}
+				titlewindow1_closeHandler(null);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			private function postToServer(isOk:Boolean):void
+			{
+//				AjaxUtils.postData(url, {o: "postEveryDayQuestion", score: (isOk ? 100 : 0)}, function(str:Object, token:Object):void
+//				{
+//					AlertUtils.msnMessage("系统", "您的成绩已经提交到系统中。", false);
+//				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			public static function execute(questionInfo:Object, choices:Array, cap:String, otherParams:Object):void
+			{
+				if (instance == null)
+				{
+					instance=new WinQuestionItem();
+					instance.questionInfo=questionInfo;
+					instance.choices=choices;
+					instance.winCaption=cap;
+					instance.otherParams=otherParams;
+					instance.isPostAnswer=questionInfo.answer * 1 != -1;
+				}
+				else
+				{
+					instance.questionInfo=questionInfo;
+					instance.choices=choices;
+					instance.winCaption=cap;
+					instance.otherParams=otherParams;
+					instance.isPostAnswer=questionInfo.answer * 1 != -1;
+					instance.loadFile();
+				}
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(instance);
+
+			}
+			//////////////////////////////////////////////////////////////////////////////
+			private static var instance:WinQuestionItem=null;
+
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(instance);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function postBtnClick(event:MouseEvent):void
+			{
+				postResult();
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function button4_clickHandler(event:MouseEvent):void
+			{
+				titlewindow1_closeHandler(null);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here
+		<s:RadioButtonGroup id="myRadioButtonGroup" /> -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" gap="0">
+		<s:BorderContainer width="100%" height="30" borderWeight="0" borderVisible="false">
+			<s:Label left="15" top="10" fontWeight="bold" text="{'试题类型:'+stlx}">
+			</s:Label>
+		</s:BorderContainer>
+		<s:BorderContainer width="100%" height="50%" borderWeight="0" borderVisible="false">
+			<s:Label left="30" top="10" fontSize="14" right="30" text="{'题目: '+stnr+'    '}" width="100%">
+			</s:Label>
+		</s:BorderContainer>
+		<s:VGroup width="100%" height="100%" id="choiceGroup">
+		</s:VGroup>
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#313131"/>
+			</s:stroke>
+		</s:Line>
+		<s:Group width="100%" height="40">
+			<s:Button label="确定" enabled="{!isPostAnswer}" width="75" verticalCenter="0" right="85" height="30" click="postBtnClick(event)"/>
+			<s:Button label="关闭" right="5" verticalCenter="0" width="75" height="30" click="button4_clickHandler(event)"/>
+		</s:Group>
+	</s:VGroup>
+
+
+</s:TitleWindow>

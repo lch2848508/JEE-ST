@@ -1,0 +1,610 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="400" height="256" creationComplete="group1_creationCompleteHandler(event)"
+		 implements="mx.managers.IFocusManagerComponent,com.estudio.flex.module.InterfaceEditableControl">
+	<s:layout>
+		<s:VerticalLayout gap="2"/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.module.EditableControlParams;
+			import com.estudio.flex.module.FormDataService;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.MultipartURLLoader;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+
+			private var _type:String="";
+			private var _p_id:String="";
+			private var _url:String="../client/attachment"
+			private var _saveToDB:Boolean=false;
+			private var _isUploading:Boolean=false;
+
+			public var fileMaxSize:int=10;
+			private var _fileSizeUnit:int=0;
+
+			private var _acceptFileExts:String="";
+			public var fileExtFilter:Array=null;
+			private var _fileRef:FileReference=new FileReference();
+			private var _multipartURLLoader:MultipartURLLoader=new MultipartURLLoader();
+
+			public function get allowMaxSize():int
+			{
+				return fileMaxSize;
+			}
+
+			public function set allowMaxSize(value:int):void
+			{
+				fileMaxSize=value;
+			}
+
+
+			public function get fileSizeUnit():int
+			{
+				return _fileSizeUnit;
+			}
+
+			public function set fileSizeUnit(value:int):void
+			{
+				_fileSizeUnit=value;
+			}
+
+
+			public function get acceptFileExts():String
+			{
+				return _acceptFileExts;
+			}
+
+			public function set acceptFileExts(value:String):void
+			{
+				_acceptFileExts=value;
+				if (StringUtils.isEmpty(value))
+					return;
+				fileExtFilter=[];
+				var l1:Array=value.split("||");
+				for (var i:int=0; i < l1.length; i++)
+				{
+					var str:String=l1[i];
+					var l2:Array=str.split("|");
+					fileExtFilter.push(new FileFilter(l2[0], l2[1]));
+				}
+			}
+
+
+			public function get saveToDB():Boolean
+			{
+				return _saveToDB;
+			}
+
+			public function set saveToDB(value:Boolean):void
+			{
+				_saveToDB=value;
+			}
+
+
+			public function get url():String
+			{
+				return _url;
+			}
+
+			public function set url(value:String):void
+			{
+				_url=value;
+			}
+
+
+			public function get type():String
+			{
+				return _type;
+			}
+
+			public function set type(value:String):void
+			{
+				_type=value;
+			}
+
+			public function get p_id():String
+			{
+				return _p_id;
+			}
+
+			public function set p_id(value:String):void
+			{
+				_p_id=value;
+				//if (p_id != "-1")
+				loadFiles();
+				//else
+				//	datagridFiles.dataProvider=new ArrayCollection([]);
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if (_isUploading)
+					return;
+				_fileRef.browse(fileExtFilter);
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////////
+			//选择文件
+			private const M_SIZE:int=1024 * 1024;
+			private const K_SIZE:int=1024;
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////
+			//读取文件数据
+			public function loadFiles():void
+			{
+				var hoverPos:int=datagridFiles.horizontalScrollPosition
+				var vPos:int=datagridFiles.verticalScrollPosition;
+				if (!StringUtils.isEmpty(_p_id))
+				{
+					var url:String=_url + "?o=list&type=" + _type + "&p_id=" + _p_id;
+					AjaxUtils.postData(url, {}, function(data:String, token:Object):void
+					{
+						var json:Object=JSON.parse(data);
+						if (json != null)
+						{
+							if (json.r)
+							{
+								datagridFiles.dataProvider=new ArrayCollection(json.records);
+							}
+							else if (json.errorCode * 1 == -65535)
+							{
+								FlexGlobals.topLevelApplication.raiseSessionMissError();
+							}
+							else
+							{
+								datagridFiles.dataProvider=new ArrayCollection([]);
+							}
+						}
+					});
+				}
+				else
+				{
+					datagridFiles.dataProvider=new ArrayCollection([]);
+				}
+				datagridFiles.verticalScrollPosition=vPos;
+				datagridFiles.horizontalScrollPosition=hoverPos;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////
+			//删除文件
+			public function deleteFile(id:int):void
+			{
+				var hoverPos:int=datagridFiles.horizontalScrollPosition
+				var vPos:int=datagridFiles.verticalScrollPosition;
+				var url:String=_url + "?o=delete&id=" + id + "&type=" + _type + "&p_id=" + _p_id;
+				AjaxUtils.postData(url, {}, function(data:String, token:Object):void
+				{
+					var json:Object=JSON.parse(data);
+					if (json)
+					{
+						if (json.r)
+						{
+							datagridFiles.dataProvider=new ArrayCollection(json.records);
+						}
+						else if (json.errorCode * 1 == -65535)
+						{
+							FlexGlobals.topLevelApplication.raiseSessionMissError();
+						}
+						else
+						{
+							datagridFiles.dataProvider=new ArrayCollection([]);
+						}
+					}
+				});
+				datagridFiles.verticalScrollPosition=vPos;
+				datagridFiles.horizontalScrollPosition=hoverPos;
+
+			}
+
+			private var isComponentCreateCompleted:Boolean=false;
+
+			//创建完成事件
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				isComponentCreateCompleted=true;
+				if (Toolbar)
+					Toolbar.enabled=!readonly;
+			}
+
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			//实现接口 InterfceEditableControl
+			private var controlParams:EditableControlParams=new EditableControlParams();
+
+			public function get databaseName():String
+			{
+				return controlParams.databaseName;
+			}
+
+			public function set databaseName(value:String):void
+			{
+				controlParams.databaseName=value;
+			}
+
+			public function get fieldName():String
+			{
+				return controlParams.fieldName;
+			}
+
+			public function set fieldName(value:String):void
+			{
+				controlParams.fieldName=value;
+			}
+
+			public function get extFieldName():String
+			{
+				return controlParams.extFieldName;
+			}
+
+			public function set extFieldName(value:String):void
+			{
+				controlParams.extFieldName=value;
+			}
+
+			public function get controlValue():String
+			{
+				return dataservice.getDataSetValue(databaseName, fieldName);
+			}
+
+			public function get controlExtValue():String
+			{
+				return controlValue;
+			}
+
+			public function setControlValue(value:String, extValue:String, isSettingDatabase:Boolean):void
+			{
+				//this.text=value;
+				this.p_id=value;
+			}
+
+
+			//是否只读
+			public function get readonly():Boolean
+			{
+				return controlParams.readonly;
+			}
+
+			public function set readonly(value:Boolean):void
+			{
+				if (controlParams.readonly != value)
+				{
+					if (Toolbar)
+						Toolbar.enabled=!value;
+					controlParams.readonly=value;
+				}
+			}
+
+			public function get defaultReadonly():Boolean
+			{
+				return controlParams.defaultReadOnly;
+			}
+
+			public function set defaultReadonly(value:Boolean):void
+			{
+				controlParams.defaultReadOnly=value;
+			}
+
+
+			public function get controlType():int
+			{
+				return EditableControlParams.CONST_FILEUPLOAD;
+			}
+
+			public function reset():void
+			{
+				if (this.formInstance)
+					this.readonly=this.defaultReadonly || this.formInstance.readonly;
+				//this.setValue("", "", false);
+			}
+
+			public function set dataservice(value:FormDataService):void
+			{
+				controlParams.dataservice=value;
+			}
+
+			public function get dataservice():FormDataService
+			{
+				return controlParams.dataservice;
+			}
+
+			public function setDataBindParams(formInstance:InterfaceFormUI, formDataService:FormDataService, databaseName:String, fieldName:String, extFieldName:String):void
+			{
+				controlParams.formInstance=formInstance;
+				controlParams.dataservice=formDataService;
+				controlParams.databaseName=databaseName;
+				controlParams.fieldName=fieldName;
+				controlParams.extFieldName=extFieldName;
+				controlParams.isBindDatasource=!(StringUtils.isEmpty(databaseName) && !StringUtils.isEmpty(fieldName));
+			}
+
+			public function get isBindDatasource():Boolean
+			{
+				return controlParams.isBindDatasource;
+				//StringUtils.
+			}
+
+			private function StrLower(str:String):String
+			{
+				return StringUtils.lower(str);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function eventToolbarClick(event:MouseEvent):void
+			{
+				if (!checkCanModifyControlValue())
+					return;
+
+				var index:int=Toolbar.selectedIndex;
+				switch (index)
+				{
+					case 0:
+						uploadFiles();
+						break;
+					case 1:
+						scanFiles();
+						break;
+					case 2:
+						deleteSelectFiles();
+						break;
+				}
+			}
+
+			private function saveForm():Boolean
+			{
+				if (!formInstance)
+					return true;
+				if (!controlParams.dataservice.isMainDatabase(controlParams.databaseName) && !formInstance.save())
+				{
+					AlertUtils.msnMessage("表单", "当前表单不能被保存，不能上传文件。", true);
+					return false;
+				}
+				this._p_id=controlValue;
+				if (StringUtils.isEmpty(_p_id))
+				{
+					AlertUtils.msnMessage("表单", "表单中无数据，不能上传附件。", true);
+					return false;
+				}
+				return true;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			public function scanFiles(w:int=800, h:int=480):void
+			{
+				if (formInstance)
+				{
+					w=Math.max(w, formInstance["width"]);
+					h=Math.max(h, formInstance["height"] + 60);
+				}
+				var savewToDB:String=_type == "workflow_idea" ? "0" : (_saveToDB ? "1" : "0");
+				var url:String=_url + "?o=upload&type=" + _type + "&p_id=" + _p_id + "&savetodb=" + savewToDB;
+				WinScanFiles.execute(url, function():void
+				{
+					loadFiles();
+				}, w, h, false);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			//上传文件
+			public function uploadFiles(w:int=800, h:int=480):void
+			{
+				if (formInstance)
+				{
+					w=Math.max(w, formInstance["width"]);
+					h=Math.max(h, formInstance["height"] + 60);
+				}
+
+				var savewToDB:String=_type == "workflow_idea" ? "0" : (_saveToDB ? "1" : "0");
+				var url:String=_url + "?o=upload&type=" + _type + "&p_id=" + _p_id + "&savetodb=" + savewToDB;
+				WinBatchUpload.execute(url, Math.max(1024, fileMaxSize * (fileSizeUnit == 0 ? M_SIZE : K_SIZE)), fileExtFilter, function():void
+				{
+					loadFiles();
+				}, false, w, h);
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			//删除选择的文件
+			public function deleteSelectFiles():void
+			{
+				var items:Array=[];
+				var ads:ArrayCollection=ArrayCollection(datagridFiles.dataProvider);
+				for (var i:int=0; i < ads.length; i++)
+				{
+					if (ads.getItemAt(i).isSelected)
+						items.push(ads.getItemAt(i).id);
+				}
+				if (items.length == 0)
+				{
+					AlertUtils.alert("请首先勾选需要删除的文件!");
+					return;
+				}
+				AlertUtils.confirm("确定要删除勾选的文件?", function():void
+				{
+					var hoverPos:int=datagridFiles.horizontalScrollPosition
+					var vPos:int=datagridFiles.verticalScrollPosition;
+					var url:String=_url + "?o=delete&ids=" + items.join(",") + "&type=" + _type + "&p_id=" + _p_id;
+					AjaxUtils.postData(url, {}, function(data:String, token:Object):void
+					{
+						var json:Object=JSON.parse(data);
+						if (json)
+						{
+							if (json.r)
+							{
+								datagridFiles.dataProvider=new ArrayCollection(json.records);
+							}
+							else if (json.errorCode * 1 == -65535)
+							{
+								FlexGlobals.topLevelApplication.raiseSessionMissError();
+							}
+							else
+							{
+								datagridFiles.dataProvider=new ArrayCollection([]);
+							}
+						}
+					});
+					datagridFiles.verticalScrollPosition=vPos;
+					datagridFiles.horizontalScrollPosition=hoverPos;
+				});
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////
+			public function selectFile(isSelected:Boolean):void
+			{
+				datagridFiles.selectedItem.isSelected=isSelected;
+			}
+
+			public function get formInstance():InterfaceFormUI
+			{
+				return controlParams.formInstance;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			private var isBindEvented:Boolean=false;
+
+			public function bindEvent():void
+			{
+				if (!isBindEvented)
+				{
+					isBindEvented=true;
+					for (var eventName:String in controlParams.eventMap)
+						this.addEventListener(eventName, controlParams.eventMap[eventName]);
+				}
+			}
+
+			public function unBindEvent():void
+			{
+				if (isBindEvented)
+				{
+					for (var eventName:String in controlParams.eventMap)
+						this.removeEventListener(eventName, controlParams.eventMap[eventName]);
+					isBindEvented=false;
+				}
+			}
+
+			public function registerEvent(eventName:String, eventFun:Function):void
+			{
+				controlParams.eventMap[eventName]=eventFun;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			private function checkCanModifyControlValue():Boolean
+			{
+				if (formInstance)
+				{
+					if (this.readonly)
+					{
+						AlertUtils.msnMessage("表单", "表单只读，不能执行此操作。", true);
+						return false;
+					}
+
+					if (!this.isBindDatasource)
+					{
+						AlertUtils.msnMessage("表单", "该附件管理控件没有同数据库进行关联，不能执行此操作。", true);
+						return false;
+					}
+
+
+					if (!formInstance.existsRecord(this.databaseName))
+					{
+						AlertUtils.msnMessage("表单", "表单中不存在同该附件管理关联的记录，不能执行此操作。", true);
+						return false;
+					}
+
+					if (!formInstance.save())
+					{
+						AlertUtils.msnMessage("表单", "保存表单失败，不能执行此操作。", true);
+						return false;
+					}
+					resetPid();
+				}
+				return true;
+			}
+
+			public function resetPid():void
+			{
+				if (formInstance && this.isBindDatasource && (StringUtils.isEmpty(_p_id) || StringUtils.equal(_p_id, "-1")))
+					p_id=formInstance.getDataSetValue(this.databaseName, this.fieldName);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+
+	<s:states>
+		<s:State name="inForm"/>
+		<s:State name="notInForm"/>
+	</s:states>
+	<mx:DataGrid borderColor="0x000000" id="datagridFiles" width="100%" height="100%" headerHeight="25" horizontalScrollPolicy="auto" lockedColumnCount="3" rowHeight="25" sortableColumns="false" verticalScrollPolicy="auto">
+		<mx:columns>
+			<mx:DataGridColumn width="18" dataField="icon" headerText="" resizable="false">
+				<mx:itemRenderer>
+					<fx:Component>
+						<mx:Canvas>
+
+							<fx:Script>
+								<![CDATA[
+									protected function checkbox1_clickHandler(event:MouseEvent):void
+									{
+										owner["owner"].selectFile(checkbox.selected);
+									}
+								]]>
+							</fx:Script>
+
+							<mx:CheckBox id="checkbox" click="checkbox1_clickHandler(event)" horizontalCenter="0" selected="{data.isSelected}">
+
+							</mx:CheckBox>
+						</mx:Canvas>
+					</fx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn width="25" dataField="icon" headerText="" resizable="false">
+				<mx:itemRenderer>
+					<fx:Component>
+						<mx:Canvas>
+							<mx:Image width="16" height="16" horizontalAlign="center" horizontalCenter="0" source="{&quot;../../images/filetype_images/16x16/&quot; + data.fileext+&quot;.png&quot;}" verticalAlign="middle" verticalCenter="0">
+							</mx:Image>
+						</mx:Canvas>
+					</fx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn width="{datagridFiles.width-480}" minWidth="250" dataField="filename" headerText="文件名" resizable="true">
+				<mx:itemRenderer>
+					<fx:Component>
+						<mx:Label buttonMode="true" click="label1_clickHandler(event)" color="0x0000FF" mouseChildren="false" selectable="false" text="{data.caption}" useHandCursor="true">
+							<fx:Script>
+								<![CDATA[
+									import mx.controls.Alert;
+									import mx.core.FlexGlobals;
+
+									protected function label1_clickHandler(event:MouseEvent):void
+									{
+										FlexGlobals.topLevelApplication.viewAttachmentWindow(owner["owner"]["p_id"], owner["owner"]["type"], owner["selectedItem"].id, owner["selectedItem"].url);
+									}
+								]]>
+							</fx:Script>
+						</mx:Label>
+					</fx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn width="180" dataField="descript" headerText="文件描述" resizable="true" textAlign="left"/>
+			<mx:DataGridColumn width="100" dataField="filesize" headerText="大小" resizable="false" textAlign="right"/>
+			<mx:DataGridColumn width="130" dataField="regdate" headerText="上传日期" resizable="false" textAlign="center"/>
+		</mx:columns>
+	</mx:DataGrid>
+
+	<s:ButtonBar includeIn="inForm" id="Toolbar" visible="true" height="28" buttonMode="true" click="eventToolbarClick(event)" dataProvider="{toolbars_normal}" iconField="icon" requireSelection="true" useHandCursor="true">
+	</s:ButtonBar>
+	<fx:Declarations>
+		<s:ArrayList id="toolbars_normal">
+			<fx:Object label="上传" icon="@Embed('/assets/common/folder.png')" tooltip="点击弹出文件选择框，选择需要上传文件的文件然后上传到服务器"/>
+			<fx:Object label="扫描" icon="@Embed('/assets/common/scan.png')" tooltip="点击打开摄像头扫描文件并上传到服务器"/>
+			<fx:Object label="删除" icon="@Embed('/assets/common/delete.png')" tooltip="删除选定的文件"/>
+		</s:ArrayList>
+
+	</fx:Declarations>
+</s:Group>

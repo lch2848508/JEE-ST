@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module creationComplete="module1_creationCompleteHandler(event)" implements="com.webgis.intf.MapWidgetIntf" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%"
+		  xmlns:ns="http://www.esri.com/2008/ags">
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.events.QueryEvent;
+			import com.esri.ags.tasks.QueryTask;
+			import com.esri.ags.tasks.supportClasses.Query;
+			import com.esri.ags.utils.GeometryUtil;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.MAPCONSTS;
+			import com.webgis.MapDynamicLayerChangeEvent;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.intf.MapWidgetIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.rpc.AsyncResponder;
+			
+			import flashx.textLayout.conversion.TextConverter;
+			[Bindable]
+			private var mapInstance:MapControl=null;
+			private var mapAppInstance:Object=null;
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as MapControl;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+			
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//创建完成事件
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				widgetContainInstance.getNavigatorAreaContain()["addElement"](this.owner);
+				createNavigatorAreaContent();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var queryTaskArray:Array=[];
+
+			private function createNavigatorAreaContent():void
+			{
+				var executeQuery:Boolean=true;
+
+				if (mapApp.existsClientCache(MAPCONSTS.CACHE_LAYER_FEATURE_SETTING))
+				{
+					textarea.htmlText=mapApp.getClientCache(MAPCONSTS.CACHE_LAYER_FEATURE_SETTING);
+					executeQuery=false;
+				}
+
+				var navigators:Array=mapApp.getNavigatorAreaInfos();
+				if (navigators)
+				{
+					for (var i:int=0; i < navigators.length; i++)
+					{
+						var navigator:Object=navigators[i];
+						var queryTask:QueryTask=new QueryTask();
+						queryTask.url=navigator.url + "/" + navigator.layer;
+						if (executeQuery)
+						{
+							var queryParams:Query=new Query();
+							queryParams.returnGeometry=false;
+
+							var outFields:Array=[];
+							if (!StringUtils.isEmpty(navigator.displayField))
+								outFields.push(navigator.displayField);
+							if (!StringUtils.isEmpty(navigator.keyField))
+								outFields.push(navigator.keyField);
+							if (!StringUtils.isEmpty(navigator.queryField))
+								outFields.push(navigator.queryField);
+							queryParams.outFields=outFields;
+							queryParams.where="1=1";
+
+							if (!StringUtils.isEmpty(navigator.sortField))
+								queryParams.orderByFields=[navigator.sortField];
+
+
+							queryTask.execute(queryParams);
+							queryTask.addEventListener(QueryEvent.EXECUTE_COMPLETE, event4QueryArea);
+						}
+						queryTaskArray.push({queryTask: queryTask, navigator: navigator, level: i});
+					}
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////
+			private function event4QueryArea(event:QueryEvent):void
+			{
+				var queryTask:Object=event.target;
+				for (var i:int=0; i < queryTaskArray.length; i++)
+				{
+					if (queryTaskArray[i].queryTask == queryTask)
+					{
+						queryTaskArray[i].records=event.featureSet.attributes;
+						if (queryTaskArray[i].records == null)
+							queryTaskArray[i].records=[];
+						break;
+					}
+				}
+				generalNavigatorContent();
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			private function generalNavigatorContent():void
+			{
+				if (queryTaskArray.length > 1 && queryTaskArray[0].records && queryTaskArray[1].records)
+				{
+					var records_0:Array=queryTaskArray[0].records;
+					var records_1:Array=queryTaskArray[1].records;
+					var htmlContent:String="<textformat leftmargin='6' rightmargin='4' leading='6'>";
+					for (var i:int=0; i < records_0.length; i++)
+					{
+						var record_0:Object=records_0[i];
+						var key1:String=record_0[queryTaskArray[0].navigator.keyField];
+						var url:String="0|" + key1
+						htmlContent+="<font color='#0000FF' size='14'><b><a href='event:" + url + "'>" + record_0[queryTaskArray[0].navigator.displayField] + "</a></b></font>";
+						htmlContent+="<br>";
+						htmlContent+="<textformat leftmargin='10' leading='6'>";
+						for (var j:int=0; j < records_1.length; j++)
+						{
+							var record_1:Object=records_1[j];
+							var pKey:String=records_1[j].BM.substr(0, 4) + "00";
+							url="1|" + record_1[queryTaskArray[1].navigator.keyField];
+							if (key1 == pKey)
+								htmlContent+="<font color='#000080' size='12'><a href='event:" + url + "'>" + record_1[queryTaskArray[1].navigator.displayField] + "</a>    </font>";
+						}
+						htmlContent+="</textformat><br>"
+					}
+					htmlContent+="</textformat>";
+					textarea.htmlText=htmlContent;
+
+					mapApp.setClientCache(MAPCONSTS.CACHE_LAYER_FEATURE_SETTING, htmlContent);
+				}
+			}
+
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function textarea_linkHandler(event:TextEvent):void
+			{
+				map.clearFeature();
+				map.activePanMode();
+				var url:String=event.text;
+				var level:int=Convert.str2int(StringUtils.before(url, "|"));
+				var code:String=StringUtils.after(url, "|");
+
+				var navigator:Object=queryTaskArray[level].navigator;
+				var params:Object={spatialRel: "esriSpatialRelIntersects", f: "pjson", returnGeometry: "true", url: navigator.url + "/" + navigator.layer + "/query", where: navigator.keyField + "='" + code + "'", outFields: navigator.keyField + "," + navigator.displayField};
+				mapApp.proxyQuery(params, function(featureSet:Object):void
+				{
+					if (featureSet.features.length)
+					{
+						var feature:Graphic=new Graphic(featureSet.features[0].geometry);
+						mapInstance.splashFeature(feature, true, true);
+					}
+				});
+
+			}
+			
+			private var extParams:Object = null;
+			public function setParams(v:Object):void
+			{
+				this.extParams = v;
+			}
+
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<ns:QueryTask id="geometryQuery" useAMF="true"/>
+		<ns:Query returnGeometry="true" id="geometryQueryParam"/>
+	</fx:Declarations>
+	<mx:TextArea selectable="true" doubleClickEnabled="false" borderStyle="none" link="textarea_linkHandler(event)" editable="false" buttonMode="false" id="textarea" width="100%" height="100%"/>
+</s:Module>

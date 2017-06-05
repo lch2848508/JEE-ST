@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer dataChange="mxdatagriditemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" focusEnabled="true">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfacePortalGrid;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.events.ItemClickEvent;
+
+			[Bindable]
+			public var frameID:String=null;
+
+			[Bindable]
+			public var funName:String=null;
+
+			[Bindable]
+			public var columnStyle:Object=null;
+
+			private var oldContent:String=null;
+
+			private var barItems:Array=null;
+
+			[Bindable]
+			public var align:String=null;
+
+			//////////////////////////////////////////////////////////////////////////////////////////
+			//数据变更
+			protected function mxdatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				var label:String="<Root>" + dataGridListData.label + "</Root>";
+				if (!StringUtils.equal(oldContent, label))
+				{
+					oldContent=label;
+					barItems=urlContent2LinkButtons();
+					linkBar.dataProvider=new ArrayCollection(barItems);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			private function urlContent2LinkButtons():Array
+			{
+				if (StringUtils.isEmpty(oldContent))
+					return [];
+				var result:Array=[];
+				var xml:XML=XML(oldContent);
+				for each (var xmlA:XML in xml.a)
+				{
+					var href:String=xmlA.@href;
+					var content:String=xmlA;
+					var params:String="[" + StringUtils.between(href, "(", ")") + "]";
+					if (!StringUtils.isEmpty(content))
+					{
+						if (StringUtils.startWith(href, "event:"))
+							href=StringUtils.between(href, "event:", "(");
+						var item={href: href, label: content, params: params};
+						result.push(item);
+					}
+				}
+
+				return result;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////
+			//处理时间
+			protected function linkBar_itemClickHandler(event:ItemClickEvent):void
+			{
+				if (!StringUtils.isEmpty(frameID))
+				{
+					var index:int=event.index;
+					IFrameUtils.execute(frameID, barItems[index].href, barItems[index].params);
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////
+			//设置外观
+			protected function linkBar_creationCompleteHandler(event:FlexEvent):void
+			{
+				switch (align)
+				{
+					case "center":
+						linkBar.horizontalCenter=0;
+						break;
+					case "right":
+						linkBar.right=0;
+						break;
+				}
+				for (var k in columnStyle)
+				{
+					linkBar.setStyle(k, columnStyle[k]);
+				}
+			}
+
+			protected function mxdatagriditemrenderer1_doubleClickHandler(event:MouseEvent):void
+			{
+				event.stopImmediatePropagation();
+				event.stopPropagation();
+			}
+		]]>
+	</fx:Script>
+	<mx:LinkBar doubleClickEnabled="true" doubleClick="mxdatagriditemrenderer1_doubleClickHandler(event)" color="#0000FF" creationComplete="linkBar_creationCompleteHandler(event)" id="linkBar" itemClick="linkBar_itemClickHandler(event)" paddingLeft="0" backgroundAlpha="0" contentBackgroundAlpha="0"
+				paddingRight="0" horizontalGap="0" paddingTop="0" paddingBottom="0" verticalCenter="0">
+	</mx:LinkBar>
+</s:MXDataGridItemRenderer>

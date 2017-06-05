@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup implements="mx.managers.IFocusManagerComponent,com.estudio.flex.module.InterfaceEditableControl" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="200"
+		  height="23" creationComplete="hgroup1_creationCompleteHandler(event)" xmlns:controls="com.adobe.flex.extras.controls.*" xmlns:time="vendy.com.time.*" xmlns:component="com.estudio.flex.component.*" gap="-2"
+		  xmlns:ns="http://flex.apache.org/experimental/ns">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.module.EditableControlParams;
+			import com.estudio.flex.module.FormDataService;
+			import com.estudio.flex.module.InterfaceEditableControl;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.FormValid;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.DropdownEvent;
+			import mx.events.FlexEvent;
+
+			public var columns:String="";
+
+			public var itemDatasetName:String=""; //选择项数据源
+			public var itemValueFieldName:String=""; //选择项值字段
+			public var itemDisplayFieldName:String=""; //选择项显示值字段
+			public var itemSearchFieldName:String=""; //选择项查询字段
+
+			public var callbackChange:Function=null; //内容变化回调函数
+			private var callbackChangTemp:Function=null;
+			//设置值
+
+			[Bindable]
+			public var includeTime:Boolean=false;
+
+			[Bindable]
+			private var textInputColor:uint=0xFFFFFF;
+
+			private var _bgColor:uint=0xFFFFFF;
+
+			public function set bgColor(v:uint):void
+			{
+				_bgColor=v;
+				textInputColor=readonly ? FlexGlobals.topLevelApplication.gobalSetting.readOnlyColor : v;
+			}
+
+			//----------------------------------------------------------------------------------
+			public function clearValue():void
+			{
+				textInput.text="";
+			}
+
+			//----------------------------------------------------------------------------------
+			//打开事件
+			protected function eventPopupUpButtonOpen(event:DropdownEvent):void
+			{
+				var v:String=textInput.fullText;
+				panelDateTime.value=v;
+			}
+
+
+
+			///////////////////////////////////////////////////////////////////////////////////
+			override public function setFocus():void
+			{
+				textInput.setFocus();
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			//实现接口 InterfceEditableControl
+			private var controlParams:EditableControlParams=new EditableControlParams();
+
+			public function get databaseName():String
+			{
+				return controlParams.databaseName;
+			}
+
+			public function set databaseName(value:String):void
+			{
+				controlParams.databaseName=value;
+			}
+
+			public function get fieldName():String
+			{
+				return controlParams.fieldName;
+			}
+
+			public function set fieldName(value:String):void
+			{
+				controlParams.fieldName=value;
+			}
+
+			public function get extFieldName():String
+			{
+				return controlParams.extFieldName;
+			}
+
+			public function set extFieldName(value:String):void
+			{
+				controlParams.extFieldName=value;
+			}
+
+			public function get controlValue():String
+			{
+				var v:String=textInput.fullText;
+				v=StringUtils.replace(v, "_", " ");
+				return (includeTime ? FormValid.isDateTime(v) : FormValid.isDate(v)) ? v : "";
+			}
+
+			public function get controlExtValue():String
+			{
+				return controlValue;
+			}
+
+			public function setControlValue(value:String, extValue:String, isSettingDatabase:Boolean):void
+			{
+				var d:Date=Convert.str2DateTime(value);
+				value=d == null ? "" : Convert.dateTime2Str(d, includeTime ? "YYYY-MM-DD JJ:NN:SS" : "YYYY-MM-DD");
+				textInput.removeEventListener(FlexEvent.VALUE_COMMIT, textInput_valueCommitHandler);
+				textInput.text=StringUtils.nvl(value, "");
+				textInput.validateDisplayList();
+				textInput.validateNow();
+				if (isSettingDatabase && isBindDatasource)
+					formInstance.setDataSetValue(databaseName, fieldName, value, [this]);
+				textInput.addEventListener(FlexEvent.VALUE_COMMIT, textInput_valueCommitHandler);
+			}
+
+
+			//是否只读
+			public function get readonly():Boolean
+			{
+				return controlParams.readonly;
+			}
+
+			public function set readonly(value:Boolean):void
+			{
+				if (controlParams.readonly != value)
+				{
+					controlParams.readonly=value;
+					if (this.textInput)
+					{
+						this.textInput.editable=!value;
+						this.popupUpButton.enabled=!value;
+					}
+				}
+				textInputColor=value ? FlexGlobals.topLevelApplication.gobalSetting.readOnlyColor : _bgColor;
+			}
+
+			public function get defaultReadonly():Boolean
+			{
+				return controlParams.defaultReadOnly;
+			}
+
+			public function set defaultReadonly(value:Boolean):void
+			{
+				controlParams.defaultReadOnly=value;
+			}
+
+			public function get controlType():int
+			{
+				return EditableControlParams.CONST_DATE_EX;
+			}
+
+
+			public function reset():void
+			{
+				if (this.formInstance)
+					this.readonly=this.defaultReadonly || this.formInstance.readonly;
+			}
+
+			public function set dataservice(value:FormDataService):void
+			{
+				controlParams.dataservice=value;
+			}
+
+			public function get dataservice():FormDataService
+			{
+				return controlParams.dataservice;
+			}
+
+			public function setDataBindParams(formInstance:InterfaceFormUI, formDataService:FormDataService, databaseName:String, fieldName:String, extFieldName:String):void
+			{
+				controlParams.formInstance=formInstance;
+				controlParams.dataservice=formDataService;
+				controlParams.databaseName=databaseName;
+				controlParams.fieldName=fieldName;
+				controlParams.extFieldName=extFieldName;
+				controlParams.isBindDatasource=!(StringUtils.isEmpty(databaseName) && !StringUtils.isEmpty(fieldName));
+			}
+
+			public function get isBindDatasource():Boolean
+			{
+				return controlParams.isBindDatasource;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			private function eventDateTimeSelect(isOK:Boolean, value:String):void
+			{
+				popupUpButton.close();
+				if (isOK && !readonly)
+				{
+					textInput.text=value;
+					this.validateNow();
+						//textInput_valueCommitHandler(null);
+				}
+			}
+
+			protected function textInput_valueCommitHandler(event:FlexEvent):void
+			{
+				var v:String=textInput.fullText;
+				var isComplete:Boolean=v.length == textInput.maskText.length;
+				if (isComplete || event == null)
+				{
+					var isValidDateTime:Boolean=(includeTime ? FormValid.isDateTime(v) : FormValid.isDate(v));
+					if (!isValidDateTime)
+					{
+						setControlValue("", "", true);
+						AlertUtils.msnMessage("日期输入错误", v + "不是有效的日期时间值,输入的值将被自动清除！", true);
+					}
+
+					if (isValidDateTime && callbackChange != null)
+					{
+						callbackChange(this, controlValue);
+					}
+				}
+			}
+
+			protected function textInput_enterHandler(event:FlexEvent):void
+			{
+				textInput_valueCommitHandler(null);
+				var obj:UIComponent=UIComponent(focusManager.getNextFocusManagerComponent());
+				if (obj is InterfaceEditableControl)
+					obj.setFocus();
+			}
+
+			public function get formInstance():InterfaceFormUI
+			{
+				return controlParams.formInstance;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			private var isBindEvented:Boolean=false;
+
+			public function bindEvent():void
+			{
+				if (!isBindEvented)
+				{
+					isBindEvented=true;
+					for (var eventName:String in controlParams.eventMap)
+						this.addEventListener(eventName, controlParams.eventMap[eventName]);
+				}
+			}
+
+			public function unBindEvent():void
+			{
+				if (isBindEvented)
+				{
+					for (var eventName:String in controlParams.eventMap)
+						this.removeEventListener(eventName, controlParams.eventMap[eventName]);
+					isBindEvented=false;
+				}
+			}
+
+			public function registerEvent(eventName:String, eventFun:Function):void
+			{
+				controlParams.eventMap[eventName]=eventFun;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function hgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				textInputColor=readonly ? FlexGlobals.topLevelApplication.gobalSetting.readOnlyColor : _bgColor;
+				popupUpButton.enabled=!readonly;
+			}
+		]]>
+	</fx:Script>
+
+	<ns:MaskedTextInput fontStyle="normal" color="0x000000" valueCommit="textInput_valueCommitHandler(event)" contentBackgroundColor="{textInputColor}" borderVisible="true" maskText="{includeTime?'####-##-## ##:##:##':'####-##-##'}" left="0" top="0" height="100%" id="textInput">
+
+	</ns:MaskedTextInput>
+
+	<mx:PopUpButton cornerRadius="0" arrowButtonWidth="19" y="0" right="0" width="18" height="100%" label="" id="popupUpButton" popUpGap="1" open="eventPopupUpButtonOpen(event)">
+		<mx:popUp>
+			<component:DateTimeChoose color="0x000000" callFunction="eventDateTimeSelect" id="panelDateTime" includeTime="{includeTime}">
+
+			</component:DateTimeChoose>
+		</mx:popUp>
+	</mx:PopUpButton>
+
+</s:HGroup>

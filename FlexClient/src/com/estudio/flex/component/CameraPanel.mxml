@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group creationComplete="vgroup1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:astion="astion.*">
+    <s:Rect x="0" y="0" width="100%" height="100%">
+        <s:fill>
+            <s:SolidColor color="#808080"/>
+        </s:fill>
+    </s:Rect>
+    <fx:Script>
+        <![CDATA[
+            import com.estudio.flex.utils.ArrayUtils;
+
+            import mx.collections.ArrayCollection;
+            import mx.controls.Alert;
+            import mx.events.FlexEvent;
+            import mx.events.ListEvent;
+            import mx.graphics.codec.JPEGEncoder;
+            import mx.graphics.codec.PNGEncoder;
+
+            import spark.events.IndexChangeEvent;
+
+            private var currentCamera:Camera = null;
+            private var cameraSizes:Array = [{w: 640 , h: 480 , label: "640x480"} , {w: 1280 , h: 960 , label: "1280x960"} , {w: 1600 , h: 1200 , label: "1600x1200"}];
+            private var scanPictures:Array = [];
+            private var cameraContent:Object = {};
+
+            protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+            {
+                if (CB_Camera.dataProvider.length != 0)
+                    CB_Camera.selectedIndex = 0;
+                CB_Camera.textInput.editable = false;
+                CB_Size.textInput.editable = false;
+                attachmentCamera ();
+            }
+
+            //选择摄像头
+            protected function CB_Camera_changeHandler(event:IndexChangeEvent):void
+            {
+                attachmentCamera ();
+            }
+
+            //连接摄像头
+            public function attachmentCamera():void
+            {
+                if (currentCamera != null)
+                    Video.attachCamera (null);
+                currentCamera = Camera.getCamera (String (CB_Camera.selectedIndex));
+                if (currentCamera != null)
+                {
+                    var w:int = CB_Size.selectedItem.w;
+                    var h:int = CB_Size.selectedItem.h;
+                    currentCamera.setMode (w , h , 5);
+                    currentCamera.setQuality (0 , 100);
+                    Video.attachCamera (currentCamera);
+                }
+            }
+
+            public function scan():void
+            {
+                var w:int = CB_Size.selectedItem.w;
+                var h:int = CB_Size.selectedItem.h;
+
+                //大图片
+                var scale:Number = w / Video.width;
+                if (Scale_Box.x < 0)
+                    Scale_Box.x = 0;
+                if (Scale_Box.x > 310)
+                    Scale_Box.x = 310;
+                if (Scale_Box.x + Scale_Box.boxWidth > 320)
+                    Scale_Box.boxWidth = 320 - Scale_Box.x;
+                if (Scale_Box.y < 0)
+                    Scale_Box.y = 0;
+                if (Scale_Box.y > 230)
+                    Scale_Box.y = 230;
+                if (Scale_Box.y + Scale_Box.boxHeight > 240)
+                    Scale_Box.boxHeight = 240 - Scale_Box.y;
+
+                var offsetX:int = Scale_Box.x * scale;
+                var offsetY:int = Scale_Box.y * scale;
+                var scaleWidth = Scale_Box.boxWidth * scale;
+                var scaleHeight = Scale_Box.boxHeight * scale;
+                var bd:BitmapData = new BitmapData (w , h);
+                var matrix:Matrix = new Matrix ();
+                matrix.scale (scale , scale);
+                bd.draw (Video , matrix);
+                var scaleBD:BitmapData = new BitmapData (scaleWidth , scaleHeight);
+                scaleBD.copyPixels (bd , new Rectangle (offsetX , offsetY , scaleWidth , scaleHeight) , new Point (0 , 0));
+                bd.dispose ();
+                if (CB_Rotate.selectedIndex == 1)
+                    scaleBD = scaleRight (scaleBD);
+                else if (CB_Rotate.selectedIndex == 2)
+                    scaleBD = scale180 (scaleBD);
+                else if (CB_Rotate.selectedIndex == 3)
+                    scaleBD = scaleLeft (scaleBD);
+                var bitmap:Bitmap = new Bitmap (scaleBD);
+
+                //小图片
+                var sbd:BitmapData = new BitmapData (64 , 48);
+                matrix = new Matrix ();
+                matrix.scale (64 / bitmap.width , 48 / bitmap.height);
+                sbd.draw (bitmap , matrix);
+                var smallIcon:Bitmap = new Bitmap (sbd);
+                scanPictures.push ({picture: bitmap , smallIcon: smallIcon});
+                frameList.dataProvider = new ArrayCollection (scanPictures);
+                frameList.callLater (function():void
+                {
+                    frameList.selectedItem = scanPictures[scanPictures.length - 1];
+                    frameList.selectedIndex = scanPictures.length - 1;
+                    frameList.scrollToIndex (scanPictures.length - 1);
+                });
+                ImgPreview.source = bitmap;
+            }
+
+            //获取照片
+            protected function eventGetCameraPicture(event:MouseEvent):void
+            {
+                scan ();
+            }
+
+            //旋转图片
+            protected function frameList_changeHandler(event:ListEvent):void
+            {
+                var item:Object = frameList.selectedItem;
+                if (item)
+                {
+                    ImgPreview.source = item.picture;
+                }
+                else
+                {
+                    ImgPreview.source = null;
+                }
+            }
+
+            public function scaleRight(bmp:BitmapData):BitmapData
+            {
+                var m:Matrix = new Matrix ();
+                m.rotate (Math.PI / 2);
+                m.translate (bmp.height , 0);
+                var bd:BitmapData = new BitmapData (bmp.height , bmp.width , false);
+                bd.draw (bmp , m);
+                return bd;
+            }
+
+            public function scale180(bmp:BitmapData):BitmapData
+            {
+                return scaleRight (scaleRight (bmp));
+            }
+
+            //向左旋转90度 
+            public function scaleLeft(bmp:BitmapData):BitmapData
+            {
+                var m:Matrix = new Matrix ();
+                m.rotate (-Math.PI / 2);
+                m.translate (0 , bmp.width);
+                var bd:BitmapData = new BitmapData (bmp.height , bmp.width , false);
+                bd.draw (bmp , m);
+                return bd;
+            }
+
+            protected function eventRoteteLeft(event:MouseEvent):void
+            {
+                var item:Object = frameList.selectedItem;
+                if (item)
+                {
+                    var bitMap:BitmapData = Bitmap (item.picture).bitmapData;
+                    item.picture = new Bitmap (scaleLeft (bitMap));
+                    ImgPreview.source = item.picture;
+                }
+                else
+                {
+                    ImgPreview.source = null;
+                }
+            }
+
+            protected function eventRoteteRight(event:MouseEvent):void
+            {
+                var item:Object = frameList.selectedItem;
+                if (item)
+                {
+                    var bitMap:BitmapData = Bitmap (item.picture).bitmapData;
+                    item.picture = new Bitmap (scaleRight (bitMap));
+                    ImgPreview.source = item.picture;
+                }
+                else
+                {
+                    ImgPreview.source = null;
+                }
+            }
+
+            protected function eventRotate180(event:MouseEvent):void
+            {
+                var item:Object = frameList.selectedItem;
+                if (item)
+                {
+                    var bitMap:BitmapData = Bitmap (item.picture).bitmapData;
+                    item.picture = new Bitmap (scale180 (bitMap));
+                    ImgPreview.source = item.picture;
+                }
+                else
+                {
+                    ImgPreview.source = null;
+                }
+            }
+
+            public function deletePic():void
+            {
+                var index:int = frameList.selectedIndex;
+                if (index != -1)
+                {
+                    ArrayUtils.remove (scanPictures , index);
+                    if (scanPictures.length >= index)
+                        index--;
+                    if (index == -1 && scanPictures.length != 0)
+                        index = 0;
+                    if (index >= 0)
+                    {
+                        frameList.selectedIndex = index;
+                        frameList.selectedItem = scanPictures[index];
+                    }
+                    else
+                    {
+                        frameList.selectedIndex = -1;
+                        frameList.selectedItem = null;
+                    }
+                    frameList.validateNow ();
+                    frameList_changeHandler (null);
+                }
+            }
+
+            protected function eventDeleteClick(event:Event):void
+            {
+                deletePic ();
+            }
+
+            public function destoryBMP():void
+            {
+                if (scanPictures.length > 1)
+                    cameraContent = {format: "pdf" , content: getPdfContent ()};
+                if (scanPictures.length == 1)
+                    cameraContent = {format: "png" , content: getPngContent ()};
+                else
+                    cameraContent = {};
+
+                scanPictures = [];
+                Video.attachCamera (null);
+                frameList.selectedIndex = -1;
+                frameList.selectedItem = null;
+                frameList.dataProvider = new ArrayCollection (scanPictures);
+            }
+
+            //获取内容
+            public function getCameraContent():Object
+            {
+                return cameraContent;
+            }
+
+            private function getPdfContent():Object
+            {
+                return {};
+            }
+
+            private function getPngContent():Object
+            {
+                var pngEncoder:PNGEncoder = new PNGEncoder ();
+                var imgArr:ByteArray = pngEncoder.encode (scanPictures[0].picture.bitmapData);
+                return imgArr;
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+        <!-- Place non-visual elements (e.g., services, value objects) here -->
+    </fx:Declarations>
+    <!-- 工具条区域 -->
+    <s:Group width="100%" height="32" top="0">
+        <s:Rect x="0" y="0" width="100%" height="100%">
+            <s:fill>
+                <s:SolidColor color="#F5F5F5"/>
+            </s:fill>
+        </s:Rect>
+        <s:HGroup left="2" right="0" height="100%" verticalAlign="middle" gap="3">
+            <s:Label text="摄像头:">
+            </s:Label>
+            <s:ComboBox id="CB_Camera" width="250" change="CB_Camera_changeHandler(event)" dataProvider="{new ArrayCollection(Camera.names)}">
+            </s:ComboBox>
+            <s:Label text="分辨率:">
+            </s:Label>
+            <s:ComboBox width="100" selectedIndex="2" id="CB_Size" change="CB_Camera_changeHandler(event)" dataProvider="{new ArrayCollection(cameraSizes)}">
+            </s:ComboBox>
+            <s:Label text="旋转:">
+            </s:Label>
+            <s:ComboBox width="60" selectedIndex="0" id="CB_Rotate" dataProvider="{new ArrayCollection([0,90,180,270])}">
+            </s:ComboBox>
+        </s:HGroup>
+    </s:Group>
+
+    <!-- 摄像头 编辑区域 -->
+    <s:HGroup height="242" width="100%" gap="1" top="33">
+        <!-- 摄像头 -->
+        <s:Group width="322" height="100%">
+            <s:Rect x="0" y="0" width="100%" height="100%">
+                <s:fill>
+                    <s:SolidColor color="#FFFFFF"/>
+                </s:fill>
+            </s:Rect>
+            <mx:VideoDisplay x="1" y="1" width="320" height="240" id="Video">
+            </mx:VideoDisplay>
+            <astion:ScaleBox x="1" y="7" boxWidth="319" boxHeight="226" id="Scale_Box">
+            </astion:ScaleBox>
+        </s:Group>
+        <s:Group width="100%" height="100%">
+            <s:Rect x="0" y="0" width="100%" height="100%">
+                <s:fill>
+                    <s:SolidColor color="#FFFFFF"/>
+                </s:fill>
+            </s:Rect>
+            <s:Image id="ImgPreview" left="0" top="0" right="0" bottom="0" backgroundColor="0xFFFFFF">
+            </s:Image>
+        </s:Group>
+    </s:HGroup>
+
+    <!-- 已扫描图片区域 -->
+    <s:Group width="100%" height="80" top="276">
+        <s:Rect x="0" y="0" width="100%" height="100%">
+            <s:fill>
+                <s:SolidColor color="#FFFFFF"/>
+            </s:fill>
+        </s:Rect>
+        <mx:HorizontalList change="frameList_changeHandler(event)" borderStyle="none" width="100%" height="100%" id="frameList" itemRenderer="ImgListItemRenderEx">
+        </mx:HorizontalList>
+    </s:Group>
+</s:Group>

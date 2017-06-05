@@ -1,0 +1,470 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer currentState="normal" borderVisible="false" creationComplete="vgroup1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%"
+				   xmlns:component="com.webgis.component.*">
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+
+	<s:states>
+		<s:State name="existsExtProperty"/>
+		<s:State name="normal"/>
+	</s:states>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.Geometry;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ItemClickEvent;
+			
+			import spark.events.IndexChangeEvent;
+
+			public var map:Object=null;
+			public var mapServiceClient:MapServiceClient=null;
+			public var mapApp:Object=null;
+			private var registerObject:Object=null;
+
+			[Bindable]
+			private var featureAttributes:ArrayCollection=new ArrayCollection([]);
+			[Bindable]
+			private var extAttributes:ArrayCollection=new ArrayCollection([]);
+			[Bindable]
+			private var extPictures:ArrayCollection=new ArrayCollection([]);
+			[Bindable]
+			private var extAttachments:ArrayCollection=new ArrayCollection([]);
+			[Bindable]
+			private var pictureTypes:ArrayCollection=new ArrayCollection([]);
+
+			[Bindable]
+			private var isIncludeExtProperty:Boolean=true;
+			[Bindable]
+			private var isIncludePictureManager:Boolean=true;
+			[Bindable]
+			private var isIncludeFileManager:Boolean=true;
+
+			public var isExtPropertyEnabled:Boolean=true;
+
+			private var _pickCallFunction:Function=null;
+
+			public function set pickCallFunction(Fun:Function):void
+			{
+				_pickCallFunction=Fun;
+				if (_pickCallFunction == null && btnPickIt.parent == group4Navigator)
+					group4Navigator.removeElement(btnPickIt);
+				if (_pickCallFunction != null && btnPickIt.parent == null)
+					group4Navigator.addElement(btnPickIt);
+
+
+			}
+			private var oldLayerId:String="";
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function clear():void //清除内容
+			{
+				if (combobox)
+				{
+					combobox.dataProvider=new ArrayCollection();
+					featureAttributes=new ArrayCollection([]);
+					featureAttributes.refresh();
+					if (datagrid)
+						datagrid.invalidateList();
+					combobox.textInput.text="";
+					map.clearFeature();
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function combobox_changeHandler(event:IndexChangeEvent):void
+			{
+				var item:Object=combobox.selectedItem;
+				if (item)
+				{
+					featureAttributes=new ArrayCollection(item.attributes);
+					featureAttributes.refresh();
+					if (datagrid)
+						datagrid.invalidateList();
+					map.splashFeature(item.geometry, false, false);
+					initExtParams(item);
+				}
+				else
+				{
+					this.clear();
+					currentState="normal";
+				}
+
+				if (oldLayerId != combobox.selectedItem.layerId + "")
+				{
+					if (btnCommonProperty)
+					{
+						btnCommonProperty.selected=true;
+						btnExtProperty.selected=false;
+						btnPictureManager.selected=false;
+						btnFileManager.selected=false;
+					}
+					viewStack.selectedIndex=0;
+					oldLayerId=combobox.selectedItem.layerId + "";
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			private var layerId2ExtPropertySetting:Object={};
+
+			private function initExtParams(item:Object):void
+			{
+				if (!isExtPropertyEnabled)
+					return;
+
+				var layerId:String=item.layerId;
+				if (layerId2ExtPropertySetting[layerId])
+				{
+					isIncludeFileManager=layerId2ExtPropertySetting[layerId].isAttachment;
+					isIncludePictureManager=layerId2ExtPropertySetting[layerId].isPicture;
+					isIncludeExtProperty=layerId2ExtPropertySetting[layerId].isExtParam;
+					if (isIncludeFileManager || isIncludePictureManager || isIncludeExtProperty)
+						this.currentState="existsExtProperty";
+					else
+					{
+						this.currentState="normal";
+						return;
+					}
+				}
+
+
+				var serverId:String=item.serverId;
+				var uid:String=item.uid;
+				if (mapServiceClient)
+				{
+					mapServiceClient.getFeatureExt(layerId, uid, function(json:Object):void
+					{
+						combobox.selectedItem.recordId=Convert.str2int(json.recordId, -1);
+						layerId2ExtPropertySetting[layerId]={attachmentTypes: StringUtils.split(json.attachmentTypes), pictureTypes: StringUtils.split(json.pictureTypes), isAttachment: json.isAttachment, isPicture: json.isPicture, isExtParam: json.isExtParam};
+						isIncludeFileManager=layerId2ExtPropertySetting[layerId].isAttachment;
+						isIncludePictureManager=layerId2ExtPropertySetting[layerId].isPicture;
+						isIncludeExtProperty=layerId2ExtPropertySetting[layerId].isExtParam;
+						pictureTypes=new ArrayCollection(layerId2ExtPropertySetting[layerId].pictureTypes);
+						pictureTypes.addItemAt("全部", 0);
+						if (isIncludeFileManager || isIncludePictureManager || isIncludeExtProperty)
+							currentState="existsExtProperty";
+						else
+						{
+							currentState="normal";
+							return;
+						}
+
+						extAttributes=new ArrayCollection(json.extParams);
+						extAttributes.refresh();
+						extPictures=new ArrayCollection(json.extPictures);
+						extPictures.refresh();
+						extAttachments=new ArrayCollection(json.extAttachments);
+						extAttachments.refresh();
+						if (extAttachments.length == 0)
+							extAttachments.addItem({caption: "附件目录树", isFolder: true, isRoot: true});
+
+						if (datagridExtParams)
+							datagridExtParams.invalidateList();
+
+						if (panel4PictureView)
+						{
+							panel4PictureView.pictureTypes=pictureTypes;
+							panel4PictureView.dataProvider=extPictures;
+							panel4PictureView.categoryCombobox.selectedIndex=0;
+							panel4PictureView.imageList.invalidateDisplayList();
+						}
+
+						if (panel4FileManager)
+						{
+							panel4FileManager.dataProvider=extAttachments;
+							panel4FileManager.tree.expandChildrenOf(extAttachments.getItemAt(0), true);
+							panel4FileManager.tree.invalidateList();
+						}
+						initNavigatorButtons();
+					});
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function registerFeatures(json:Object):void //注册实例
+			{
+				registerObject=json;
+				if (combobox)
+				{
+					var records:Array=json.records;
+//					if (records == null)
+//						return;
+					if(records != null){
+						for (var i:int=0; i < records.length; i++)
+						{
+							var record:Object=records[i];
+							var feature:Graphic=new Graphic();
+							feature.geometry=Geometry.fromJSON(record.wkt);
+							var featureItem:Object={uid: record.uid, label: record.caption, geometry: feature, layerId: record.layerId, serverId: record.serverId};
+							featureItem.attributes=record.attributes;
+							combobox.dataProvider.addItem(featureItem);
+							if (combobox.selectedIndex < 0 && combobox.dataProvider.length != 0)
+							{
+								combobox.selectedItem=combobox.dataProvider.getItemAt(0);
+								combobox.selectedIndex=0;
+								combobox_changeHandler(null);
+							}
+						}
+					}
+				}
+				if(json.projectinfo){
+					var protectfeatureItem:Object={label:json.label};
+					protectfeatureItem.attributes=json.projectinfo;
+					combobox.dataProvider.addItem(protectfeatureItem);
+					if(combobox.selectedIndex < 0 && combobox.dataProvider.length != 0){
+						combobox.selectedItem=combobox.dataProvider.getItemAt(0);
+						combobox.selectedIndex=0;
+						combobox_changeHandler(null);
+					}
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function buttonBar_itemClickHandler(event:ItemClickEvent):void
+			{
+				var btnIndex:int=event.index;
+				if (btnIndex == -1 || combobox.dataProvider.length == 0)
+					return;
+				var index:int=combobox.selectedIndex;
+				var oldIndex:int=index;
+				if (btnIndex == 0 && index != 0)
+				{
+					index=0;
+					combobox.selectedIndex=index;
+					combobox.selectedItem=combobox.dataProvider.getItemAt(index);
+				}
+				else if (btnIndex == 1 && index != 0)
+				{
+					index=index - 1;
+					combobox.selectedIndex=index;
+					combobox.selectedItem=combobox.dataProvider.getItemAt(index);
+				}
+				else if (btnIndex == 2 && index != combobox.dataProvider.length - 1)
+				{
+					index=index + 1;
+					combobox.selectedIndex=index;
+					combobox.selectedItem=combobox.dataProvider.getItemAt(index);
+				}
+				else if (btnIndex == 3 && index != combobox.dataProvider.length - 1)
+				{
+					index=combobox.dataProvider.length - 1;
+					combobox.selectedIndex=index;
+					combobox.selectedItem=combobox.dataProvider.getItemAt(index);
+				}
+				else if (btnIndex == 4)
+				{
+					this.clear();
+				}
+
+				if (index != oldIndex)
+				{
+					callLater(function():void
+					{
+						combobox_changeHandler(null);
+					});
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				combobox.textInput.editable=false;
+				if (registerObject != null)
+					registerFeatures(registerObject);
+				if (_pickCallFunction == null)
+					group4Navigator.removeElement(btnPickIt);
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private function propertyDataTipFunction(item:Object):String
+			{
+				var str:String=item.value;
+				if (StringUtils.isEmpty(str) || this.measureText(str).width < columnValue.width)
+					str="";
+				return str;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function btnCommonProperty_clickHandler(event:MouseEvent):void
+			{
+				var items:Array=[btnCommonProperty, btnExtProperty, btnPictureManager, btnFileManager];
+				var btn:ToolbarTextButton=event.currentTarget as ToolbarTextButton;
+				if (btn.selected)
+					return;
+				for (var i:int=0; i < items.length; i++)
+				{
+					btn=items[i] as ToolbarTextButton;
+					if (btn == event.currentTarget)
+					{
+						btn.selected=true;
+						viewStack.selectedIndex=i;
+					}
+					else if (btn.selected)
+						btn.selected=false;
+				}
+
+				//文件及图片
+				if (viewStack.selectedIndex == 2 || viewStack.selectedIndex == 3)
+				{
+					if (Convert.str2Number(combobox.selectedItem.recordId, -1) == -1)
+					{
+						toolbarbutton1_clickHandler(null);
+					}
+					if (panel4PictureView)
+						panel4PictureView.layerId=combobox.selectedItem.layerId;
+
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			private function initNavigatorButtons():void
+			{
+				if (currentState == "normal")
+					return;
+				if (groupNavigatorButtons)
+				{
+					for (var i:int=groupNavigatorButtons.numElements - 3; i >= 1; i--)
+						groupNavigatorButtons.removeElementAt(i);
+					if (isIncludeFileManager)
+						groupNavigatorButtons.addElementAt(btnFileManager, 1);
+					if (isIncludePictureManager)
+						groupNavigatorButtons.addElementAt(btnPictureManager, 1);
+					if (isIncludeExtProperty)
+						groupNavigatorButtons.addElementAt(btnExtProperty, 1);
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			protected function groupNavigatorButtons_creationCompleteHandler(event:FlexEvent):void
+			{
+				initNavigatorButtons();
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function toolbarbutton1_clickHandler(event:MouseEvent):void
+			{
+				var item:Object=combobox.selectedItem;
+				mapServiceClient.saveFeatureExt(item.layerId, item.uid, item.recordId, JSON.stringify(extAttributes.source), JSON.stringify(extPictures.source), JSON.stringify(extAttachments.source), function(json:Object):void
+				{
+					combobox.selectedItem.recordId=json.recordId;
+					if (event == null)
+					{
+						if (panel4PictureView)
+							panel4PictureView.recordId=json.recordId;
+					}
+				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function panel4PictureView_creationCompleteHandler(event:FlexEvent):void
+			{
+				panel4PictureView.mapServiceClient=mapServiceClient;
+				panel4PictureView.recordId=combobox.selectedItem.recordId;
+				panel4PictureView.layerId=combobox.selectedItem.layerId;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function viewStack_changeHandler(event:IndexChangedEvent):void
+			{
+
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			private function saveToServer(params:Object):void
+			{
+				toolbarbutton1_clickHandler(null);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function panel4FileManager_creationCompleteHandler(event:FlexEvent):void
+			{
+				panel4FileManager.mapServiceClient=mapServiceClient;
+				panel4FileManager.recordId=combobox.selectedItem.recordId;
+				panel4FileManager.layerId=combobox.selectedItem.layerId;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+
+			protected function btnPickIt_clickHandler(event:MouseEvent):void
+			{
+				var geometry:Graphic=combobox.selectedItem ? combobox.selectedItem.geometry : null;
+				if (geometry && _pickCallFunction)
+					_pickCallFunction(geometry,combobox.selectedItem.label);
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<s:ArrayCollection id="btnItems">
+			<fx:Object type="first" label="" icon="@Embed('/assets/webgis/GenericBlueStartArrowNoTail16.png')"/>
+			<fx:Object type="prev" label="" icon="@Embed('/assets/webgis/GenericBlueLeftArrowLongTail16.png')"/>
+			<fx:Object type="next" label="" icon="@Embed('/assets/webgis/GenericBlueRightArrowShortTail16.png')"/>
+			<fx:Object type="last" label="" icon="@Embed('/assets/webgis/GenericBlueEndArrowNoTail16.png')"/>
+		</s:ArrayCollection>
+	</fx:Declarations>
+
+
+	<s:HGroup width="100%" height="29" gap="2" verticalAlign="middle" paddingLeft="2" paddingRight="2" id="group4Navigator">
+		<s:ComboBox width="100%" height="25" id="combobox" change="combobox_changeHandler(event)"/>
+		<mx:ButtonBar id="buttonBar" itemClick="buttonBar_itemClickHandler(event)" dataProvider="{btnItems}" width="100" height="25">
+		</mx:ButtonBar>
+		<component:ToolbarButton click="btnPickIt_clickHandler(event)" mouseChildren="false" useHandCursor="true" buttonMode="true" id="btnPickIt" width="{buttonBar.height}" height="{buttonBar.height}" selected="true" icon="@Embed('/assets/common/save.png')" toolTip="将点选的图斑作为标绘结果保存到数据库中"/>
+	</s:HGroup>
+	<s:Line width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#7B889C"/>
+		</s:stroke>
+	</s:Line>
+
+	<s:HGroup creationComplete="groupNavigatorButtons_creationCompleteHandler(event)" id="groupNavigatorButtons" includeIn="existsExtProperty" gap="-1" height="26" verticalAlign="bottom" paddingBottom="-1" width="100%">
+		<component:ToolbarTextButton click="btnCommonProperty_clickHandler(event)" label="基本属性" id="btnCommonProperty" width="65" height="25" selected="true" tag="0"/>
+		<component:ToolbarTextButton click="btnCommonProperty_clickHandler(event)" label="标绘属性" id="btnExtProperty" width="70" height="25" tag="1"/>
+		<component:ToolbarTextButton click="btnCommonProperty_clickHandler(event)" label="图片管理" id="btnPictureManager" width="70" height="25" tag="2"/>
+		<component:ToolbarTextButton click="btnCommonProperty_clickHandler(event)" label="文件管理" id="btnFileManager" width="70" height="25" tag="3"/>
+		<s:Spacer width="100%"/>
+		<component:ToolbarButton click="toolbarbutton1_clickHandler(event)" visible="{viewStack.selectedIndex==1}" selected="true" width="25" height="25" icon="@Embed('/assets/common/save.png')"/>
+	</s:HGroup>
+	<s:Line includeIn="existsExtProperty" width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#7B889C"/>
+		</s:stroke>
+	</s:Line>
+
+	<mx:ViewStack width="100%" height="100%" selectedIndex="0" id="viewStack" change="viewStack_changeHandler(event)">
+		<s:NavigatorContent label="基本属性">
+			<mx:DataGrid dataProvider="{featureAttributes}" borderVisible="false" headerHeight="25" rowHeight="25" width="100%" height="100%" id="datagrid" verticalScrollPolicy="auto">
+				<mx:columns>
+					<mx:DataGridColumn dataField="name" width="120" headerText="属性名称"/>
+					<mx:DataGridColumn id="columnValue" dataField="value" width="200" headerText="属性值" showDataTips="true" dataTipFunction="propertyDataTipFunction"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</s:NavigatorContent>
+
+		<s:NavigatorContent label="标绘属性" includeIn="existsExtProperty">
+			<mx:DataGrid dataProvider="{extAttributes}" editable="true" id="datagridExtParams" selectionColor="0xFFFF00" alternatingItemColors="{[0xFFFFFF]}" width="100%" height="100%" headerHeight="25" rowHeight="25" borderColor="0x000000" borderVisible="false">
+				<mx:columns>
+					<mx:DataGridColumn sortable="false" headerText="属性名称" dataField="name" editable="false" width="120"/>
+					<mx:DataGridColumn sortable="false" headerText="属性值" dataField="value" editable="true"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</s:NavigatorContent>
+
+		<s:NavigatorContent label="附加图片" includeIn="existsExtProperty">
+			<component:Panel4PictureView pictureTypes="{pictureTypes}" dataProvider="{extPictures}" callFunction="saveToServer" creationComplete="panel4PictureView_creationCompleteHandler(event)" width="100%" height="100%" id="panel4PictureView"/>
+		</s:NavigatorContent>
+
+		<s:NavigatorContent label="文件管理" includeIn="existsExtProperty">
+			<component:Panel4FileManager callFunction="saveToServer" dataProvider="{extAttachments}" creationComplete="panel4FileManager_creationCompleteHandler(event)" width="100%" height="100%" id="panel4FileManager"/>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+
+
+</s:BorderContainer>

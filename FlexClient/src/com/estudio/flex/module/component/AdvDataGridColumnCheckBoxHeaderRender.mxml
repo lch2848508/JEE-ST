@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" focusEnabled="true" height="100%">
+	<s:Rect id="shadow" left="0" right="0" top="0" bottom="0">
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:GradientEntry color="0xFFFFFF" alpha="1"/>
+				<s:GradientEntry color="0xEBF4FF" alpha="1"/>
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.collections.HierarchicalData;
+			import mx.controls.AdvancedDataGrid;
+
+			protected function checkbox1_changeHandler(event:Event):void
+			{
+				var i:int=0;
+				var grid:AdvancedDataGrid=this.listData.owner as AdvancedDataGrid;
+				if (grid.dataProvider is ArrayCollection)
+				{
+					var datas:ArrayCollection=grid.dataProvider as ArrayCollection;
+					for (i=0; i < datas.length; i++)
+						datas.getItemAt(i).__chk__=chkBox.selected;
+					grid.invalidateList();
+				}
+				else
+				{
+					var obj:Object=grid.dataProvider.source;
+					while (obj && !(obj is ArrayCollection))
+						obj=obj.source;
+					var array:Array=obj.source;
+					for (i=0; i < array.length; i++)
+					{
+						for (var j:int=0; j < array[i].children.length; j++)
+							array[i].children[j].__chk__=chkBox.selected;
+					}
+					grid.invalidateList();
+				}
+			}
+		]]>
+	</fx:Script>
+
+
+	<s:CheckBox horizontalCenter="0" width="14" verticalCenter="0" change="checkbox1_changeHandler(event)" id="chkBox">
+
+	</s:CheckBox>
+
+</s:MXAdvancedDataGridItemRenderer>

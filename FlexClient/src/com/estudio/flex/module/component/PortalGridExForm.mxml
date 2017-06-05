@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:PortalGridExControl xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.module.component.*" width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.core.FlexGlobals;
+			public var formInstance:InterfaceFormUI=null;
+			private var showToolbar:Boolean=false;
+			private var formOptions:Object=null;
+
+			///////////////////////////////////////////////////////////////////////////////
+			override public function initParams(controlParams:Object):void
+			{
+				super.initParams(controlParams);
+				formOptions=controlParams.options;
+				readonly=Convert.object2Boolean(formOptions.IsReadonly) || readonly;
+				createFormInstance();
+			}
+
+			public function setFormParams(params:Object):void
+			{
+				if (formInstance && formInstance.isCreateCompleted)
+					formInstance.initParams(params);
+				else
+					setFormParams(params);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			private function createFormInstance():void
+			{
+				var formParams:Object={readonly: readonly, formIds: bindForms.Forms};
+				formParams.showToolbar=Convert.object2Boolean(formOptions.IsShowToolbar);
+				FlexGlobals.topLevelApplication.createFormInstance4PortalItemEx(this, formParams);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			public function initReqParams(reqParams:Object):void
+			{
+				if (formInstance && formInstance.isCreateCompleted)
+				{
+					reqParams.formIds=formInstance.params.uiParams.formids;
+					FlexGlobals.topLevelApplication.loadFormData4PortalItemEx(formInstance, reqParams);
+				}
+				else
+				{
+					callLater(function():void
+					{
+						initReqParams(reqParams);
+					});
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			public function callback4AfterSave():void
+			{
+				var controlNames:Array=[];
+				for (var k:String in bindForms.Params)
+				{
+					var v:String=bindForms.Params[k];
+					var controlName:String=StringUtils.before(v, ".");
+					if (!StringUtils.isEmpty(controlName))
+						controlNames.push(controlName);
+				}
+				portalInstance.refreshSelectedItem(controlNames);
+				callJSEvent("EventOnAfterSave", {});
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			override public function get isCreateCompleted():Boolean
+			{
+				return formInstance && formInstance.isCreateCompleted;
+			}
+			////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<s:BorderContainer id="formContain" width="100%" height="100%" borderVisible="false">
+
+	</s:BorderContainer>
+</component:PortalGridExControl>

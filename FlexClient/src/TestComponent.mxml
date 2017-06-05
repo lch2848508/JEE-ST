@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:mx1="com.estudio.flex.component.mx.*" xmlns:ns="http://flex.apache.org/experimental/ns" xmlns:component="com.estudio.flex.component.*" xmlns:component1="com.estudio.flex.module.component.*">
+
+	<component:DateFieldEx id="comp" bgColor="0xFF0000"/>
+	<s:Button right="10" top="10" click="button1_clickHandler(event)">
+	</s:Button>
+	
+	<s:Label id="labelField" text="广州城市信息研究所" paddingTop="50" toolTip="广州城市信息研究所"/>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.StringUtils;
+			public var gobalSetting:Object={ //
+				readOnlyColor: 0xF0F0F0 //自读空间的颜色
+			}; //
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				trace(StringUtils.startWith("123456","123"));
+			}
+			
+		]]>
+	</fx:Script>
+	
+	
+</s:Application>

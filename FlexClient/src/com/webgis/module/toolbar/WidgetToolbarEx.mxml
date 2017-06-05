@@ -1,0 +1,430 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module visible="false" width="100%" creationComplete="module1_creationCompleteHandler(event)" implements="com.webgis.intf.MapWidgetIntf" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx" height="100%" xmlns:component="com.estudio.flex.component.*" xmlns:containers="flexlib.containers.*" xmlns:toolbar="com.webgis.module.toolbar.*" xmlns:component1="com.webgis.component.*">
+	<s:layout>
+		<s:HorizontalLayout gap="2"/>
+	</s:layout>
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.ags.events.ExtentEvent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.layers.Layer;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.component.ToolbarButton;
+			import com.webgis.component.ToolbarTextButton;
+			import com.webgis.component.ToolbarTextComboboxButton;
+			import com.webgis.event.MapModeEvent;
+			import com.webgis.event.MapWidgetEvent;
+			import com.webgis.event.MapWidgetTypes;
+			import com.webgis.intf.MapControlFavorite;
+			import com.webgis.intf.MapControlShare;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.intf.MapWidgetIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.module.share.WidgetShare;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+
+			[Bindable]
+			private var mapInstance:Map=null;
+			private var mapAppInstance:Object=null;
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+			private var areaCode2Object:Object={};
+			private var areaCodeList:Array=[];
+
+			[Bindable]
+			private var navigatorAreaHtml:String="";
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//创建完成事件
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				widgetContainInstance.getToolbarContain()["addElement"](this.owner);
+				FlexGlobals.topLevelApplication.addEventListener(MapModeEvent.PAN, event4MapPanMode);
+
+				//界面Widget显示隐藏
+				MapWidgetEvent.addEventListener(event4MapWidgetEvent);
+
+				//底图
+				for (var i:int=0; i < map.getBaseLayers().length; i++)
+				{
+					var layerInfo:Object=map.getBaseLayers()[i];
+					if (layerInfo.layers)
+					{
+						var barCBButton:ToolbarTextComboboxButton=new ToolbarTextComboboxButton();
+						barCBButton.label=layerInfo.label;
+						layerInfo.selected=true;
+						var layers:Array=[layerInfo];
+						for (var j:int=0; j < layerInfo.layers.length; j++)
+							layers.push(layerInfo.layers[j]);
+						barCBButton.selectedIndex=0;
+						barCBButton.labelField="label";
+						barCBButton.items=new ArrayCollection(layers);
+						barCBButton.selectedChangeCallFunction=event4CagegoryLayerChange;
+						toolbarBaseMap.addElement(barCBButton);
+						barCBButton.addEventListener(MouseEvent.CLICK, event4BaseMapToolbarClick);
+						if (i == 0)
+							barCBButton.selected=true;
+
+					}
+					else
+					{
+						var barItem:ToolbarTextButton=new ToolbarTextButton();
+						barItem.label=layerInfo.label;
+						toolbarBaseMap.addElement(barItem);
+						if (i == 0)
+							barItem.selected=true;
+						barItem.addEventListener(MouseEvent.CLICK, event4BaseMapToolbarClick);
+					}
+				}
+
+				//区域导航按钮
+				areaNavigatorButton.mapApp=mapApp;
+				areaNavigatorButton.map=map;
+				areaNavigatorButton.initCityList(mapApp.getNavigatorAreaContent(), true);
+				areaNavigatorButton.mapServiceClient=mapServiceClient;
+
+				FlexGlobals.topLevelApplication.addEventListener(MapModeEvent.CHANGEBASELAYER, function(event:MapModeEvent):void
+				{
+					if (map == event.map)
+					{
+						for (var i:int=0; i < toolbarBaseMap.numElements; i++)
+						{
+							(toolbarBaseMap.getElementAt(i) as Object).selected=map.baseMapIndex == i;
+						}
+						event4MapPanMode(null);
+					}
+				});
+
+				FlexGlobals.topLevelApplication.addEventListener(MapModeEvent.SWITCHLAYER, function(event:MapModeEvent):void
+				{
+					if (map == event.map)
+					{
+						event4MapPanMode(null);
+					}
+				});
+
+				visible=true;
+				var toolbarConfig:Object=extParams.toolbar;
+				if (!toolbarConfig.zoomin)
+					removeToolbarItem(toolbarItemZoomin);
+				if (!toolbarConfig.zoomout)
+					removeToolbarItem(toolbarItemZoomout);
+				if (!toolbarConfig.measure)
+				{
+					removeToolbarItem(toolbarItemMeasureLine);
+					removeToolbarItem(toolbarItemMeasureArea);
+				}
+				if (!toolbarConfig.identify)
+					removeToolbarItem(toolbarItemIdentiry);
+				if (!toolbarConfig.gps)
+					removeToolbarItem(toolbarItemGPS);
+				if (!toolbarConfig.legend)
+					removeToolbarItem(toolbarItemLegend);
+				if (!toolbarConfig.compare)
+					removeToolbarItem(toolbarItemCompare);
+				if (!toolbarConfig.share)
+					removeToolbarItem(toolbarItemShare);
+				if (!toolbarConfig.favorite)
+					removeToolbarItem(toolbarItemFavore);
+				if (!toolbarConfig.print)
+					removeToolbarItem(toolbarItemPrint);
+				if (!toolbarConfig.clear)
+					removeToolbarItem(toolbarItemClear);
+
+				if (!toolbarConfig.searchRange)
+					removeToolbarItem(searchRange);
+				if (!toolbarConfig.searchEnabled)
+					removeToolbarItem(group4Search);
+				if (!toolbarConfig.navigator)
+					removeToolbarItem(areaNavigatorButton);
+
+
+			}
+
+			private function removeToolbarItem(item:UIComponent):void
+			{
+				if (item.parent != null)
+					(item.parent as Object).removeElement(item);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+
+
+			protected function btnClearClickHandler(event:MouseEvent):void
+			{
+				mapApp.clear();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private function event4MapPanMode(event:MapModeEvent):void
+			{
+				var barItem:ToolbarButton=toolbarItemPan;
+				var groupIndex:int=barItem.groupIndex;
+				if (groupIndex != 0) //分组
+				{
+					for (var i:int=0; i < toolbar.numElements; i++)
+					{
+						var item:Object=toolbar.getElementAt(i);
+						if (item is ToolbarButton && item != barItem && item.groupIndex == barItem.groupIndex)
+							item.selected=false;
+					}
+					barItem.selected=true;
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			private function event4CagegoryLayerChange(btn:ToolbarTextComboboxButton, index:int):void
+			{
+				var barItem:Object=btn;
+				for (var i:int=0; i < toolbarBaseMap.numElements; i++)
+				{
+					if (toolbarBaseMap.getElementAt(i) != barItem)
+						toolbarBaseMap.getElementAt(i)["selected"]=false;
+				}
+				barItem.selected=true;
+				map.changeBaseMap(toolbarBaseMap.getElementIndex(barItem as UIComponent), index);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function baseMapToolbar_changeHandler(event:IndexChangeEvent):void
+			{
+				map.changeBaseMap(event.newIndex);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function toolbarItemClick(event:MouseEvent):void
+			{
+				var barItem:ToolbarButton=event.currentTarget as ToolbarButton;
+				event4ToolbarItemClick(barItem);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private function event4ToolbarItemClick(barItem:com.webgis.component.ToolbarButton):void
+			{
+				var type:String=barItem.tag;
+				if (type == "toolbar_panel")
+					map.activePanMode();
+				else if (type == "toolbar_zoomin")
+					map.activeZoominMode();
+				else if (type == "toolbar_zoomout")
+					map.activeZoomoutMode();
+				else if (type == "toolbar_measure_line" || type == "toolbar_measure_area")
+					map.activeMeasureMode(type == "toolbar_measure_area");
+				else if (type == "toolbar_identify")
+					map.activeIdentifyMode();
+				else if (type == "toolbar_clear")
+					mapApp.clear();
+				else if (type == "toolbar_multiMap")
+					mapApp.showMultiMap();
+//				else if(widgetContainInstance.share==null)
+//					widgetContainInstance.share=com.webgis.module.share.WidgetShare;
+				else if (type == "toolbar_share")
+				{
+					mapApp.shareMap();
+				}
+				else if (type == "toolbar_favorite" && widgetContainInstance.favorite)
+				{
+					widgetContainInstance.focusFavorite();
+					widgetContainInstance.favorite.add();
+				}
+				else if (type == "toolbar_print")
+				{
+					(mapApp as Object).print();
+				}
+				else if (type == "toolbar_legend")
+				{
+					mapApp.showLegend();
+				}
+				else if (type == "toolbar_gps_location")
+					mapApp.winGPSLocation();
+				else if (type == "toolbar_Mileage_location")
+					mapApp.winMileageLocation();
+				else if(type=="toolbar_trafficflow")
+				{
+					map.activeTrafficFlowMode();
+				}
+
+				var groupIndex:int=barItem.groupIndex;
+
+				if (groupIndex != 0) //分组
+				{
+					for (var i:int=0; i < toolbar.numElements; i++)
+					{
+						var item:Object=toolbar.getElementAt(i);
+						if (item is ToolbarButton && item != barItem && item.groupIndex == barItem.groupIndex)
+							item.selected=false;
+					}
+					barItem.selected=true;
+				}
+				else if (barItem.toggle)
+				{
+					barItem.selected=!barItem.selected;
+				}
+			}
+
+			private function event4BaseMapToolbarClick(event:MouseEvent):void
+			{
+				var barItem:Object=event.currentTarget;
+				if (barItem is ToolbarTextButton && barItem.selected)
+					return;
+
+
+				for (var i:int=0; i < toolbarBaseMap.numElements; i++)
+				{
+					if (toolbarBaseMap.getElementAt(i) != barItem)
+						toolbarBaseMap.getElementAt(i)["selected"]=false;
+				}
+				barItem.selected=true;
+				var index:int=(barItem is ToolbarTextButton) ? -1 : ToolbarTextComboboxButton(barItem).selectedIndex;
+				map.changeBaseMap(toolbarBaseMap.getElementIndex(barItem as UIComponent), index);
+
+				if (barItem is ToolbarTextComboboxButton && barItem.selected)
+					ToolbarTextComboboxButton(barItem).open();
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			//查询
+			protected function event4SearchBtnClick(event:MouseEvent):void
+			{
+				var geometry:Geometry=null;
+				var navigatorAreaId:String=MapControl(map).navigatorAreaId;
+				if (searchRange.selectedIndex == 0)
+				{
+					var baseLayer:Object=map.layers.source[0];
+					if (baseLayer.hasOwnProperty("fullExtent"))
+						geometry=baseLayer.fullExtent;
+					else if (baseLayer.hasOwnProperty("initialExtent"))
+						geometry=baseLayer.initialExtent;
+					else
+						geometry=map.initialExtent;					
+					navigatorAreaId="-1";
+				}
+				else if (searchRange.selectedIndex == 1)
+				{
+					geometry=MapControl(map).extent;
+					navigatorAreaId="-1";
+				}
+				else if (navigatorAreaId == "-1")
+				{
+					geometry=MapControl(map).extent;
+				}
+				var text:String=StringUtils.trim(searchTextBox.text);
+				if (!StringUtils.isEmpty(text))
+					mapAppInstance.search(text, geometry, navigatorAreaId);
+				searchTextBox.text=text;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			private function event4MapWidgetEvent(event:MapWidgetEvent):void
+			{
+				if (event.controlType == MapWidgetTypes.LEGEND && event.triggerComponent != this)
+					toolbarItemLegend.selected=event.isVisible;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var extParams:Object=null;
+
+			public function setParams(v:Object):void
+			{
+				this.extParams=v;
+			}
+		]]>
+	</fx:Script>
+	<s:Spacer width="2"/>
+	<component1:NavigatorButton id="areaNavigatorButton"/>
+	<s:HGroup width="240" gap="2" top="-1" id="group4Search">
+		<s:TextInput borderColor="#4A5363" id="searchTextBox" width="100%" height="22" keyDown="{if (event.keyCode == Keyboard.ENTER)event4SearchBtnClick(null);}"/>
+		<s:ComboBox skinClass="com.webgis.module.toolbar.SearchComboBoxSkin" width="100" minHeight="22" height="22" dataProvider="{new ArrayCollection(['全图范围','当前地图范围','当前行政区域'])}" selectedIndex="0" id="searchRange"
+					creationComplete="{searchRange.textInput.editable = false;}"/>
+		<component1:ToolbarButton click="event4SearchBtnClick(event)" icon="@Embed('/assets/webgis/GenericSearch16.png')" toolTip="点击查询" groupIndex="0" selected="false"/>
+	</s:HGroup>
+
+	<s:Spacer width="100%"/>
+
+	<s:HGroup textAlign="right" paddingTop="-3" id="toolbar" top="-1" height="100%" gap="2" verticalAlign="middle">
+		<component1:ToolbarButton id="toolbarItemPan" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/pan.png')" toolTip="拖动模式" groupIndex="1" selected="true" tag="toolbar_panel"/>
+		<component1:ToolbarButton id="toolbarItemZoomin" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/ZoomInTool_B_16.png')" toolTip="拉框放大模式" groupIndex="1" selected="false" tag="toolbar_zoomin"/>
+		<component1:ToolbarButton id="toolbarItemZoomout" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/ZoomOutTool_B_16.png')" toolTip="拉框缩小模式" groupIndex="1" selected="false" tag="toolbar_zoomout"/>
+		<component1:ToolbarButton id="toolbarItemMeasureLine" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/MeasureTool16.png')" toolTip="测量长度" groupIndex="1" selected="false" tag="toolbar_measure_line"/>
+		<component1:ToolbarButton id="toolbarItemMeasureArea" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/MeasureAreaTool16.png')" toolTip="测量面积" groupIndex="1" selected="false" tag="toolbar_measure_area"/>
+		<component1:ToolbarButton id="toolbarItemTrafficFlow" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/trafficflow.png')" toolTip="点选查看交通流量" groupIndex="1" selected="false" tag="toolbar_trafficflow"/>
+		<component1:ToolbarButton id="toolbarItemIdentiry" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/IdentifyTool16.png')" toolTip="点选查看属性" groupIndex="1" selected="false" tag="toolbar_identify"/>
+		<component1:ToolbarButton id="toolbarItemGPS" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/gps.png')" toolTip="GPS坐标定位" groupIndex="0" selected="false" tag="toolbar_gps_location"/>
+		<component1:ToolbarButton id="toolbarItemMileage" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/mileage.png')" toolTip="桩号定位" groupIndex="0" selected="false" tag="toolbar_Mileage_location"/>
+
+		<component1:ToolbarButton id="toolbarItemLegend" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/Legend16.png')" toolTip="显示(隐藏)图例" groupIndex="0" selected="false" tag="toolbar_legend"/>
+
+		<component1:ToolbarButton id="toolbarItemCompare" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/ModelBuilderAutoLayout16.png')" toolTip="分屏比对" groupIndex="0" selected="false" tag="toolbar_multiMap"/>
+		<component1:ToolbarButton id="toolbarItemFavore" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/Star-Full.png')" toolTip="加入到收藏夹" groupIndex="0" selected="false" tag="toolbar_favorite"/>
+		<component1:ToolbarButton id="toolbarItemShare" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/share.png')" toolTip="分享地图" groupIndex="0" selected="false" tag="toolbar_share"/>
+		<component1:ToolbarButton id="toolbarItemPrint" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/GenericPrint16.png')" toolTip="打印地图" groupIndex="0" selected="false" tag="toolbar_print"/>
+		<component1:ToolbarButton id="toolbarItemClear" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/GenericDeleteBlackSmall16.png')" toolTip="清除" groupIndex="0" selected="false" tag="toolbar_clear"/>
+	</s:HGroup>
+	<s:Spacer width="4"/>
+	<s:HGroup gap="-1" id="toolbarBaseMap">
+	</s:HGroup>
+	<s:Spacer width="2"/>
+
+</s:Module>

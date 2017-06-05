@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:esri="http://www.esri.com/2008/ags" xmlns:layers="com.esri.ags.layers.*">
+	<fx:Script>
+		<![CDATA[
+//			import com.webgis.layer.TianDiTu4FSImage;
+//			import com.webgis.layer.TianDiTu4FSVector;
+			
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.webgis.module.plotting.ExtTextSymbol;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+
+			protected function map1_creationCompleteHandler(event:FlexEvent):void
+			{
+//				var layer:TianDiTu4FSImage=new TianDiTu4FSImage();
+//				map.addLayer(layer); >-90,-180,90,180
+				add_all_road_lable();
+//				var layer:TianDiTu4FSVector=new TianDiTu4FSVector();
+//				map.addLayer(layer);
+				var str:String="江门市-蓬江区";
+				var xx:int=str.search("22");
+				if(str.search("-")!=-1){
+					var strs:Array=str.split("-");
+//					Alert.show(strs.length+"  "+strs[1]);
+				}
+				var num:Number=20.22/51.522;
+				trace(num);
+				num=num*100;
+				trace(num);
+				var str1:String =num.toFixed(3);
+				trace(str1);
+				Alert.show(str1+"%");
+			}
+			
+			/**
+			 *添加道路标签 
+			 * @param name   标签名称
+			 * @param angle  旋转角度
+			 * @param x      X坐标
+			 * @param y      Y坐标
+			 * 
+			 */
+			private function add_road_label(name:String,angle:int,x:Number,y:Number,Vertical:Boolean):void
+			{
+				var mygeometry:Geometry=new MapPoint(x,y);
+				
+				var textSymbol:ExtTextSymbol=new ExtTextSymbol(Vertical,name,null,0x000000,1,false,0xffffff,false,0xFF9900,"middle",angle,0,0,new TextFormat("微软雅黑",12));
+				//构建标签
+				var grahic2:Graphic=new Graphic(mygeometry,textSymbol);
+				//添加标签
+				myGraphicsLayer.add(grahic2);
+				map.addLayer(myGraphicsLayer);
+			}
+			/**
+			 *添加所有道路标签 
+			 * 
+			 */
+			private function add_all_road_lable():void
+			{
+				add_road_label("长    江    西    路",0,215174,89640,false);
+				//add_road_label("江 山 南 路",-35,214831,88891,true);
+				//add_road_label("滨    海    大    道",-36,215799,88878,false);
+				//add_road_label("太 行 山 路",-36,216129,89724,true);
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<esri:GraphicsLayer id="myGraphicsLayer"/>
+	</fx:Declarations>
+	<esri:Map id="map" width="100%" height="100%" creationComplete="map1_creationCompleteHandler(event)">
+		<esri:ArcGISTiledMapServiceLayer url="http://localhost:6080/arcgis/rest/services/JM/底图/MapServer"/>
+		<esri:extent>
+			<esri:Extent xmin="-1788000" ymin="-4177000" xmax="10044000" ymax="4511000">
+				<esri:SpatialReference wkid="102100"/>
+			</esri:Extent>
+		</esri:extent>
+	</esri:Map>
+</s:Application>

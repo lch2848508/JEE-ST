@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group mouseChildren="false" buttonMode="true" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%"
+		 height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.controls.Text;
+			import mx.events.FlexEvent;
+
+			import spark.components.Label;
+			import spark.primitives.Graphic;
+
+			private var _caption:String="";
+			private var _stepNos:String="";
+
+			public function set caption(v:String):void
+			{
+				_caption=v;
+				labelCaption=_caption
+			}
+
+			public function get caption():String
+			{
+				return _caption;
+			}
+
+			public function setSteps(step:String):void
+			{
+				_stepNos=step;
+				if (StringUtils.isEmpty(step))
+					labelCaption=_caption;
+				else
+					labelCaption=_caption + "\n( " + _stepNos + " )";
+			}
+
+			public function get steps():String
+			{
+				return _stepNos;
+			}
+
+			[Bindable]
+			public var fontColor:int=0xFF0000;
+
+			[Bindable]
+			public var background:int=0xFFFFFF;
+
+			[Bindable]
+			private var labelCaption:String="";
+
+			private var boderColor:int=0x000000;
+			private var borderWidth:int=1;
+
+			public var extObject:Object=null;
+
+			//--------------------------------------------------------------------------
+			//清除绘制的内容
+			protected function clear():void
+			{
+				this.graphics.clear();
+			}
+
+			//--------------------------------------------------------------------------
+			//设置边框宽度颜色 
+			protected function setBorderColor():void
+			{
+				this.graphics.lineStyle(borderWidth, boderColor, 1, true, "normal", CapsStyle.ROUND);
+			}
+
+			//---------------------------------------------------------------------------
+			//绘制
+			public function Draw():void
+			{
+				this.clear();
+				this.graphics.beginFill(background);
+				this.setBorderColor();
+				DrawShape(this.graphics);
+				this.graphics.endFill();
+			}
+
+
+			//----------------------------------------------------------------------------
+			//绘制事件
+			override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				this.Draw();
+			}
+
+			//----------------------------------------------------------------------------
+			public function DrawShape(graphic:Graphics):void
+			{
+				graphics.drawRect(0, 0, width, height);
+			}
+		]]>
+	</fx:Script>
+	<s:Label color="{fontColor}" backgroundAlpha="1" verticalCenter="0" horizontalCenter="0" id="label" text="{labelCaption}"/>
+</s:Group>
+

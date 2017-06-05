@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer dataChange="mxdatagriditemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" focusEnabled="true">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.common.InterfacePortalGrid;
+			import com.estudio.flex.component.WinAttachmentFileList;
+			import com.estudio.flex.component.WinBatchUpload;
+			import com.estudio.flex.component.WinCamera;
+			import com.estudio.flex.component.WinScanFiles;
+			import com.estudio.flex.module.FormDataService;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.StringUtils;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.ItemClickEvent;
+			import mx.events.ToolTipEvent;
+
+			private var _url:String="../client/attachment";
+
+			[Bindable]
+			public var frameID:String=null;
+
+			[Bindable]
+			public var funName:String=null;
+
+			[Bindable]
+			public var columnStyle:Object=null;
+
+			private var oldContent:String=null;
+
+			private var barItems:Array=null;
+
+			[Bindable]
+			public var align:String=null;
+
+			public var databaseName:String="";
+			public var dataservice:FormDataService=null;
+			public var keyFieldName:String="";
+			public var form:InterfaceFormUI=null;
+			public var fileAttribtes:Object=null;
+			public var attachmentType:String="";
+			[Bindable]
+			public var columnWidth:int=0;
+
+			[Bindable]
+			private var fileList:ArrayCollection=new ArrayCollection([]);
+
+			//////////////////////////////////////////////////////////////////////////////////////////
+			//数据变更
+			protected function mxdatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				if (owner["owner"]["readonly"] || form.readonly)
+					this.currentState="readOnlyStatus";
+				else
+					this.currentState="editStatus";
+
+				if (!StringUtils.isEmpty(data[attachmentType]))
+					hrefLabel.text=data[attachmentType];
+				else
+				{
+					keyFieldName=dataservice.getDataSetKeyField(this.databaseName);
+					var p_id:String=data[keyFieldName];
+					var url:String=_url + "?p_id=" + p_id + "&o=getHtml4Flex&type=" + attachmentType;
+					AjaxUtils.getData(url, function(str:String, token:Object):void
+					{
+						if (StringUtils.isEmpty(str))
+							str="无";
+						token.data[token.type]=str;
+						token.control.text=str;
+					}, {data: data, type: attachmentType, control: hrefLabel});
+				}
+			}
+
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				if (form.readonly || !form.save())
+				{
+					AlertUtils.msnMessage("表单", "当前表单不能被保存，不能上传文件。", true);
+					return;
+				}
+				var p_id:String=data[keyFieldName];
+				var w:int=Math.max(form["width"], 800);
+				var h:int=Math.max(form["height"] + 60, 480);
+				if (event.currentTarget == btn_01)
+				{
+					var url:String=_url + "?o=upload&type=" + attachmentType + "&p_id=" + p_id + "&savetodb=0"
+					WinBatchUpload.execute(url, fileAttribtes.fileSize, fileAttribtes.fileExts, uploadCommonFileCallFunction, false, w, h);
+				}
+				else if (event.currentTarget == btn_02)
+				{
+					var url:String=_url + "?o=upload&type=" + attachmentType + "&p_id=" + p_id + "&savetodb=0"
+					WinScanFiles.execute(url, uploadCommonFileCallFunction, w, h, false);
+				}
+				else if (event.currentTarget == btn_03)
+				{
+					w=Math.max(form["width"], 1000);
+					WinAttachmentFileList.execute(p_id, uploadCommonFileCallFunction, fileAttribtes, w, h);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function uploadCommonFileCallFunction():void
+			{
+				data[attachmentType]="";
+				mxdatagriditemrenderer1_dataChangeHandler(null);
+				WinBatchUpload.close();
+			}
+
+			protected function hrefLabel_clickHandler(event:MouseEvent):void
+			{
+				var str:String=hrefLabel.text;
+				if (StringUtils.equal("无", str))
+					return;
+				FlexGlobals.topLevelApplication.viewAttachmentWindow(data[keyFieldName],attachmentType,"-1","");
+				//var url="../client/attachment_list.jsp?p_id=" + data[keyFieldName] + "&type=" + attachmentType;
+				//FlexGlobals.topLevelApplication.goURL(url, "attachmentList");
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+	<!--
+	<s:Label id="lblData" top="0" left="0" right="0" bottom="0" text="{dataGridListData.label}"/>
+	-->
+	<!--
+	<mx:LinkBar doubleClickEnabled="true" doubleClick="mxdatagriditemrenderer1_doubleClickHandler(event)" color="#0000FF" creationComplete="linkBar_creationCompleteHandler(event)" id="linkBar" itemClick="linkBar_itemClickHandler(event)" paddingLeft="0" backgroundAlpha="0" contentBackgroundAlpha="0"
+				paddingRight="0" horizontalGap="0" paddingTop="0" paddingBottom="0" verticalCenter="0">
+	</mx:LinkBar>
+	-->
+	<s:states>
+		<s:State name="readOnlyStatus"/>
+		<s:State name="editStatus"/>
+	</s:states>
+	<s:HGroup gap="0" verticalAlign="middle" width="100%" height="100%">
+		<mx:Label mouseChildren="false" buttonMode="true" click="hrefLabel_clickHandler(event)" useHandCursor="true" width="{this.width-(currentState=='editStatus'?49:0)}" color="#0000FF" id="hrefLabel"/>
+		<s:Image width="16" includeIn="editStatus" id="btn_01" source="@Embed('1.png')" click="image1_clickHandler(event)" mouseChildren="false" useHandCursor="true" buttonMode="true" toolTip="选择附件并上传"/>
+		<s:Image width="16" includeIn="editStatus" id="btn_02" source="@Embed('2.png')" click="image1_clickHandler(event)" mouseChildren="false" useHandCursor="true" buttonMode="true" toolTip="扫描文件并上传"/>
+		<s:Image width="16" includeIn="editStatus" id="btn_03" source="@Embed('3.png')" click="image1_clickHandler(event)" mouseChildren="false" useHandCursor="true" buttonMode="true" toolTip="显示附件管理列表"/>
+	</s:HGroup>
+</s:MXDataGridItemRenderer>

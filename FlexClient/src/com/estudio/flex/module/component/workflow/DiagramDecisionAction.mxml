@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<workflow:DiagramActionBase doubleClickEnabled="true" doubleClick="diagramactionbase1_doubleClickHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark"
+							xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:workflow="com.estudio.flex.module.component.workflow.*" width="100" height="50">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			override public function DrawShape(graphic:Graphics):void
+			{
+				this.graphics.moveTo(0, height / 2);
+				this.graphics.lineTo(width / 2, 0);
+				this.graphics.lineTo(width, height / 2);
+				this.graphics.lineTo(width / 2, height);
+				this.graphics.lineTo(0, height / 2);
+			}
+
+			protected function diagramactionbase1_doubleClickHandler(event:MouseEvent):void
+			{
+			}
+		]]>
+	</fx:Script>
+</workflow:DiagramActionBase>

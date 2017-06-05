@@ -1,0 +1,38 @@
+@charset "utf-8";
+*{
+	line-height: 200%;
+	font-family: "微软雅黑", "新宋体";
+	font-size: 14pt;
+}
+
+a {
+	font-weight: bold;
+	color: #006;
+	text-decoration: none;
+}
+
+.first
+{
+	background-color: #E8F2FE;
+}
+
+.second
+{
+	background-color: #F5F5F5;
+	line-height: 175%;
+}
+
+html {
+	margin:0;
+	padding:0;
+}
+
+
+body {
+	margin:0;
+	padding:0;
+}
+
+td{
+	text-indent: 12px;
+}

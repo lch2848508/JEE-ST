@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx title="{caption}" close="titlewindowex1_closeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="400" height="400"
+						 xmlns:mislayer="com.webgis.module.mislayer.*">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(instance);
+			}
+
+			[Bindable]
+			public var caption:String="";
+			[Bindable]
+			public var attributes:ArrayCollection=new ArrayCollection([]);
+
+			private static var instance:WinFeatureAttributes=null;
+
+			public static function execute(caption:String, attributes:Array):void
+			{
+				if (instance == null)
+					instance=new WinFeatureAttributes();
+				instance.attributes=new ArrayCollection(attributes);
+				instance.caption=caption;
+				if (!instance.isPopUp)
+				{
+					PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject);
+					PopUpManager.centerPopUp(instance);
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<mislayer:MISLayerInfo left="-1" top="-1" right="-1" bottom="-1" attributes="{attributes}">
+
+	</mislayer:MISLayerInfo>
+</component:TitleWindowEx>

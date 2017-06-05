@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:workflow="com.estudio.flex.module.component.workflow.*"
+		 width="400" height="300" mouseChildren="true" doubleClickEnabled="true">
+	<!-- XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX -->
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+
+			import flash.filters.BitmapFilterQuality;
+			import flash.filters.BitmapFilterType;
+
+			import mx.events.FlexEvent;
+
+			import spark.effects.animation.RepeatBehavior;
+
+			import uk.co.teethgrinder.charts.Base;
+
+
+			private var _diagramJson:Object=null;
+			private var _id2DiagramElementInstance:Object={};
+
+			public var diagramWidth:int=0;
+			public var diagramHeight:int=0;
+
+			public var actionDblClickCallFunction:Function=null;
+			public var diagramContextMenu:ContextMenu=null;
+
+			//-----------------------------------------------------------------------------------
+			public function getAction(activityName:String):DiagramActionBase
+			{
+				return _id2DiagramElementInstance[activityName] as DiagramActionBase;
+			}
+
+			//----------------------------------------------------------------------------------
+			//获取Diagram定义
+			public function get diagramJson():Object
+			{
+				return _diagramJson;
+			}
+
+			//----------------------------------------------------------------------------------
+			//设置Diagram定义
+			public function set diagramJson(v:Object):void
+			{
+				this.removeAllElements();
+				if (focusAfferts.isPlaying)
+				{
+					focusAfferts.stop();
+					focusAfferts.target=null;
+					focusAfferts.targets=[];
+				}
+
+				diagramWidth=v.diagramWidth;
+				diagramHeight=v.diagramHeight;
+				_id2DiagramElementInstance={};
+				_diagramJson=v;
+				drawDiagram();
+			}
+
+			//----------------------------------------------------------------------------------
+			//绘制流程图
+			private function drawDiagram():void
+			{
+				var actions:Array=_diagramJson.actions;
+				var i:int;
+				var offsetLeft:int=Math.max(0, _diagramJson.offsetLeft - 10);
+				var offsetTop:int=Math.max(0, _diagramJson.offsetTop - 10);
+
+				//绘制节点
+				for (i=0; i < actions.length; i++)
+				{
+					var c:DiagramActionBase=null;
+					var action:Object=actions[i];
+					var type:String=action.Type;
+					var X:int=action.X;
+					var Y:int=action.Y;
+					var W:int=action.W;
+					var H:int=action.H;
+					if (StringUtils.equal(type, "TFlowBeginBlock"))
+						c=new DiagramBeginAction();
+					else if (StringUtils.equal(type, "TFlowEndBlock"))
+						c=new DiagramEndAction();
+					else if (StringUtils.equal(type, "TFlowActionBlock"))
+						c=new DiagramCommonAction();
+					else if (StringUtils.equal(type, "TFlowDecisionBlock"))
+						c=new DiagramDecisionAction();
+
+					if (c)
+					{
+						c.filters=[dropShadowFilter];
+						c.x=X - offsetLeft;
+						c.y=Y - offsetTop;
+						c.width=W;
+						c.height=H;
+						c.caption=action.Caption;
+						c.background=int2Color(action.Background);
+						c.fontColor=int2Color(action.FontColor);
+						c.doubleClickEnabled=true;
+						c.buttonMode=true;
+						c.focusEnabled=true;
+						c.extObject=action;
+						c.addEventListener(MouseEvent.DOUBLE_CLICK, event4ActionDblClick);
+						if (diagramContextMenu)
+							c.contextMenu=diagramContextMenu;
+						this.addElement(c);
+						_id2DiagramElementInstance[action.Name]=c;
+						_id2DiagramElementInstance[action.Caption]=c;
+					}
+				}
+				diagramWidth+=20;
+				diagramHeight+=20;
+
+				//绘制连接体
+				var links:Array=_diagramJson.links;
+				for (i=0; i < links.length; i++)
+				{
+					var link:Object=links[i];
+					var l:DiagramLink=new DiagramLink();
+					l.points=Str2Points(link.Points, offsetLeft, offsetTop);
+					addElement(l);
+					_id2DiagramElementInstance[link.Name]=l;
+				}
+			}
+
+			//-------------------------------------------------------------------------------------
+			private function focusedAction(action:DiagramActionBase):void
+			{
+				if (focusAfferts.isPlaying)
+				{
+					focusAfferts.stop();
+					focusAfferts.target=null;
+					focusAfferts.targets=null;
+				}
+
+				growFilter.color=0xcc0000;
+				focusAfferts.targets=[action];
+				focusAfferts.play();
+			}
+
+			//-------------------------------------------------------------------------------------
+			//点序转数组
+			private function Str2Points(ps:Array, ol:int, ot:int):Array
+			{
+				var result:Array=[];
+				for (var i:int=0; i < ps.length; i++)
+					result.push([ps[i][0] - ol, ps[i][1] - ot]);
+				return result;
+			}
+
+			//-------------------------------------------------------------------------------------
+			private function int2Color(color:int):int
+			{
+				var R:int=color & 0xFF;
+				var G:int=(color & 0xFF00) >> 8;
+				var B:int=(color & 0xFF0000) >> 16;
+				return R << 16 | G << 8 | B;
+			}
+
+			//----------------------------------------------------------------------------
+			//绘制事件
+			//override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			//{
+			//	super.updateDisplayList(unscaledWidth, unscaledHeight);
+			//	this.DrawBackground();
+			//}
+
+			private function DrawBackground():void
+			{
+				var i:int=0;
+				this.graphics.beginFill(0xFFFFFF);
+				this.graphics.drawRect(0, 0, width, height);
+				this.graphics.endFill();
+				this.graphics.lineStyle(1, 0xF5F5F5);
+				for (i=0; i < width; i+=20)
+				{
+					this.graphics.moveTo(i, 0);
+					this.graphics.lineTo(i, height);
+				}
+
+				for (i=0; i < height; i+=20)
+				{
+					this.graphics.moveTo(0, i);
+					this.graphics.lineTo(width, i);
+				}
+			}
+
+			//--------------------------------------------------------------------------------------------
+			//聚焦环节
+			public function focusedActionByName(activeName:String):void
+			{
+				focusedAction(this._id2DiagramElementInstance[activeName]);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4ActionDblClick(event:MouseEvent):void
+			{
+				if (actionDblClickCallFunction != null)
+				{
+					var action:DiagramActionBase=event.currentTarget as DiagramActionBase;
+					actionDblClickCallFunction(action.extObject);
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			public function batchSetActionSettings(params:Object):void
+			{
+				for (var k:String in params)
+				{
+					var action:DiagramActionBase=_id2DiagramElementInstance[k] as DiagramActionBase;
+					if (action)
+					{
+						action.background=params[k][0];
+						action.setSteps(params[k][1]);
+						action.invalidateDisplayList();
+					}
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			public function getActionSettings():Object
+			{
+				var list:Array=[];
+				var result:Object={};
+				for (var k:String in _id2DiagramElementInstance)
+				{
+					if (!(_id2DiagramElementInstance[k] is DiagramActionBase))
+						continue;
+					var action:DiagramActionBase=_id2DiagramElementInstance[k];
+					if (ArrayUtils.indexOf(list, action) == -1)
+					{
+						list.push(action);
+						result[action.caption]=[action.background, action.steps];
+					}
+				}
+				return result;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			public function setActionSetting(actionCaption:String, color:uint, step:String):void
+			{
+				var action:DiagramActionBase=_id2DiagramElementInstance[actionCaption] as DiagramActionBase;
+				if (action)
+				{
+					action.background=color;
+					action.setSteps(step);
+					action.invalidateDisplayList();
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			public function setActionBackground(actionCaption:String, color:uint):void
+			{
+				var action:DiagramActionBase=_id2DiagramElementInstance[actionCaption] as DiagramActionBase;
+				if (action)
+				{
+					action.background=color;
+					action.invalidateDisplayList();
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			public function setActionStep(actionCaption:String, step:String):void
+			{
+				var action:DiagramActionBase=_id2DiagramElementInstance[actionCaption] as DiagramActionBase;
+				if (action)
+				{
+					action.setSteps(step);
+					action.invalidateDisplayList();
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			public function focusActions(actionCaptions:Array):void
+			{
+				if (focusAfferts.isPlaying)
+				{
+					focusAfferts.stop();
+					focusAfferts.target=null;
+					focusAfferts.targets=[];
+				}
+
+				var targets:Array=[];
+				for (var i:int=0; i < actionCaptions.length; i++)
+				{
+					var action:DiagramActionBase=_id2DiagramElementInstance[actionCaptions[i]] as DiagramActionBase;
+					if (action)
+						targets.push(action);
+				}
+				if (targets.length != 0)
+				{
+					growFilter.color=0xcc0000;
+					focusAfferts.targets=targets;
+					focusAfferts.play();
+				}
+			}
+		]]>
+	</fx:Script>
+	<!-- XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX -->
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+		<s:GradientGlowFilter id="glow" blurX="30" blurY="30" quality="{BitmapFilterQuality.HIGH}" type="{BitmapFilterType.OUTER}" knockout="false">
+			<s:entries>
+				<s:GradientEntry alpha="0" color="0xFFFFFF" ratio="0" id="FocusStartColor"/>
+				<s:GradientEntry alpha="1" color="0xFFFF00" ratio="15" id="FocusEndColor"/>
+			</s:entries>
+		</s:GradientGlowFilter>
+		<s:GlowFilter id="growFilter" blurX="20" blurY="20" alpha="0.5" quality="{BitmapFilterQuality.HIGH}" color="0xFFFF00" inner="false"/>
+		<s:AnimateFilter id="focusAfferts" bitmapFilter="{growFilter}" duration="600" repeatCount="0" repeatBehavior="{RepeatBehavior.REVERSE}">
+			<s:SimpleMotionPath property="strength" valueFrom="0" valueTo="5"/>
+		</s:AnimateFilter>
+
+		<s:DropShadowFilter alpha="0.32" distance="8" blurX="20" blurY="20" angle="90" color="#000000" id="dropShadowFilter"/>
+
+	</fx:Declarations>
+	<!-- XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX -->
+</s:Group>

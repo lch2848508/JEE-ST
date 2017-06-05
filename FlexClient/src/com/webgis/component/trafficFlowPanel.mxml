@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.webgis.component.*" width="100%" height="250" creationComplete="group1_creationCompleteHandler(event)">
+	<s:layout>
+		<s:VerticalLayout gap="0">
+		</s:VerticalLayout>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.charts.series.LineSeries;
+			import mx.collections.ArrayCollection;
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.events.FlexEvent;
+			//import mx.utils.ObjectUtil;
+			
+			import spark.events.IndexChangeEvent;
+			public var map:MapControl=null;
+			public var mapServiceClient:MapServiceClient=null;
+			private var arrHeader:*=null;
+			private var arrRecords:*=null;
+			private var sortFunArray:*=null;
+			private var arrSeries:*=null;
+			public var lineName:String =null;	
+			public var closeCallFunction:Function=null;
+			private var jsonObject:Object=null;
+			private var ddl2Arr:ArrayCollection=new ArrayCollection();
+			private var ddl2ItemArr:Array=new Array();
+			private var acRecords:ArrayCollection=new ArrayCollection();
+			private var glowObject:Object=null;
+			private var startMileage:String=null;
+			//private var dgData:*=null;
+			////////////////////////////////////////////////////////////////////////////////////
+			public function clear():void //清除内容
+			{
+				ddl2.dataProvider=new ArrayCollection();
+				ddl1.dataProvider=new ArrayCollection();
+				arrHeader=new Array();
+				arrRecords=new Array();
+				acRecords=new ArrayCollection();
+				acRecords.refresh();
+				label.text="交通统计图表 线路编号：没有选中！";
+				if (lineChart)
+				{
+					lineChart.dataProvider=null;
+					ca.dataProvider=null;
+					lineChart.series = null; 
+					legend_id.dataProvider=null;
+					lineChart.invalidateDisplayList();
+				lineChart.invalidateProperties();}
+				map.clearFeature();
+				
+			}
+			
+			private function chartsRefresh(arr1:Array,arr2:ArrayCollection):void//arr1:arrSeries arr2:dgData
+			{
+				lineChart.series=[];
+				legend_id.dataProvider=null;
+				var array:Array=[];
+				for (var i:int = 0; i < arr1.length; i++)   
+				{  
+					var lineSeries:LineSeries = new LineSeries();  
+					lineSeries.displayName = arr1[i].headertext;  
+					lineSeries.yField=arr1[i].datafield;  
+					lineSeries.setStyle("form", "curve");    
+					array.push( lineSeries);  
+				}   
+				
+				lineChart.dataProvider=arr2;
+				ca.dataProvider=arr2;
+				lineChart.series = array; 
+				legend_id.dataProvider=lineChart;
+				
+			}
+			public function ddl1Refresh(ln:String,sm:String):void
+			{
+				lineName=ln;
+				startMileage=sm;
+				if(lineName!=null){
+					label.text="交通流量图表  线路编号："+lineName;
+					label1.text="请选择统计表格";
+					
+					label2.text="请选择统计指标";
+					label2.initialize();
+					mapServiceClient.getTrafficTableName(lineName,startMileage,function(arr:Array):void
+					{ 
+						ddl1.dataProvider=new ArrayCollection(arr);	
+						ddl1.selectedIndex=0;
+						ddl1_changeHandler(new IndexChangeEvent("change"));
+					});
+				}				
+			}
+			private function ddl2Refresh(arr:Array):void //arr:acRecords arr1:dataProvider arr2ItemArr:存放下拉框2数据项的详细信息数据  
+			{
+				ddl2ItemArr= new Array();	
+				var arr1:Array=new Array();
+				if(lineName!=null){
+					label.text="交通流量图表  线路编号："+lineName;
+					label1.text="请选择统计表格";
+					
+					label2.text="请选择统计指标";}
+				for(var i:int=0;i<arr.length;i++)
+				{
+					if((arr[i].headertext).indexOf("序号")==-1&&(arr[i].headertext).indexOf("年份")==-1&&(arr[i].headertext).indexOf("编号")==-1&&(arr[i].headertext).indexOf("名称")==-1&&(arr[i].headertext).indexOf("主表")==-1&&(arr[i].headertext).indexOf("观测")==-1&&(arr[i].headertext).indexOf("桩号")==-1&&(arr[i].headertext).indexOf("宽度")==-1&&(arr[i].headertext).indexOf("等级")==-1)
+					{
+						var tmp:Object={"datafield":arr[i].datafield,"headertext":arr[i].headertext};		
+						ddl2ItemArr.push(tmp);
+						arr1.push(arr[i].headertext);
+					}
+				}   
+				ddl2.dataProvider=new ArrayCollection(arr1);
+				ddl2.selectedIndex=0;
+				ddl2_changeHandler(new IndexChangeEvent("change"));
+			}
+			private function sortFun(arr:ArrayCollection):ArrayCollection
+			{
+				var sort:Sort=new Sort();
+				sort.fields=[new SortField("F0")];
+				arr.sort=sort;
+				arr.refresh();
+				return arr;
+			}
+			
+			protected function ddl1_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				mapServiceClient.getTrafficDataRecords(startMileage,lineName,ddl1.selectedItem as String,function(json:*):void{	
+					arrRecords=(JSON.parse(json.dataRecord as String))as Array;
+					acRecords=new ArrayCollection(arrRecords);
+					arrHeader=(JSON.parse(json.headerData as String))as Array;	
+					if(arrHeader!=null&&arrRecords!=null)
+					{
+						if(arrHeader.r||arrRecords.r){
+									
+						}		
+						else
+						{
+							acRecords=sortFun(acRecords);
+							ddl2Refresh(arrHeader);					
+						}
+					}
+				});
+			}
+			
+			protected function ddl2_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				arrSeries=[];
+				for(var i:int=0;i<ddl2ItemArr.length;i++)
+				{
+					if(ddl2.selectedItem as String==ddl2ItemArr[i].headertext)
+					{
+						var tmp:Object={"datafield":ddl2ItemArr[i].datafield,"headertext":ddl2ItemArr[i].headertext};
+						arrSeries.push(tmp);
+						chartsRefresh(arrSeries,acRecords);
+					}
+				}
+				
+			}
+			protected function toolbarbutton1_clickHandler(event:MouseEvent):void
+			{
+				if (closeCallFunction)
+					closeCallFunction();
+			}
+			
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub			
+				clear();
+			}
+			public function hide():void
+			{
+				this.visible=false;
+			}
+		
+
+		]]>
+	</fx:Script>
+	<s:ComboBox width="0" height="0" id="combobox" visible="false"/>
+	<s:Line width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="0xCCCCCC"/>
+		</s:stroke>
+	</s:Line>
+	<s:BorderContainer width="100%" borderVisible="false" backgroundAlpha="0.90" height="28" backgroundColor="#F8F8F8">
+		<s:Label text="交通统计图表" id="label" verticalCenter="0" color="#155DB4" left="4"  fontWeight="bold"/>
+		<s:HGroup height="100%" gap="2" right="3" top="0" verticalAlign="middle" id="toolbarGroup">
+			<s:Label id="label1" text="请选择统计图表"  paddingTop="2"/>
+			<s:DropDownList id="ddl1" change="ddl1_changeHandler(event)" selectedIndex="0" width="240" >
+				
+			</s:DropDownList>
+			<s:Label id="label2" text="请选择统计指标"  paddingTop="2"/>
+			<s:DropDownList id="ddl2" change="ddl2_changeHandler(event)" selectedIndex="0" width="240">
+			</s:DropDownList>
+			
+			<component:ToolbarButton icon="@Embed('/assets/common/close.png')" click="toolbarbutton1_clickHandler(event)"/>
+		</s:HGroup>
+		
+	</s:BorderContainer>
+	<s:Line width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="0xCCCCCC"/>
+		</s:stroke>
+	</s:Line>
+	<s:BorderContainer width="100%" height="100%" borderVisible="false" backgroundColor="0xFFFFFF">
+		<mx:LineChart  top="10" 
+					   id="lineChart"
+					   left="50"
+					   width="90%"  
+					   bottom="5" 
+					   showDataTips="true">  
+			<mx:verticalAxis>  
+				<mx:LinearAxis id="laxis"  
+							   autoAdjust="true"  
+							   baseAtZero="false"/>  
+			</mx:verticalAxis>  
+			<mx:horizontalAxis>  
+				<mx:CategoryAxis id="ca"  
+								 categoryField="F0"/>  
+				
+			</mx:horizontalAxis>  
+			<mx:horizontalAxisRenderers>  
+				<mx:AxisRenderer axis="{ca}"  
+								 canDropLabels="true"/>  
+			</mx:horizontalAxisRenderers>  
+			<mx:Legend  labelPlacement="right"
+						height="20"  
+						id="legend_id"/> 
+		</mx:LineChart>  
+	</s:BorderContainer>
+</s:Group>

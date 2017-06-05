@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer implements="mx.controls.listClasses.IListItemRenderer" height="20" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" autoDrawBackground="true">
+
+	<fx:Script>
+		<![CDATA[
+			protected function checkbox1_changeHandler(event:Event):void
+			{
+				data.selected=chk.selected;
+			}
+			
+			protected function chk_clickHandler(event:MouseEvent):void
+			{
+				event.stopImmediatePropagation();
+				event.stopPropagation();
+			}
+			
+		]]>
+	</fx:Script>
+
+
+	<s:CheckBox click="chk_clickHandler(event)" left="4" id="chk" change="checkbox1_changeHandler(event)" verticalCenter="0" selected="{data.selected}"/>
+	<s:Label left="20" text="{data.value}" verticalCenter="0"/>
+
+</s:ItemRenderer>

@@ -1,0 +1,718 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module visible="false" creationComplete="module1_creationCompleteHandler(event)" implements="com.webgis.intf.MapWidgetIntf, com.webgis.intf.MapControlPlottingIntf" xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:component="com.webgis.component.*" xmlns:toolbar="com.webgis.module.toolbar.*" xmlns:ns="http://www.esri.com/2008/ags">
+	<fx:Style source="../../MapApp.css"/>
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+//			import com.adobe.utils.StringUtil;
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.events.MapMouseEvent;
+			import com.esri.ags.events.ZoomEvent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polygon;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.CompositeSymbol;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.symbols.SimpleFillSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.tools.DrawTool;
+			import com.estudio.flex.module.component.AdvDataGridColumnGroupHeaderRenderEx;
+			import com.estudio.flex.module.component.AdvDataGridColumnHeaderRenderEx;
+			import com.estudio.flex.module.component.AdvDataGridColumnIcon;
+			import com.estudio.flex.module.component.AdvancedDataGridGroupItemRendererEx;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.FilenameUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.event.MapModeEvent;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.module.favorite.FavoriteListItemRender;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.HierarchicalData;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumnGroup;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridRendererProvider;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			private var flatArrayCollection:ArrayCollection=null;
+			[Bindable]
+			private var mapInstance:Map=null;
+			[Bindable]
+			private var mapAppInstance:Object=null;
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+			private var currentDrawType:String="";
+			private var plottingInfoContain:PlottingInfo=new PlottingInfo();
+
+			[Embed(source="/assets/common/expand.png")] //新建
+			[Bindable]
+			private var imgExpend:Class;
+
+			[Embed(source="/assets/common/collopse.png")] //新建
+			[Bindable]
+			private var imgCollopse:Class;
+
+			[Bindable]
+			private var typeList:ArrayCollection=new ArrayCollection(["普通标绘", "文档资料", "图片视频", "会议资料", "领导批示", "其他"]);
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//创建完成事件
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.removeElement(featureProperty);
+				widgetContainInstance.getPlottingContain()["addElement"](this.owner);
+				(map as Map).addEventListener(MapMouseEvent.MAP_CLICK, eventPlottingLayerClick);
+				this.visible=true;
+				featureProperty.mapServiceClient=mapServiceClientInstance;
+				if (!extParams.plotting.polyline)
+					toolbar.removeElement(toolbarItemPolyline);
+				if (!extParams.plotting.polygon)
+					toolbar.removeElement(toolbarItemPolygon);
+				FlexGlobals.topLevelApplication.addEventListener(MapModeEvent.MEASURE, function(event:MapModeEvent):void
+				{
+					if (event.map == map)
+					{
+						toolbarItemNone.selected = true;
+						toolbarItemPoint.selected = false;
+						toolbarItemPolyline.selected = false;
+						toolbarItemPolygon.selected = false;
+					}
+				});
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private var isLoadUserPlotting:Boolean=false;
+
+			private function loadUserMarkers():void
+			{
+				if (isLoadUserPlotting)
+					return;
+				mapServiceClient.getUserMarker(function(json:Object):void
+				{
+					var featureRecords:Array=[];
+					var records:Array=json.records;
+					if (records)
+					{
+						for (var i:int=0; i < records.length; i++)
+						{
+							var record:Object=records[i];
+							var geometry:Geometry=Geometry.fromJSON(JSON.parse(record.GEOMETRY));
+							var caption:String=record.CAPTION;
+							var content:String=record.CONTENT;
+							var user:String=record.REALNAME;
+							var style:Object=JSON.parse(record.SYMBOL);
+							var attributes:Array=JSON.parse(record.ATTRIBUTES) as Array;
+							var feature:Graphic=new Graphic(geometry, null, {id: record.ID});
+							feature.symbol=createSymbol(geometry.type, style, caption);
+							plottingLayer.add(feature);
+							record.PICTURES=StringUtils.nvl(record.PICTURES, "[]");
+							record.ATTACHMENTS=StringUtils.nvl(record.ATTACHMENTS, "[]");
+							var item:Object={type: record.TYPE, pictures: JSON.parse(record.PICTURES), attachments: JSON.parse(record.ATTACHMENTS), isshare: record.IS_SHARE == 1, caption: caption, content: content, user: record.REALNAME, id: record.ID, style: style, attributes: attributes, graphic: feature};
+							if (geometry.type == Geometry.MAPPOINT)
+//<<<<<<< .working
+//								item.iconUrl="../flexclient/flash/assets/webgis/webgis-marker/16x16/" + FilenameUtils.getFileName(style.icon);
+//=======
+								item.iconUrl="../images/webgis-marker/16x16/" + FilenameUtils.getFileName(style.icon);
+//>>>>>>> .merge-right.r113
+							else if (geometry.type == Geometry.POLYLINE)
+//<<<<<<< .working
+//								item.iconUrl="../flexclient/flash/assets/webgis/webgis-marker/16x16/l.png";
+//=======
+								item.iconUrl="../images/webgis-marker/16x16/l.png";
+//>>>>>>> .merge-right.r113
+							else
+//<<<<<<< .working
+//								item.iconUrl="../flexclient/flash/assets/webgis/webgis-marker/16x16/a.png";
+//=======
+								item.iconUrl="../images/webgis-marker/16x16/a.png";
+//>>>>>>> .merge-right.r113
+							featureRecords.push(item);
+
+						}
+						flatArrayCollection=new ArrayCollection(ArrayCollectionUtils.FlatToHierarchData(featureRecords, "type"));
+						for (var j:int=0; j < flatArrayCollection.length; j++)
+						{
+							if (typeList.getItemAt(flatArrayCollection.getItemAt(j).__group__) == -1)
+								typeList.addItem(flatArrayCollection.getItemAt(j).__group__);
+						}
+						if (advGrid && advGrid.groupedColumns.length != 0 && advGrid.dataProvider == null)
+						{
+							advGrid.dataProvider=new HierarchicalData(flatArrayCollection);
+							advGrid.callLater(function():void
+							{
+								advGrid.expandAll();
+							});
+						}
+					}
+				});
+				isLoadUserPlotting=true;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function active():void
+			{
+				trace("public function active()");
+				(map as MapControl).addLayer(plottingLayer);
+				activeDrawMode();
+				loadUserMarkers();
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function inactive():void
+			{
+				(map as MapControl).activePanMode();
+				(map as MapControl).removeLayer(plottingLayer);
+				widgetContainInstance.hideExtContain("", featureProperty);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//过滤
+			private var filterStr:String="";
+
+			protected function toolbarbutton1_clickHandler(event:MouseEvent):void
+			{
+				filterStr=StringUtils.trim(text.text).toLowerCase();
+				if (StringUtils.isEmpty(filterStr))
+					return;
+				if (featureProperty && featureProperty.registerObject)
+					saveCallFunction(featureProperty.registerObject)
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(flatArrayCollection.source, list);
+				var index:int=advGrid.selectedItem ? ArrayUtils.indexOf(list, advGrid.selectedItem) : 0;
+				var isFound:Boolean=false;
+				for (var i:int=index + 1; i < list.length; i++)
+				{
+					var item:Object=list[i];
+					if (item.children)
+						continue;
+					if (item.caption.indexOf(filterStr) != -1)
+					{
+						var pItem:Object=ArrayCollectionUtils.indexOf(flatArrayCollection, "__group__", item.type);
+						advGrid.expandItem(pItem, true);
+						advGrid.callLater(function():void
+						{
+							advGrid.selectedItem=item;
+							advGrid.callLater(function():void
+							{
+								advGrid.scrollToIndex(advGrid.selectedIndex);
+								advGrid_doubleClickHandler(null);
+							});
+						});
+						isFound=true;
+						break;
+					}
+				}
+
+				if (!isFound)
+				{
+					for (var i:int=0; i < index; i++)
+					{
+						var item:Object=list[i];
+						if (item.children)
+							continue;
+						if (item.caption.indexOf(filterStr) != -1)
+						{
+							var pItem:Object=ArrayCollectionUtils.indexOf(flatArrayCollection, "__group__", item.type);
+							advGrid.expandItem(pItem, true);
+							advGrid.callLater(function():void
+							{
+								advGrid.selectedItem=item;
+								advGrid.callLater(function():void
+								{
+									advGrid.scrollToIndex(advGrid.selectedIndex);
+									advGrid_doubleClickHandler(null);
+								});
+							});
+							isFound=true;
+							break;
+						}
+					}
+				}
+
+			}
+
+			private function filterFunction(value:Object):Boolean
+			{
+				var cap:String=value.caption;
+				if (!StringUtils.isEmpty(filterStr) && !StringUtils.isEmpty(cap))
+					return cap.toLowerCase().indexOf(filterStr) != -1;
+				return true;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			//绘制
+			protected function toolbarbutton2_clickHandler(event:MouseEvent):void
+			{
+				btnClick(event.currentTarget);
+			}
+
+			private function btnClick(btn:Object):void
+			{
+				var tag:String=btn.tag;
+				for (var i:int=0; i < toolbar.numElements; i++)
+				{
+					var item:Object=toolbar.getElementAt(i);
+					if (item is ToolbarButton && item.groupIndex == 1 && item.selected == true)
+						item.selected=false;
+				}
+				btn.selected=true;
+				currentDrawType=tag;
+				activeDrawMode();
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			//删除
+			protected function toolbarbutton3_clickHandler(event:MouseEvent):void
+			{
+				var item:Object=advGrid.selectedItem;
+				if (item && !item.children)
+				{
+					if (flash.external.ExternalInterface.call("getUserName") != item.user)
+					{
+						AlertUtils.alert("你不能删除该标绘!");
+						return;
+					}
+
+					AlertUtils.confirm("确定要删除选择的标绘？", function():void
+					{
+						if (item == featureProperty.registerObject)
+							widgetContainInstance.hideExtContain("", featureProperty);
+
+						mapServiceClientInstance.deleteUserMarker(item.id, function(json:Object):void
+						{
+							var pItem:Object=advGrid.getParentItem(item);
+							ArrayUtils.remove(pItem.children, ArrayUtils.indexOf(pItem.children, item));
+							plottingLayer.remove(item.graphic);
+							if (pItem.children.length == 0)
+							{
+								flatArrayCollection.removeItemAt(flatArrayCollection.getItemIndex(pItem));
+							}
+							flatArrayCollection.refresh();
+							advGrid.invalidateList();
+							advGrid.selectedItem=null;
+						});
+					});
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			protected function text_enterHandler(event:FlexEvent):void
+			{
+				toolbarbutton1_clickHandler(null);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			private function activeDrawMode():void
+			{
+				(map as MapControl).activePanMode();
+				switch (currentDrawType)
+				{
+					case "point":
+						(map as MapControl).activeDrawMode(DrawTool.MAPPOINT, drawCallFunction, plottingLayer);
+						break;
+					case "line":
+						(map as MapControl).activeDrawMode(DrawTool.POLYLINE, drawCallFunction, plottingLayer);
+						break;
+					case "area":
+						(map as MapControl).activeDrawMode(DrawTool.POLYGON, drawCallFunction, plottingLayer);
+						break;
+					case "circle":
+						(map as MapControl).activeDrawMode(DrawTool.CIRCLE, drawCallFunction, plottingLayer);
+						break;
+					case "rectangle":
+						(map as MapControl).activeDrawMode(DrawTool.EXTENT, drawCallFunction, plottingLayer);
+						break;
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			private function drawCallFunction(layer:GraphicsLayer, feature:Graphic):void
+			{
+//<<<<<<< .working
+//				btnClick(btnNone);
+//				var newRecord:Object={graphic: feature, id: null, caption: "新增无标题", content: "", attributes: [], pictures: [], attachments: [], isshare: false, type: "无类型", style: {icon: "../flexclient/flash/assets/webgis/webgis-marker/32x32/000.png", width: 1, lineColor: 0xFF0000, fillColor: 0xFFFF00}};
+//=======
+				btnClick(toolbarItemNone);
+				var newRecord:Object={graphic: feature, id: null, caption: "新增无标题", content: "", attributes: [], pictures: [], attachments: [], isshare: false, type: "无类型", style: {icon: "../images/webgis-marker/32x32/000.png", width: 1, lineColor: 0xFF0000, fillColor: 0xFFFF00}};
+//>>>>>>> .merge-right.r113
+				mapServiceClient.addUserMarker(newRecord.caption, newRecord.content, JSON.stringify(newRecord.attributes), JSON.stringify(newRecord.graphic.geometry), JSON.stringify(newRecord.style), newRecord.isshare, newRecord.type, JSON.stringify(newRecord.pictures), JSON.stringify(newRecord.attachments), function(json:Object):void
+				{
+					feature.toolTip=newRecord.caption;
+					feature.attributes={id: json.id};
+					newRecord.user=flash.external.ExternalInterface.call("getUserName");
+					newRecord.id=json.id;
+					saveCallFunction(newRecord);
+					widgetContain.showExtContain("编辑地图标绘属性", featureProperty);
+					featureProperty.registerFeatures(newRecord);
+					featureProperty.readonly=false;
+				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			private function createSymbol(type:String, style:Object, label:String):Symbol
+			{
+				if (type == Geometry.MAPPOINT)
+				{
+//<<<<<<< .working
+//					var url:String="../flexclient/flash/assets/webgis/webgis-marker/32x32/" + FilenameUtils.getFileName(style.icon);
+//=======
+					var url:String="../images/webgis-marker/32x32/" + FilenameUtils.getFileName(style.icon);
+//>>>>>>> .merge-right.r113
+					var picSymbol:PictureMarkerSymbol=new PictureMarkerSymbol(url, 32, 32, 0, 0);
+					return picSymbol;
+				}
+				else if (type == Geometry.POLYLINE)
+				{
+					var symbol:SimpleLineSymbol=new SimpleLineSymbol("solid", style.lineColor, 0.8, style.width);
+					return symbol;
+				}
+				else
+				{
+					var lineSymbol:SimpleLineSymbol=new SimpleLineSymbol("solid", style.lineColor, 0.8, style.width);
+					return new SimpleFillSymbol("solid", style.fillColor, 0.5, lineSymbol);
+				}
+				return null;
+			}
+
+			private function createTextSymbo(label:String):Symbol
+			{
+				var textSymbol:TextSymbol=new TextSymbol();
+				textSymbol.textFormat=new TextFormat("YaHei Consolas Hybrid,微软雅黑", 12, 0x000000, "bold");
+				textSymbol.text=label;
+				textSymbol.border=true;
+				textSymbol.background=true;
+				textSymbol.backgroundColor=0xFFFF00;
+				return textSymbol;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////
+			protected function plottingGrid_clickHandler(event:MouseEvent):void
+			{
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////
+			private function eventPlottingLayerClick(event:MapMouseEvent):void
+			{
+				var target:Object=event.originalTarget;
+				if (target && target.hasOwnProperty("parent") && target.parent is Graphic)
+					target=target.parent;
+				if (target is Graphic && Graphic(target).owner == plottingLayer && target.attributes)
+				{
+					var id:String=target.attributes.id;
+					var list:Array=[];
+					ArrayCollectionUtils.TreeData2List(flatArrayCollection.source, list);
+					for (var i:int=0; i < list.length; i++)
+					{
+						var item:Object=list[i];
+						if (item.id == id)
+						{
+							var pItem:Object=flatArrayCollection.getItemAt(ArrayCollectionUtils.indexOf(flatArrayCollection, "__group__", item.type));
+							advGrid.expandItem(pItem, true);
+							if (advGrid.selectedItem != item)
+							{
+								advGrid.callLater(function():void
+								{
+									advGrid.selectedItem=item;
+									advGrid.callLater(function():void
+									{
+										advGrid.scrollToIndex(advGrid.selectedIndex);
+									});
+									advGrid_doubleClickHandler(null);
+								});
+							}
+							break;
+						}
+					}
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			protected function datagrid_changeHandler(event:ListEvent):void
+			{
+
+//				var item:Object=datagrid.selectedItem;
+//				if (item)
+//				{
+//					(map as Map).zoomTo(item.graphic.geometry);
+//				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//创建列表
+			protected function advGrid_creationCompleteHandler(event:FlexEvent):void
+			{
+				var columnDefines:Array=[{Field: "icon", Caption: "", Width: 25, isImage: true}, {Field: "caption", Caption: "标题", Width: 200}, {Field: "user", Caption: "标绘人", Width: 100}];
+				createGridColumns(columnDefines, true);
+				loadUserMarkers();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function createGridColumns(columnDefines:Array, isGroup:Boolean):void
+			{
+				var columns:ArrayCollection=new ArrayCollection();
+				var column:AdvancedDataGridColumn=null;
+				var render:ClassFactory=null;
+				var groupColumns:Array=[columns];
+				var groupColumnItems:Array=[];
+				var groupDepth:int=0;
+				//设计的列
+				for (var i:int=0; i < columnDefines.length; i++)
+				{
+					column=null;
+					var columnUIDefine:Object=columnDefines[i];
+					var columnCaption:String=columnUIDefine.Caption;
+
+					var fieldName:String=columnUIDefine.Field;
+					column=new AdvancedDataGridColumn();
+					column.dataField=fieldName; //字段;
+					column.headerText=columnCaption; //标题
+					column.resizable=!columnUIDefine.FixedWidth; //宽度固定		
+					column.editable=false;
+
+					if (column.resizable)
+					{
+						column.headerWordWrap=false;
+						column.wordWrap=false;
+					}
+
+					if (!StringUtils.isEmpty(columnUIDefine.Width) && !StringUtils.equal("*", columnUIDefine.Width))
+						column.width=Convert.str2int(columnUIDefine.Width, 120);
+
+					if (columnUIDefine.isImage)
+					{
+						var itemRender:ClassFactory=new ClassFactory(AdvDataGridColumnIcon4Plot);
+						column.itemRenderer=itemRender;
+						column.resizable=false;
+					}
+
+
+					if (column.width <= 0)
+						column.visible=false;
+					column.headerRenderer=new ClassFactory(AdvDataGridColumnHeaderRenderEx);
+					// end if 普通列
+
+					if (column != null)
+					{
+						if (column is AdvancedDataGridColumnGroup)
+							groupColumns[groupColumns.length - 2].addItem(column);
+						else
+							groupColumns[groupColumns.length - 1].addItem(column);
+					}
+				}
+
+
+
+				//处理分组列
+				if (isGroup)
+				{
+					var groupRender:AdvancedDataGridRendererProvider=new AdvancedDataGridRendererProvider();
+					groupRender.columnIndex=0;
+					groupRender.columnSpan=0;
+					groupRender.renderer=new ClassFactory(AdvancedDataGridGroupItemRendererEx);
+					groupRender.dataField="__group__";
+					advGrid.rendererProviders=[groupRender];
+
+					column=new AdvancedDataGridColumn();
+					column.width=-1;
+					column.minWidth=-1;
+					column.resizable=false;
+					column.dataField="__group__";
+					column.editable=false;
+					columns.addItemAt(column, 0);
+				}
+
+				//DataGrid.
+				advGrid.groupedColumns=columns.toArray();
+				advGrid.invalidateList();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function advGrid_doubleClickHandler(event:MouseEvent):void
+			{
+				var item:Object=advGrid.selectedItem;
+				if (item && !item.children)
+				{
+
+					var geometry:Geometry=item.graphic.geometry;
+					widgetContainInstance.showExtContain("编辑地图标绘属性", featureProperty);
+					featureProperty.readonly=flash.external.ExternalInterface.call("getUserName") != item.user;
+					featureProperty.registerFeatures(item);
+					if (event != null)
+						(mapInstance as MapControl).zoomTo(item.graphic.geometry);
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			private function saveCallFunction(item:Object):void
+			{
+				if (item.graphic.geometry.type == Geometry.MAPPOINT)
+//<<<<<<< .working
+//					item.iconUrl="../flexclient/flash/assets/webgis/webgis-marker/16x16/" + FilenameUtils.getFileName(item.style.icon);
+//=======
+					item.iconURL="../images/webgis-marker/16x16/" + FilenameUtils.getFileName(item.style.icon);
+//>>>>>>> .merge-right.r113
+				else if (item.graphic.geometry.type == Geometry.POLYLINE)
+					item.iconURL="../images/webgis-marker/16x16/l.png";
+				else
+//<<<<<<< .working
+//					item.iconUrl="../flexclient/flash/assets/webgis/webgis-marker/16x16/a.png";
+//=======
+					item.iconURL="../images/webgis-marker/16x16/a.png";
+//>>>>>>> .merge-right.r113
+
+				item.graphic.symbol=createSymbol(item.graphic.geometry.type, item.style, item.caption);
+				var type:String=item.type;
+				var pItem:Object=advGrid.getParentItem(item);
+				if (!pItem || pItem.__group__ != type)
+				{
+					if (pItem)
+					{
+						ArrayUtils.remove(pItem.children, ArrayUtils.indexOf(pItem.children, item));
+						if (pItem.children.length == 0)
+							flatArrayCollection.removeItemAt(flatArrayCollection.getItemIndex(pItem));
+
+					}
+
+					var index:int=ArrayCollectionUtils.indexOf(flatArrayCollection, "__group__", type);
+					var pRecord:Object=null;
+					if (index != -1)
+					{
+						pRecord=flatArrayCollection.getItemAt(index);
+						ArrayUtils.addItemAt(pRecord.children, item, pRecord.children.length);
+					}
+					else
+					{
+						pRecord={__group__: type, children: [item]};
+						flatArrayCollection.addItem(pRecord);
+					}
+					flatArrayCollection.refresh();
+					advGrid.callLater(function():void
+					{
+						advGrid.expandItem(pRecord, true);
+						advGrid.callLater(function():void
+						{
+							advGrid.selectedItem=item;
+							advGrid.callLater(function():void
+							{
+								advGrid.scrollToIndex(advGrid.selectedIndex);
+							});
+						});
+					});
+				}
+				advGrid.invalidateList();
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			private var extParams:Object=null;
+
+			public function setParams(v:Object):void
+			{
+				this.extParams=v;
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+
+
+	<fx:Declarations>
+		<ns:GraphicsLayer id="plottingLayer" mouseChildren="true"/>
+
+	</fx:Declarations>
+
+	<s:BorderContainer width="100%" height="27" borderVisible="false" backgroundColor="#F4F7F8">
+		<s:HGroup gap="2" height="25" id="toolbar" verticalAlign="middle" width="100%" paddingTop="2" paddingRight="2" paddingLeft="2" paddingBottom="2">
+			<s:Label text="查询" paddingTop="2"/>
+			<s:TextInput width="100%" verticalCenter="0" id="text" enter="text_enterHandler(event)"/>
+			<component:ToolbarButton toolTip="点击查询" click="toolbarbutton1_clickHandler(event)" width="22" height="22" tag="filter" icon="@Embed('/assets/common/search.png')"/>
+			<component:ToolbarButton toolTip="拖动模式" id="toolbarItemNone" selected="true" click="toolbarbutton2_clickHandler(event)" width="22" height="22" groupIndex="1" tag="none" icon="@Embed('/assets/webgis/pan.png')"/>
+			<component:ToolbarButton toolTip="添加标注点" id="toolbarItemPoint" click="toolbarbutton2_clickHandler(event)" width="22" height="22" groupIndex="1" tag="point" icon="@Embed('/assets/webgis/marker.png')"/>
+			<component:ToolbarButton id="toolbarItemPolyline" toolTip="添加标注线" click="toolbarbutton2_clickHandler(event)" width="22" height="22" groupIndex="1" tag="line" icon="@Embed('/assets/webgis/edit_line.png')"/>
+			<component:ToolbarButton id="toolbarItemPolygon" toolTip="添加标注面" click="toolbarbutton2_clickHandler(event)" width="22" height="22" groupIndex="1" tag="area" icon="@Embed('/assets/webgis/edit_polygon.png')"/>
+			<!--
+			<component:ToolbarButton toolTip="圆" click="toolbarbutton2_clickHandler(event)" width="22" height="22" groupIndex="1" tag="circle" icon="@Embed('/assets/webgis/05.png')"/>
+			<component:ToolbarButton toolTip="矩形" click="toolbarbutton2_clickHandler(event)" width="22" height="22" groupIndex="1" tag="rectangle" icon="@Embed('/assets/webgis/06.png')"/>
+			-->
+			<component:ToolbarButton toolTip="删除" click="toolbarbutton3_clickHandler(event)" width="22" height="22" tag="delete" icon="@Embed('/assets/common/delete.png')"/>
+		</s:HGroup>
+		<s:Line width="100%" bottom="0" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#DDE1E5"/>
+			</s:stroke>
+		</s:Line>
+	</s:BorderContainer>
+
+
+	<mx:AdvancedDataGrid doubleClick="advGrid_doubleClickHandler(event)" creationComplete="advGrid_creationCompleteHandler(event)" id="advGrid" x="0" y="0" width="100%" height="100%" borderStyle="none" paddingTop="0" verticalAlign="middle"
+						 doubleClickEnabled="true" horizontalScrollPolicy="auto" verticalScrollPolicy="auto" sortableColumns="false" disclosureClosedIcon="{imgCollopse}" disclosureOpenIcon="{imgExpend}" draggableColumns="false"
+						 folderClosedIcon="{null}" folderOpenIcon="{null}" defaultLeafIcon="{null}" headerHeight="28" rowHeight="25" alternatingItemColors="[0xFFFFFF]" sortExpertMode="true"/>
+	<component:UserMarkerFeatureProperty dataTypes="{typeList}" callFunction="{saveCallFunction}" id="featureProperty" width="100%" height="100%"/>
+</s:Module>

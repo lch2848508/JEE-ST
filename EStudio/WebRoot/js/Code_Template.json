@@ -1,0 +1,124 @@
+//业务设计器代码生成模版
+//全局变量 {N} 名称 {C} 注释 {DN} 数据源名称 {DC} 数据源注释 
+{
+	// 表单设计器中选中控件的特定复制
+	"FORMCONTROL_SPECIAL_COPY": [
+			{
+				"Caption" : "获取控件名称",
+				"Begin" : "",
+				"Line" : "\"{N}\" /* {C} */\n",
+				"End" : ""
+			},
+			{
+				"Caption" : "设置控件值",
+				"Begin" : "",
+				"Line" : "FORM.CONTROL.setControlValue(\"{N}\",\"\"); /* {C} */\n",
+				"End" : ""
+			},
+			{
+				"Caption" : "获取控件值",
+				"Begin" : "",
+				"Line" : "var V_{N} =  FORM.CONTROL.getControlValue(\"{N}\"); /* {C} */\n",
+				"End" : ""
+			},
+			{
+				"Caption" : "设置控件Enabled",
+				"Begin" : "var controls = [];\n",
+				"Line" : "controls.push(\"{N}\"); /* {C} */\n",
+				"End" : "var V_Enabled=true;\nFORM.CONTROL.setControlsEnabled(controls,V_Enabled);"
+			},
+			{
+				"Caption" : "设置控件Visible",
+				"Begin" :"var controls = [];\n",
+				"Line" : "controls.push(\"{N}\"); /* {C} */\n",
+				"End" : "var V_Visible=true;\nFORM.CONTROL.setControlsVisible(controls,V_Visible);"
+			} ],
+			// 表单设计器中JavaScript编辑器脚本 字段
+			"FORM_DESIGNER_JS_4_DB_FIELD" :[{
+				"Caption":"名称",
+				"Begin":"",
+				"Line":"\"{N}\" /* {DC} {C} */\n",
+				"End":""
+			},{
+				"Caption":"设置数据源值(单个方式)",
+				"Begin":"",
+				"Line":"FORM.DB.setDataSetValue(\"{DN}\",\"{N}\",\"\"); /* {DC} {C} */\n",
+				"End":""
+			},{
+				"Caption":"设置数据源值(批处理方式)",
+				"Begin":"var records = {};\n",
+				"Line":"records[\"{N}\"] = \"\"; /* 字段值 {C} */\n",
+				"End":"FORM.DB.setDataSetValues(\"{DN}\",records);\n"
+			},{
+				"Caption":"获取数据源值(返回单值)",
+				"Begin":"",
+				"Line":"\"{N}\" /* {DC} {C} */",
+				"End":""
+			},{
+				"Caption":"获取数据源值(返回结构体)",
+				"Begin":"",
+				"Line":"\"{N}\" /* {DC} {C} */",
+				"End":""
+			}],
+			// 表单设计器中JavaScript编辑器脚本 数据源
+			"FORM_DESIGNER_JS_DB" :[{
+				"Caption":"名称",
+				"Begin":"",
+				"Line":"\"{N}\" /* {C}*/\n",
+				"End":""
+			},{
+				"Caption":"是否存在数据",
+				"Begin":"",
+				"Line":"FORM.DB.existsRecord(\"{C}\"); /* {C} */\n",
+				"End":""
+			}],
+			// 表单设计器中JavaScript编辑器脚本 控件
+			"FORM_DESIGNER_JS_CONTROL" :[{
+				"Caption" : "获取控件名称",
+				"Begin" : "",
+				"Line" : "\"{N}\" /* {C} */\n",
+				"End" : ""
+			},
+			{
+				"Caption" : "设置控件值",
+				"Begin" : "",
+				"Line" : "FORM.CONTROL.setControlValue(\"{N}\",\"\"); /* {C} */\n",
+				"End" : ""
+			},
+			{
+				"Caption" : "获取控件值",
+				"Begin" : "",
+				"Line" : "var V_{N} =  FORM.CONTROL.getControlValue(\"{N}\"); /* {C} */\n",
+				"End" : ""
+			},
+			{
+				"Caption" : "设置控件Enabled",
+				"Begin" : "var controls = [];\n",
+				"Line" : "controls.push(\"{N}\"); /* {C} */\n",
+				"End" : "var V_Enabled=true;\nFORM.CONTROL.setControlsEnabled(controls,V_Enabled);"
+			},
+			{
+				"Caption" : "设置控件Visible",
+				"Begin" :"var controls = [];\n",
+				"Line" : "controls.push(\"{N}\"); /* {C} */\n",
+				"End" : "var V_Visible=true;\nFORM.CONTROL.setControlsVisible(controls,V_Visible);"
+			}],
+			
+			//报表设计器数据源
+			"REPORT_DESIGNER_JS_DB":[
+			{
+				"Caption" : "循环遍历数据",
+				"Begin" : "",
+				"Line" : "<!-- 循环 {C} -->\n#foreach($RECORD_{N} in $RECORD_{N}_S)\n\n#end\n<!-- 循环 {C} 结束 -->",
+				"End" : ""
+			}],
+			//报表设计器字段
+			"REPORT_DESIGNER_JS_DB_FIELD":[
+			{
+				"Caption" : "取数据值",
+				"Begin" : "",
+				"Line" : "$RECORD_{DN}[\"{N}\"] <!-- {DC}-{C} -->\n",
+				"End" : ""
+			}			
+			]
+}

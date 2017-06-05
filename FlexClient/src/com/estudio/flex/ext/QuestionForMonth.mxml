@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application backgroundColor="#F5F5F5" initialize="loadGrid()" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.ext.question.QuestionPanel;
+			import com.estudio.flex.ext.question.WinQuestionItem;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+
+			import flash.events.MouseEvent;
+
+			import mx.containers.Grid;
+			import mx.containers.GridItem;
+			import mx.containers.GridRow;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.HeaderEvent;
+
+			import spark.components.Group;
+			import spark.components.Label;
+
+
+			[Bindable]
+			public var json:Object={};
+
+			[Bindable]
+			var stlx:String=null; //试题类型
+			[Bindable]
+			var stnr:String=null; //试题内容
+			[Bindable]
+			var stbh:String=null; //试题编号
+			[Bindable]
+			var sfzq:int=0; //错误为0 正确为1 是否正确
+			[Bindable]
+			var stfz:int=0; //试题分数
+
+			[Bindable]
+			var answer:Object={};
+			[Bindable]
+			var sfzdwb:int=0; //是否作答完毕 若完毕 label变颜涩
+
+			[Bindable]
+			private var serviceUrl:String="../servlet/question";
+
+			private var questionInfo:Object={};
+
+			[Bindable]
+			private var isPost:Boolean=false;
+
+			[Bindable]
+			private var scoreStr:String="";
+
+			[Bindable]
+			private var headerCaption:String="每月一考共50题，每题2分共100分 红色:错误 绿色:正确 白色:尚未答题";
+
+			private var isYear:Boolean=false;
+
+			private function loadGrid():void
+			{
+				var params:Object=this.parameters;
+				isYear=StringUtils.equal(params.type, "year");
+				if (isYear)
+					headerCaption="每年一考共100题，每题1分共100分 红色:错误 绿色:正确 白色:尚未答题"
+
+				AjaxUtils.postData(serviceUrl, {o: "questionformonyh", isyear: isYear ? 1 : 0}, function(data:String, token:Object):void
+				{
+					json=JSON.parse(data);
+					isPost=json.score != -1;
+					scoreStr=isPost ? "您的考试成绩为:" + json.score : "";
+					for (var i:int=0; i < (isYear ? 10 : 5); i++)
+					{
+						var gridRow:GridRow=new GridRow();
+						gridRow.percentWidth=100;
+						gridRow.percentHeight=100;
+
+						for (var j:int=0; j < 10; j++)
+						{
+							var gridItem:GridItem=new GridItem();
+							var label:Label=new Label();
+							gridItem.addElement(label);
+							gridRow.addElement(gridItem);
+
+							gridItem.percentWidth=100;
+							gridItem.percentHeight=100;
+							label.text="第" + ((j + 1) + (i * 10)) + "题";
+							label.id=((j + 1) + (i * 10)) + "";
+							label.percentHeight=100;
+							label.percentWidth=100;
+							label.setStyle("textAlign", "center");
+							label.setStyle("verticalAlign", "middle");
+
+							var hb=i * 10 + j;
+							var answer:int=json.questionInfos[hb].answer * 1;
+							if (answer == -1)
+								gridItem.setStyle("backgroundColor", "0xFFFFFF");
+							else if (answer == 0)
+								gridItem.setStyle("backgroundColor", "0xFF0000");
+							else if (answer == 1)
+								gridItem.setStyle("backgroundColor", "0x00FF00");
+							label.addEventListener(MouseEvent.CLICK, buttonClick);
+							questionInfo[label.id]=json.questionInfos[hb];
+						}
+						grid.addElement(gridRow);
+					}
+				});
+
+			}
+			private var questionMap:Object=null;
+			private var cell:UIComponent;
+
+			private function buttonClick(e:MouseEvent):void
+			{
+				var label:Label=e.currentTarget as Label;
+				cell=label.owner as UIComponent;
+
+				var id=label.id;
+				var questionInfos:Object=json.questionInfos;
+				var choices:Object=json.jsonChoices;
+
+				stbh=json.questionInfos[id - 1].id;
+				var questionInfo:Object=json.questionInfos[id - 1];
+				if (isPost && questionInfo.answer * 1 == -1)
+					questionInfo.answer=0;
+				WinQuestionItem.execute(questionInfo, json.jsonChoices[stbh], label.text, {cell: cell});
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			private function postResult(evevt:MouseEvent):void
+			{
+				AlertUtils.confirm("是否确定交卷?", function():void
+				{
+					var params:Object={};
+					var did:int=json.questionInfos[0].did;
+					params["did"]=did;
+					params["o"]="monthResult";
+					params["isyear"]=isYear ? 1 : 0;
+					AjaxUtils.postData(serviceUrl, params, function(data:String, token:Object):void
+					{
+						scoreLabel.text="考试成绩:" + data;
+						postBtn.enabled=false;
+					});
+				});
+
+			}
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<mx:Grid  fontWeight="bold" fontSize="16" left="4" top="40" right="4" bottom="4" backgroundColor="#F5F5F5" id="grid">
+	</mx:Grid>
+	<s:Group width="100%" height="40">
+		<s:Label verticalCenter="0" left="4" text="{headerCaption}" fontWeight="bold" fontSize="14"/>
+		<s:Label verticalCenter="0" id="scoreLabel" right="85" text="{scoreStr}" color="#FF0000" fontWeight="bold" fontSize="14"/>
+		<s:Button enabled="{!isPost}" id="postBtn" width="75" height="30" label="交卷" right="4" verticalCenter="0" click="postResult(event)"/>
+	</s:Group>
+
+</s:Application>

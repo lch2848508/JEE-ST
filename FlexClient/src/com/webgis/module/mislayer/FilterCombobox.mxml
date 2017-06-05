@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mislayer:FilterControl xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:mislayer="com.webgis.module.mislayer.*" width="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.utils.StringUtil;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+
+			import spark.events.IndexChangeEvent;
+
+			protected function cb_creationCompleteHandler(event:FlexEvent):void
+			{
+				cb.textInput.editable=false;
+			}
+
+			public var childrenControl:FilterCombobox=null;
+
+			[Bindable]
+			public var dataProvider:ArrayCollection=null;
+
+			protected function cb_changeHandler(event:IndexChangeEvent):void
+			{
+				var item:Object=cb.selectedItem;
+				if (childrenControl)
+				{
+					if (!item.children)
+						item.children=[{caption: ""}];
+
+					var childrenItems:ArrayCollection=new ArrayCollection(item.children);
+					if (childrenItems.getItemAt(0).caption != "")
+						childrenItems.addItemAt({caption: ""}, 0);
+					childrenControl.dataProvider=childrenItems;
+					childrenControl.callLater(function():void
+					{
+						childrenControl.cb.selectedIndex=0;
+						childrenControl.cb.selectedItem=item.children[0];
+						childrenControl.cb.callLater(function():void
+						{
+							childrenControl.cb_changeHandler(null);
+						});
+					});
+				}
+			}
+
+			public override function clear():void
+			{
+				if (isRelateParent)
+					return;
+				cb.selectedItem=cb.dataProvider.getItemAt(0);
+				cb.selectedIndex=0;
+				cb.validateNow();
+				cb_changeHandler(null);
+			}
+
+			public override function test(record:Object):Boolean
+			{
+				var v1:String=cb.selectedItem ? cb.selectedItem.caption : "";
+				if (StringUtils.isEmpty(v1))
+					return true;
+
+				var v:String=record[fieldName];
+				if (StringUtils.isEmpty(v))
+					return false;
+
+				return v1 == v;
+			}
+		]]>
+	</fx:Script>
+	<s:Label text="{comment}" width="{labelWidth}"/>
+	<s:ComboBox id="cb" width="100%" dataProvider="{dataProvider}" change="cb_changeHandler(event)" creationComplete="cb_creationCompleteHandler(event)" labelField="caption"/>
+</mislayer:FilterControl>

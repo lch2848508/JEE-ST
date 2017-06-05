@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="628" height="542" title="业务发送-用户选择" close="titlewindowex1_closeHandler(event)"
+						 creationComplete="titlewindowex1_creationCompleteHandler(event)">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.component.mx.datagrid.render.CheckBoxHeaderRender;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.component.mx.datagrid.render.CheckBoxItemRender;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+
+			import spark.events.IndexChangeEvent;
+
+
+			[Embed(source="/assets/webgis/workflow/group.png")] //新建
+			[Bindable]
+			public var imgFolder:Class;
+
+			private var _callFunction:Function=null;
+			private var _userList:Array=[];
+			private var _selecteUserId:String=null;
+
+
+			private function getTreeNodeIcon(item:Object):Class
+			{
+				return imgFolder;
+			}
+
+			protected function FolderTree_changeHandler(event:ListEvent):void
+			{
+				var i:int=0;
+				var index:int=-1;
+				if (UserList.dataProvider)
+				{
+					if (comboboxActivity.selectedItem.multiReciver) //多选 
+					{
+						for (i=0; i < FolderTree.selectedItem.users.length; i++)
+						{
+							FolderTree.selectedItem.users[i].__ischeckboxchecked__=ArrayUtils.indexOf(_userList, FolderTree.selectedItem.users[i].id) != -1;
+						}
+
+					}
+					else
+					{
+						for (i=0; i < FolderTree.selectedItem.users.length; i++)
+						{
+							if (StringUtils.equal(FolderTree.selectedItem.users[i].id, _selecteUserId))
+							{
+								index=i;
+								break;
+							}
+						}
+					}
+				}
+				UserList.dataProvider=new ArrayCollection(FolderTree.selectedItem.users);
+				if (index != -1)
+				{
+					UserList.selectedIndex=index;
+					Label_UserNames.text=(UserList.selectedItem != null) ? UserList.selectedItem.name : "";
+				}
+			}
+
+			private var _activityObject:Array=null;
+
+			private function setActivityObject(v:Array):void
+			{
+				_activityObject=v;
+				if (this.comboboxActivity)
+				{
+					initComboboxItems();
+				}
+			}
+
+			private function initComboboxItems():void
+			{
+				comboboxActivity.dataProvider=new ArrayCollection(_activityObject);
+				comboboxActivity.callLater(function():void
+				{
+					comboboxActivity.selectedIndex=0;
+					comboboxActivity_changeHandler(null);
+				});
+			}
+
+			private static var _instance:WinSelectActivityAndUsers_bak=new WinSelectActivityAndUsers_bak();
+
+			//显示用户选择
+			public static function show(json:Array, callFun:Function):void
+			{
+				_instance._callFunction=callFun;
+				_instance.setActivityObject(json);
+				FlexGlobals.topLevelApplication.showPopupWindow(_instance, true);
+
+				//PopUpManager.centerPopUp(_instance);
+			}
+
+			//关闭
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				FlexGlobals.topLevelApplication.closePopupWindow(_instance);
+
+			}
+
+			//放弃
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				titlewindowex1_closeHandler(null);
+			}
+
+			//确定
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				if (comboboxActivity.selectedItem.multiReciver)
+				{
+					if (_userList.length == 0)
+					{
+						AlertUtils.alert("请首选勾选收件人!");
+						return;
+					}
+				}
+				else
+				{
+					if (!UserList.selectedItem)
+					{
+						AlertUtils.alert("请首先选择收件人!");
+						return;
+					}
+					_userList=[UserList.selectedItem.id];
+					selectUserNames=[UserList.selectedItem.name];
+				}
+
+				titlewindowex1_closeHandler(null);
+				_callFunction(comboboxActivity.selectedItem.activityName, comboboxActivity.selectedItem.activityCaption, _userList, selectUserNames);
+			}
+
+			protected function titlewindowex1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var headerEditor:ClassFactory=new ClassFactory(CheckBoxHeaderRender);
+				headerEditor.properties={checkBoxClickHookFun: getSelectedUsers};
+
+				var itemRender:ClassFactory=new ClassFactory(CheckBoxItemRender);
+				itemRender.properties={clickCallFunction: getSelectedUsers};
+				ColumnUserCheck.itemRenderer=itemRender;
+
+
+				ColumnUserCheck.headerRenderer=headerEditor;
+				initComboboxItems();
+			}
+
+
+			private var selectUserNames:Array=[];
+
+			//计算用户列表
+			private function getSelectedUsers(FIndex:Object=null):void
+			{
+				if (FIndex == null)
+					FIndex=UserList.selectedIndex;
+				var user:Object=UserList.dataProvider.source[FIndex];
+				var index:int=ArrayUtils.indexOf(_userList, user.id);
+				if (user.__ischeckboxchecked__)
+				{
+					if (index == -1)
+					{
+						_userList.push(user.id);
+						selectUserNames.push(user.name);
+					}
+				}
+				else
+				{
+					if (index != -1)
+					{
+						ArrayUtils.remove(_userList, index);
+						ArrayUtils.remove(selectUserNames, index);
+					}
+				}
+				this.Label_UserNames.text=selectUserNames.join(",");
+			}
+
+
+
+			protected function comboboxActivity_changeHandler(event:IndexChangeEvent):void
+			{
+				var treeData:Array=comboboxActivity.selectedItem.tree;
+				FolderTree.dataProvider=new ArrayCollection(treeData);
+				FolderTree.validateNow();
+				FolderTree.callLater(function():void
+				{
+					fullExpandTree(FolderTree.dataProvider.getItemAt(0));
+				});
+				FolderTree.selectedIndex=0;
+				FolderTree_changeHandler(null);
+				ColumnUserCheck.visible=comboboxActivity.selectedItem.multiReciver;
+
+				if (comboboxActivity.selectedItem.multiReciver)
+					this.Label_UserNames.text=selectUserNames.join(",");
+				else
+					this.Label_UserNames.text=(UserList.selectedItem != null) ? UserList.selectedItem.name : "";
+			}
+
+			private function fullExpandTree(item:Object):void
+			{
+				FolderTree.expandItem(item, true);
+				if (item.children)
+				{
+					for (var i:int=0; i < item.children.length; i++)
+						fullExpandTree(item.children[i]);
+				}
+			}
+
+			protected function UserList_dataChangeHandler(event:FlexEvent):void
+			{
+
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			protected function UserList_changeHandler(event:ListEvent):void
+			{
+				if (!comboboxActivity.selectedItem.multiReciver)
+				{
+					Label_UserNames.text=(UserList.selectedItem != null) ? UserList.selectedItem.name : "";
+					_selecteUserId=UserList.selectedItem.id;
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup width="100%" height="30" paddingLeft="5" paddingRight="5" gap="5" verticalAlign="middle" left="0" top="0">
+		<s:Label text="接收环节列表:" left="0">
+		</s:Label>
+		<s:ComboBox width="100%" change="comboboxActivity_changeHandler(event)" id="comboboxActivity" labelField="activityCaption" initialize="comboboxActivity.textInput.editable=false">
+		</s:ComboBox>
+	</s:HGroup>
+
+	<mx:HDividedBox width="100%" height="100%" horizontalGap="4" left="5" top="30" bottom="40" right="5" paddingLeft="0" paddingRight="0">
+		<s:VGroup width="300" height="100%">
+			<mx:Tree labelField="name" id="FolderTree" borderColor="0x000000" iconFunction="getTreeNodeIcon" width="100%" height="100%" borderStyle="solid" borderVisible="true" change="FolderTree_changeHandler(event)">
+			</mx:Tree>
+		</s:VGroup>
+		<s:VGroup width="100%" height="100%">
+			<mx:DataGrid id="datagridUsers" doubleClickEnabled="true" verticalScrollPolicy="auto" borderColor="0x000000" horizontalScrollPolicy="auto" id="UserList" alternatingItemColors="[0xFEFEFE]" width="100%" height="100%" borderStyle="solid" borderVisible="true" headerHeight="28" rowHeight="28"
+						 change="UserList_changeHandler(event)">
+				<mx:columns>
+					<mx:DataGridColumn dataField="__ischeckboxchecked__" width="25" sortable="false" resizable="false" id="ColumnUserCheck" headerText="">
+					</mx:DataGridColumn>
+					<mx:DataGridColumn headerText="用户列表" dataField="name" sortable="false">
+					</mx:DataGridColumn>
+				</mx:columns>
+			</mx:DataGrid>
+		</s:VGroup>
+	</mx:HDividedBox>
+
+	<s:Group width="100%" height="40" fontWeight="bold" left="0" right="0" bottom="0">
+		<s:Label left="5" verticalAlign="middle" height="100%" right="165" id="Label_UserNames">
+
+		</s:Label>
+		<s:Button label="确定" width="75" height="28" right="85" verticalCenter="0" click="button2_clickHandler(event)">
+		</s:Button>
+		<s:Button label="放弃" width="75" height="28" right="5" verticalCenter="0" click="button1_clickHandler(event)">
+		</s:Button>
+	</s:Group>
+
+</component:TitleWindowEx>

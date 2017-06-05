@@ -1,0 +1,48 @@
+/* CSS file */
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+@namespace layertree "com.webgis.module.layertree.*";
+layertree|SuperPanel
+{
+	resize-grip-skin:          	Embed(source="com/webgis/module/layertree/assets/images/resizeHandler.png");
+	actionAlpha:		 		0.75;
+    corner-radius: 				6;
+    highlight-alphas: 			0.1, 0;
+    dropShadowEnabled: 			true;
+    shadow-distance:			1;
+    close-button-style-name:	"closeButton";
+    minimize-button-style-name:	"minimizeButton";
+}
+
+.closeButton
+{
+	icon: 						Embed(source="com/webgis/module/layertree/assets/images/icon_close_up.png");
+	up-icon: 					Embed(source="com/webgis/module/layertree/assets/images/icon_close_up.png");
+	over-icon: 					Embed(source="com/webgis/module/layertree/assets/images/icon_close_over.png");
+	down-icon: 					Embed(source="com/webgis/module/layertree/assets/images/icon_close_down.png");
+	disabled-skin: 				Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+	selected-up-skin: 			Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+	selected-over-skin: 		Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+	selected-down-skin: 		Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+    down-skin: 					Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+    over-skin: 					Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+    up-skin: 					Embed(source="com/webgis/module/layertree/assets/images/clear.png");	
+}
+.minimizeButton
+{
+	icon: 						Embed(source="com/webgis/module/layertree/assets/images/icon_minimize_up.png");
+	up-icon: 					Embed(source="com/webgis/module/layertree/assets/images/icon_minimize_up.png");
+	over-icon: 					Embed(source="com/webgis/module/layertree/assets/images/icon_minimize_over.png");
+	selected-over-icon: 		Embed(source="com/webgis/module/layertree/assets/images/icon_minimize_over.png");
+	down-icon: 					Embed(source="com/webgis/module/layertree/assets/images/icon_minimize_down.png");
+	selected-down-icon: 		Embed(source="com/webgis/module/layertree/assets/images/icon_minimize_down.png");
+	disabled-skin: 				Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+	selected-up-skin: 			Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+	selected-over-skin: 		Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+	selected-down-skin: 		Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+    down-skin: 					Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+    over-skin: 					Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+    up-skin: 					Embed(source="com/webgis/module/layertree/assets/images/clear.png");
+}
+
+

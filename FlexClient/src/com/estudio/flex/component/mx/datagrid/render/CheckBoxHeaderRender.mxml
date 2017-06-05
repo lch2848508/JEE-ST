@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer verticalCenter="0" focusEnabled="true" creationComplete="mxdatagriditemrenderer1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfacePortalGrid;
+			import com.estudio.flex.module.FormDataService;
+			import com.estudio.flex.utils.Convert;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.DataGrid;
+			import mx.events.FlexEvent;
+
+			[Bindable]
+			public var portalGrid:InterfacePortalGrid=null;
+
+			public var instance:Object=null;
+
+			protected function mxdatagriditemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (portalGrid)
+					portalGrid["headerCheckBox"]=checkBoxEditor;
+				if (instance)
+				{
+					instance.checkBoxColumnHeaders.push(checkBoxEditor);
+					checkBoxEditor.enabled=!instance.readonly;
+				}
+			}
+
+			protected function checkBoxEditor_clickHandler(event:MouseEvent):void
+			{
+				checkBoxEditor_changeHandler(null);
+			}
+
+			protected function checkBoxEditor_changeHandler(event:Event):void
+			{
+				var grid:DataGrid=this.dataGridListData.owner as DataGrid;
+				var datas:ArrayCollection=grid.dataProvider as ArrayCollection;
+				for (var i:int=0; i < datas.length; i++)
+				{
+					if (checkBoxEditor.selected != Convert.object2Boolean(datas.getItemAt(i)[dataGridListData.dataField]))
+					{
+						datas.getItemAt(i)[dataGridListData.dataField]=checkBoxEditor.selected ? 1 : 0;
+						if (checkBoxClickHookFun != null && !datas[i].__deleted__)
+						{
+							checkBoxClickHookFun(i);
+						}
+					}
+				}
+				grid.invalidateList();
+			}
+
+			[Bindable]
+			public var checkBoxClickHookFun:Function=null;
+		]]>
+	</fx:Script>
+	<s:Rect id="shadow" left="0" right="0" top="0" bottom="0">
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:GradientEntry color="0xFFFFFF" alpha="0.2"/>
+				<s:GradientEntry color="#E2EDF5" alpha="0.8"/>
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+	<s:CheckBox id="checkBoxEditor" x="{(this.width-checkBoxEditor.width)/2+2}" verticalCenter="-1" doubleClickEnabled="false" change="checkBoxEditor_changeHandler(event)" click="checkBoxEditor_clickHandler(event)">
+	</s:CheckBox>
+</s:MXDataGridItemRenderer>

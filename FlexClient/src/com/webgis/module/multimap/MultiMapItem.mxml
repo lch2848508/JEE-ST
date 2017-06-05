@@ -1,0 +1,1104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group creationComplete="group1_creationCompleteHandler(event)" focusEnabled="true" xmlns:ns="http://www.esri.com/2008/ags" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:map="com.webgis.map.*"
+		 xmlns:navigator="com.webgis.module.navigator.*" xmlns:toolbar="com.webgis.module.toolbar.*" xmlns:component="com.webgis.component.*" xmlns:component1="com.estudio.component.*" xmlns:mislayer="com.webgis.module.mislayer.*">
+	<s:states>
+		<s:State name="treeView"/>
+		<s:State name="listView"/>
+	</s:states>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.events.ExtentEvent;
+			import com.esri.ags.events.LayerEvent;
+			import com.esri.ags.events.MapEvent;
+			import com.esri.ags.events.PanEvent;
+			import com.esri.ags.events.ZoomEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.Layer;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.MapLayerManager;
+			import com.webgis.component.LayerTreeItemRender;
+			import com.webgis.component.ToolbarTextButton;
+			import com.webgis.event.MapModeEvent;
+			import com.webgis.module.mislayer.FilterCombobox;
+			import com.webgis.module.mislayer.FilterControl;
+			import com.webgis.module.mislayer.FilterDate;
+			import com.webgis.module.mislayer.FilterNumber;
+			import com.webgis.module.mislayer.FilterText;
+			import com.webgis.module.mislayer.LayerItemRender;
+			import com.webgis.module.mislayer.SpliterLine;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.utils.ObjectUtil;
+
+			[Bindable]
+			public var mapLayerManager:MapLayerManager=null;
+			public var mapServiceClient:MapServiceClient=null;
+
+			[Bindable]
+			public var selectedFieldName:String="";
+			public var extentChangeCallFunction:Function=null;
+			public var mapIndex:int=0;
+			public var mapApp:Object=null;
+			private var isFirstLoad:Boolean=true;
+			
+			private var currentSelectedDynamicService:Object=null;
+			
+			
+			[Embed(source="/assets/common/search.png")] //新建
+			[Bindable]
+			public var imgSearch:Class;
+			
+			[Embed(source="/assets/common/refresh.png")] //新建
+			[Bindable]
+			public var imgClear:Class;
+			
+			[Embed(source="/assets/common/br_up.png")] //新建
+			[Bindable]
+			public var imgUp:Class;
+			[Bindable]
+			private var isFilterPanelVisible:Boolean=false;
+			[Embed(source="/assets/common/br_down.png")] //新建
+			[Bindable]
+			public var imgDown:Class;
+
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function createControls():void
+			{
+				for (var i:int=0; i < mapLayerManager.getBaseLayers().length; i++)
+				{
+					var layerInfo:Object=mapLayerManager.getBaseLayers()[i];
+					var barItem:com.webgis.component.ToolbarTextButton=new ToolbarTextButton();
+					barItem.label=layerInfo.label;
+					toolbarBaseMap.addElement(barItem);
+					if (mapIndex == 0)
+					{
+						if (mapApp.map.baseMapIndex == i)
+						{
+							barItem.selected=true;
+							map.addLayer(map.createLayer(layerInfo.type, layerInfo.url, layerInfo));
+						}
+					}
+					else
+					{
+						if (i == 0)
+						{
+							barItem.selected=true;
+							map.addLayer(map.createLayer(layerInfo.type, layerInfo.url, layerInfo));
+						}
+					}
+
+					barItem.addEventListener(MouseEvent.CLICK, event4BaseMapToolbarClick);
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			private function event4BaseMapToolbarClick(event:MouseEvent):void
+			{
+				var barItem:ToolbarTextButton=event.currentTarget as ToolbarTextButton;
+				if (barItem.selected)
+					return;
+				for (var i:int=0; i < toolbarBaseMap.numElements; i++)
+				{
+					if (toolbarBaseMap.getElementAt(i) != barItem)
+						toolbarBaseMap.getElementAt(i)["selected"]=false;
+
+				}
+				barItem.selected=true;
+				map.changeBaseMap(toolbarBaseMap.getElementIndex(barItem));
+			}
+
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private var mapPositionInfo:Object=null;
+
+			public function setMapCenter(p:MapPoint, level:int):void
+			{
+				mapPositionInfo={level: level, p: p};
+				settingMapPosition();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function settingMapPosition():void
+			{
+				if (mapPositionInfo != null)
+				{
+					if (map && map.loaded)
+					{
+						if (map.level != mapPositionInfo.level || map.center.x != mapPositionInfo.p.x || map.center.y != mapPositionInfo.p.y)
+						{
+							map.level=mapPositionInfo.level;
+							map.centerAt(mapPositionInfo.p);
+						}
+						mapPositionInfo=null;
+					}
+					else
+					{
+						callLater(settingMapPosition);
+					}
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function map_extentChangeHandler(event:ExtentEvent):void
+			{
+//				trace("mapIndex:" + mapIndex + " map.isFocused:" + map.isFocused);
+				if (map.isFocused && extentChangeCallFunction)
+					extentChangeCallFunction(this, map.center, map.level);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function mouseInMap():Boolean
+			{
+				var x:int=map.mouseX;
+				var y:int=map.mouseY;
+				return x >= 0 && y >= 0 && x <= map.width && y <= map.height;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function map_focusInHandler(event:FocusEvent):void
+			{
+				map.isFocused=true;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function map_focusOutHandler(event:FocusEvent):void
+			{
+//				trace("map_focusOutHandler");
+				map.isFocused=false;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//识别实体
+			public function identifyFunction(geometry:Geometry, map:MapControl):void
+			{
+				var resolution:Number=map.extent.width / map.width;
+				var layerAndServerIds:Array=mapLayerManager.getIdentifyLayerIds(map, selectedFieldName);
+				mapServiceClient.identify(geometry, layerAndServerIds, resolution, function(json:Object):void
+				{
+					if (json.records && json.records.length != 0)
+					{
+						featureProperty.visible=true;
+						featureProperty.clear();
+						featureProperty.registerFeatures(json);
+						map.infoWindowContent=featureProperty;
+						map.infoWindow.label="点选图斑详细信息";
+						map.infoWindow.show(geometry as MapPoint);
+					}
+				});
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function tree_creationCompleteHandler(event:FlexEvent):void
+			{
+				tree.selectedFieldName=selectedFieldName;
+				tree.mapLayerManager=mapLayerManager;
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////
+			
+			protected function treeSpecial_creationCompleteHandler(event:FlexEvent):void
+			{
+				tree.selectedFieldName=selectedFieldName;
+				tree.mapLayerManager=mapLayerManager;
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				featureProperty.mapServiceClient = mapServiceClient;
+				navigatorContain.addControl(toolbar);
+				FlexGlobals.topLevelApplication.addEventListener(MapModeEvent.SWITCHLAYER, function(event:MapModeEvent):void
+				{
+					if (event.map == map && panelLegend.visible)
+					{
+						legend.layers=mapLayerManager.getLegendLayers(selectedFieldName);
+					}
+				});
+
+				FlexGlobals.topLevelApplication.addEventListener(MouseEvent.MOUSE_DOWN, appMouseDownEvent, false);
+				FlexGlobals.topLevelApplication.addEventListener(MouseEvent.MOUSE_DOWN, appMouseDownEvent, true);
+				FlexGlobals.topLevelApplication.addEventListener(MapModeEvent.CHANGEBASELAYER, function(event:MapModeEvent):void
+				{
+					if (map == event.map)
+					{
+						for (var i:int=0; i < toolbarBaseMap.numElements; i++)
+						{
+							(toolbarBaseMap.getElementAt(i) as ToolbarTextButton).selected=map.baseMapIndex == i;
+						}
+					}
+				});
+
+				var contextMenu:ContextMenu=new ContextMenu();
+				contextMenu.hideBuiltInItems();
+				var menuItems:Array=["叠加图层", "显示图例", "切换到主地图"];
+				for (var i:int=0; i < menuItems.length; i++)
+				{
+					var menuItem:ContextMenuItem=new ContextMenuItem(menuItems[i]);
+					menuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4ContextMenuItem);
+					contextMenu.customItems.push(menuItem);
+				}
+				map.contextMenu=contextMenu;
+				
+				featureDataGrid.mapServiceClient=mapServiceClient;
+				featureDataGrid.datagrid.addEventListener(ListEvent.CHANGE, function():void
+				{
+					var item:Object=featureDataGrid.datagrid.selectedItem;
+					showItemDetailInfo(item);
+				});
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4ContextMenuItem(event:ContextMenuEvent):void
+			{
+				var menuItem:ContextMenuItem=event.currentTarget as ContextMenuItem;
+				var list:Array=[];
+				if (menuItem.caption == "叠加图层")
+				{
+					popupPanel.displayPopUp=true;
+				}
+				else if (menuItem.caption == "显示图例")
+				{
+					toolbarbutton2_clickHandler(null);
+				}
+				else if (menuItem.caption == "切换到主地图")
+				{
+					toolbarbutton1_clickHandler(null);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function appMouseDownEvent(event:MouseEvent):void
+			{
+				if (popupPanel.displayPopUp == true)
+				{
+					if (popupPanel.mouseX < 0 || popupPanel.mouseX > panelTree.width || popupPanel.mouseY > panelTree.height)
+						popupPanel.displayPopUp=false;
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			//显示在主地图中
+			protected function toolbarbutton1_clickHandler(event:MouseEvent):void
+			{
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(mapLayerManager.getDynamicLayerTree(), list);
+				for (var i:int=0; i < list.length; i++)
+				{
+					var item:Object=list[i];
+					item.selected=item[selectedFieldName];
+				}
+				mapApp.hideMultiMap();
+				mapLayerManager.switchDynamicLayerVisible(mapApp.map, null, "selected");
+				mapApp.map.level=map.level;
+				mapApp.map.centerAt(map.center);
+				mapApp.map.changeBaseMap(map.baseMapIndex);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function toolbarbutton2_clickHandler(event:MouseEvent):void
+			{
+				btnLegend.selected=!btnLegend.selected;
+				panelLegend.visible=btnLegend.selected;
+				if (panelLegend.visible)
+					legend.layers=mapLayerManager.getLegendLayers(selectedFieldName);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			protected function map_zoomEndHandler(event:ZoomEvent):void
+			{
+				if (panelLegend.visible)
+					legend.updateLayersLegend();
+			}
+
+			public var mouseWhellCallFunction:Function=null;
+
+			protected function map_mouseWheelHandler(event:MouseEvent):void
+			{
+				if (mouseWhellCallFunction)
+					mouseWhellCallFunction(this);
+			}
+			
+			private function event4LayerTreeItemChange(item:Object):Boolean
+			{
+//				widgetContainInstance.hideExtContain("", mislayerSpecial);
+				var item1:Object=ObjectUtil.copy(item);
+				if (item1.children == null)
+				{
+					currentSelectedDynamicService=item1;
+					loadDynamicServiceLayerInfos(item1);
+				}
+				return item1.children == null;
+			}
+			//动态加载图层信息
+			protected function loadDynamicServiceLayerInfos(item:Object):void
+			{
+				if (!item.groupFields)
+					item.groupFields=[];
+				var groupItems:ArrayCollection=new ArrayCollection(item.groupFields);
+				groupCombobox.dataProvider=groupItems;
+				if (groupItems.length == 0)
+				{
+					groupCombobox.selectedIndex=-1;
+					groupCombobox.selectedItem=null;
+				}
+				else
+				{
+					groupCombobox.selectedIndex=0;
+					groupCombobox.selectedItem=groupItems.getItemAt(0);
+				}
+				callLater(function():void
+				{
+					groupCombobox_changeHandler(null);
+				});
+				if (!item.columns)
+				{
+					item.columns=[];
+					item.groupFields=[];
+					item.valueFields=[];
+					var attributeFields:Array=currentSelectedDynamicService.attributeFields;
+					for (var i:int=0; i < attributeFields.length; i++)
+					{
+						var column:AdvancedDataGridColumn=new AdvancedDataGridColumn();
+						column.headerText=attributeFields[i].comment;
+						column.dataField=attributeFields[i].name;
+						column.minWidth=0;
+						item.columns.push(column);
+						attributeFields[i].label=attributeFields[i].comment;
+						if (attributeFields[i].isenum){
+							item.groupFields.push(attributeFields[i]);
+						}
+						else
+							item.valueFields.push(attributeFields[i]);
+					}
+				}
+				featureDataGrid.caption=currentSelectedDynamicService.label;
+				featureDataGrid.datagrid.columns=item.columns;
+				if (!item.isQuery)
+				{
+					groupFilterPanel.height=invisibleFiltePanelHeight;
+					btn4FilterPanel.enabled=false;
+					btn4FilterPanel.icon=imgUp;
+					isFilterPanelVisible=false;
+				}
+				else
+				{
+					btn4FilterPanel.enabled=true;
+					if (item.isFilterVisible)
+					{
+						groupFilterPanel.height=visibleFiltePanelHeight;
+						btn4FilterPanel.icon=imgDown;
+						isFilterPanelVisible=true;
+					}
+					else
+					{
+						groupFilterPanel.height=invisibleFiltePanelHeight;
+						btn4FilterPanel.icon=imgUp;
+						isFilterPanelVisible=false;
+					}
+					if (!item.filterControls)
+					{
+						var controls:Array=[];
+						var minLabelWidth:int=0;
+						var filterComboboxs:Array=[];
+						for (var j:int=0; j < attributeFields.length; j++)
+						{
+							if (attributeFields[j].isquery)
+							{
+								var filterControl:FilterControl=null;
+								if (attributeFields[j].isenum)
+									filterControl=new FilterCombobox();
+								else if (attributeFields[j].datatype == "Date")
+									filterControl=new FilterDate();
+								else if (attributeFields[j].datatype == "Number")
+									filterControl=new FilterNumber();
+								else
+									filterControl=new FilterText();
+								filterControl.fieldName=attributeFields[j].name;
+								filterControl.comment=attributeFields[j].comment;
+								if (attributeFields[j].isenum && attributeFields[j].isrelateparent)
+								{
+									var p:FilterCombobox=null;
+									for (var m:int=controls.length - 1; m >= 0; m--)
+									{
+										if (controls[m] is FilterCombobox)
+										{
+											p=FilterCombobox(controls[m]);
+											p.childrenControl=filterControl as FilterCombobox;
+											break;
+										}
+									}
+									if (p)
+										FilterCombobox(filterControl).isRelateParent=true;
+								}
+								controls.push(filterControl);
+								if (filterControl is FilterCombobox && !FilterCombobox(filterControl).isRelateParent)
+									filterComboboxs.push(filterControl);
+								minLabelWidth=Math.max(measureText(attributeFields[j].comment).width + 4, minLabelWidth);
+								controls.push(new SpliterLine);
+							}
+						}
+						controls.length=controls.length - 1;
+						for (var j:int=0; j < controls.length; j+=2)
+							controls[j].labelWidth=minLabelWidth;
+						item.filterControls=controls;
+						item.filterComboboxs=filterComboboxs;
+					}
+					groupFilterContain.removeAllElements();
+					for (var j:int=0; j < item.filterControls.length; j++)
+						groupFilterContain.addElement(item.filterControls[j]);
+				}
+//				districtCombobox.dataProvider=new ArrayCollection(item.groupFields);
+//				specialFieldComboBox.dataProvider=new ArrayCollection(item.valueFields);
+//				if (item.groupFields.length != 0)
+//				{
+//					districtCombobox.selectedIndex=0;
+//					districtCombobox.selectedItem=item.groupFields[0];
+//				}
+//				else
+//				{
+//					districtCombobox.selectedIndex=-1;
+//					districtCombobox.selectedItem=null;
+//				}
+				
+//				if (item.valueFields.length != 0)
+//				{
+//					specialFieldComboBox.selectedIndex=0;
+//					specialFieldComboBox.selectedItem=item.valueFields[0];
+//				}
+//				else
+//				{
+//					specialFieldComboBox.selectedIndex=-1;
+//					specialFieldComboBox.selectedItem=null;
+//				}
+				
+//				btnSpecialMap.selected=false;
+//				btnSpecialMap.enabled=item.isMapSpecial && item.groupFields.length != 0;
+//				showSpecialMapLayer();
+			}
+			public var records4dynamicRecords:Array=null;
+			private var layerId2Records:Object={};
+			private var newRecords:Array=[];
+			protected function groupCombobox_changeHandler(event:Event):void
+			{
+				map.addLayer(misLayer);
+				map.addLayer(specialLayer);
+				map.addLayer(thematicRenderingLayer);
+				misLayer.clear();
+				thematicRenderingLayer.clear();
+				var layerRecords:Array=layerId2Records[currentSelectedDynamicService.id];
+				if (!layerRecords)
+				{
+					mapServiceClient.getMISLayerRecords(currentSelectedDynamicService.id, function(json:Object):void
+					{
+						var records:Array=json.records;
+						records4dynamicRecords=json.records;
+						if (!records)
+							records=[];
+						layerId2Records[currentSelectedDynamicService.id]=records;
+						layerId2Records["statistics_standard"]=json.statistics_standard;
+						for (var i:int=0; i < records.length; i++)
+						{
+							var item:Object=records[i];
+							if(item.geom is String){
+								item.geometrys=StringUtils.isEmpty(item.geom) ? null : parseGeometrys(item.geom, item);
+							}else{
+								item.geometrys=StringUtils.isEmpty(item.geom) ? null : parseGeometrysObject(item.geom, item);
+							}
+						}
+						generateFeatureTreeOrListDataProvider();
+						
+						var filterComboboxs:Array=currentSelectedDynamicService.filterComboboxs;
+						if (filterComboboxs)
+						{
+							for (var j:int=0; j < filterComboboxs.length; j++)
+								generateFilterComboboxItems(filterComboboxs[j] as FilterCombobox, records);
+						}
+					});
+				}
+				else
+				{
+					records4dynamicRecords=layerRecords;
+					generateFeatureTreeOrListDataProvider();
+				}
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			private function generateFilterComboboxItems(filterCombobox:FilterCombobox, records:Array):void
+			{
+				var cb:FilterCombobox=filterCombobox;
+				var groupFields:Array=[];
+				while (cb)
+				{
+					groupFields.push(cb.fieldName);
+					cb=cb.childrenControl;
+				}
+				var dataProvider:ArrayCollection=new ArrayCollection(createGroupRecords(records, groupFields));
+				dataProvider.addItemAt({caption: ""}, 0);
+				filterCombobox.dataProvider=dataProvider;
+			}
+			private function generateFeatureTreeOrListDataProvider():void
+			{
+				var records:Array=layerId2Records[currentSelectedDynamicService.id];
+				var groupFields:Array=groupCombobox.selectedItem ? groupCombobox.selectedItem.fields : null;
+				currentState=groupFields == null ? "listView" : "treeView";
+//				currentState="listView";
+				newRecords=[];
+				for (var i:int=0; i < records.length; i++)
+				{
+					if (filterFunction(records[i]))
+						newRecords.push(records[i]);
+				}
+//				btnShowGrid_clickHandler(null);
+				
+				if (currentState == "listView")
+				{
+					willShowRecords=new ArrayCollection(newRecords);
+					if (list)
+					{
+						list.dataProvider=willShowRecords;
+						list.invalidateDisplayList();
+					}
+					addFeatureGeometry2Layer();
+				}
+				else if (currentState == "treeView")
+				{
+					if (treeSpecial)
+					{
+						willShowRecords=new ArrayCollection(createGroupRecords(newRecords, groupFields));
+						for (var i:int=0; i < willShowRecords.length; i++)
+							willShowRecords.source[i].groupColor=FlexGlobals.topLevelApplication.randomColor(i);
+						treeSpecial.dataProvider=willShowRecords;
+					}
+					addFeatureGeometry2Layer();
+				}
+			}
+			private function filterFunction(value:Object):Boolean
+			{
+				var cap:String=value.caption;
+//				if (btnFilterGIS.selected && StringUtils.isEmpty(value.geom))
+//					return false;
+				
+				var result:Boolean=true;
+				var filterControls:Array=currentSelectedDynamicService.filterControls;
+				if (filterControls)
+				{
+					for (var i:int=0; i < filterControls.length; i++)
+					{
+						var c:Object=filterControls[i];
+						if (c is FilterControl && !FilterControl(c).test(value))
+						{
+							result=false;
+							break;
+						}
+					}
+				}
+				return result;
+			}
+			private function addFeatureGeometry2Layer():void
+			{
+				misLayer.clear();
+				if (currentState == "treeView")
+				{
+					for (var i:int=0; i < willShowRecords.length; i++)
+					{
+						var symbols:Array=createSpecialSymbol(i, willShowRecords.source[i].groupColor);
+						var childrenList:Array=[];
+						ArrayCollectionUtils.TreeData2List(willShowRecords.getItemAt(i).children, childrenList);
+						for (var m:int=0; m < childrenList.length; m++)
+						{
+							var item:Object=childrenList[m];
+							if (item.geometrys)
+							{
+								for (var j:int=0; j < item.geometrys.length; j++)
+								{
+									misLayer.add(item.geometrys[j]);
+									if (item.geometrys[j].geometry is MapPoint)
+										item.geometrys[j].symbol=symbols[0];
+									else if (item.geometrys[j].geometry is Polyline)
+										item.geometrys[j].symbol=symbols[1];
+									else
+										item.geometrys[j].symbol=symbols[2];
+								}
+							}
+						}
+					}
+				}
+				else
+				{
+					for (var i:int=0; i < willShowRecords.length; i++)
+					{
+						var item:Object=willShowRecords.getItemAt(i);
+						if (item.geometrys)
+						{
+							for (var j:int=0; j < item.geometrys.length; j++)
+								misLayer.add(item.geometrys[j]);
+						}
+					}
+				}
+			}
+			///////////////////////////////////////////////////////////////////////////////////////
+			private var allSymbol:Array=[];
+			private function createSpecialSymbol(index:int, c:uint):Array
+			{
+				if (!allSymbol[index])
+				{
+					var lineSymbol:SimpleLineSymbol=new SimpleLineSymbol("solid", c, 1, 4);
+					var fillSymbol:SimpleFillSymbol=new SimpleFillSymbol("solid", c, 0.5, lineSymbol);
+					allSymbol[index]=[createColorSymbol(c), lineSymbol, fillSymbol];
+				}
+				return allSymbol[index];
+			}
+			///////////////////////////////////////////////////////////////////////////////////////
+			private function createColorSymbol(c:uint):Symbol
+			{
+				var symbol:SimpleMarkerSymbol=new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_SQUARE, 8, c);
+				symbol.outline=new SimpleLineSymbol();
+				return symbol;
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			private function createGroupRecords(records:Array, fields:Array):Array
+			{
+				var newRecords:Array=createGroupRecordByFieldName(records, fields[0]);
+				if (fields.length > 1)
+				{
+					var newFields:Array=[];
+					for (var i:int=1; i < fields.length; i++)
+						newFields.push(fields[i]);
+					for (var i:int=0; i < newRecords.length; i++)
+					{
+						newRecords[i].children=createGroupRecords(newRecords[i].children, newFields);
+					}
+				}
+				return newRecords;
+			}
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			private function createGroupRecordByFieldName(records:Array, groupFieldName:String):Array
+			{
+				FlexGlobals.topLevelApplication.initRandomColor();
+				var groupIndex:int=0;
+				var name2Group:Object={};
+				var groups:Array=[];
+				for (var i:int=0; i < records.length; i++)
+				{
+					var item:Object=records[i];
+					var groupName:String=StringUtils.isEmpty(groupFieldName) ? "无类型" : item[groupFieldName];
+					if (!name2Group[groupName])
+					{
+						name2Group[groupName]={children: [], caption: groupName, groupIndex: groupIndex++};
+						groups.push(name2Group[groupName]);
+					}
+					name2Group[groupName].children.push(item);
+				}
+				return groups;
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			public function parseGeometrysObject(geometrys:Object, item:Object):Array
+			{
+				var result:Array=[];
+				var list:Object=geometrys;
+				
+				if (list is Array)
+				{
+					var g:Graphic=null;
+					for (var i:int=0; i < list.length; i++)
+					{
+						var json:Object=list[i];
+						if (!json.geometry)
+							g=new Graphic(Geometry.fromJSON(json));
+						else
+							g=Graphic.fromJSON(json);
+						g.attributes={item: item};
+						g.toolTip=item.caption;
+						if (g.geometry is MapPoint)
+							g.symbol=ssPoint;
+						else if (g.geometry is Polyline)
+							g.symbol=ssPolyline;
+						else
+							g.symbol=ssPolygon;
+						result.push(g);
+					}
+				}
+				else
+				{
+					var g:Graphic=new Graphic(Geometry.fromJSON(list), null, {item: item});
+					if (g.geometry is MapPoint)
+						g.symbol=ssPoint;
+					else if (g.geometry is Polyline)
+						g.symbol=ssPolyline;
+					else
+						g.symbol=ssPolygon;
+					g.toolTip=item.caption;
+					result.push(g);
+				}
+				return result;
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			public function parseGeometrys(geometrys:String, item:Object):Array
+			{
+				var result:Array=[];
+				var list:Object=JSON.parse(geometrys);
+				
+				if (list is Array)
+				{
+					var g:Graphic=null;
+					for (var i:int=0; i < list.length; i++)
+					{
+						var json:Object=list[i];
+						if (!json.geometry)
+							g=new Graphic(Geometry.fromJSON(json));
+						else
+							g=Graphic.fromJSON(json);
+						g.attributes={item: item};
+						g.toolTip=item.caption;
+						if (g.geometry is MapPoint)
+							g.symbol=ssPoint;
+						else if (g.geometry is Polyline)
+							g.symbol=ssPolyline;
+						else
+							g.symbol=ssPolygon;
+						result.push(g);
+					}
+				}
+				else
+				{
+					if(list.geometries){
+						list=list.geometries[0];
+					}
+					var g:Graphic=new Graphic(Geometry.fromJSON(list), null, {item: item});
+					if (g.geometry is MapPoint)
+						g.symbol=ssPoint;
+					else if (g.geometry is Polyline)
+						g.symbol=ssPolyline;
+					else
+						g.symbol=ssPolygon;
+					g.toolTip=item.caption;
+					result.push(g);
+				}
+				return result;
+			}
+			protected function layerTreeSpecial_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+			}
+			
+			protected function layerTreeSpecial_initializeHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				mapServiceClient.getMISLayers(function(json:Object):void
+				{
+					var records:Array=json.children;
+					if (!records)
+						records=[];
+					layerTreeSpecial.dataProvider=new ArrayCollection(records);
+				});
+			}
+			[Bindable]
+			private var willShowRecords:ArrayCollection=new ArrayCollection([]);
+			////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function tree_doubleClickHandler(event:MouseEvent):void
+			{
+				var item:Object=treeSpecial.selectedItem;
+				if (!item || item.children)
+					return;
+//				showItemDetailInfo(item);
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function tree_clickHandler(event:MouseEvent):void
+			{
+				tree_changeHandler(null);
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function tree_changeHandler(event:ListEvent):void
+			{
+				var item:Object=treeSpecial.selectedItem;
+				if (!item || item.children)
+					return;
+				showItemDetailInfo(item);
+			}
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			protected function list_doubleClickHandler(event:MouseEvent):void
+			{
+				list_clickHandler(null);
+			}
+			protected function list_changeHandler(event:ListEvent):void
+			{
+				list_clickHandler(null);
+			}
+			protected function list_clickHandler(event:MouseEvent):void
+			{
+				var item:Object=list.selectedItem;
+				if (item)
+				{
+//					showItemDetailInfo(item);
+				}
+			}
+			
+			private function showItemDetailInfo(item:Object, focusMap:Boolean=true):void
+			{
+				var attributes:Array=[];
+				var attributeFields:Array=currentSelectedDynamicService.attributeFields;
+				for (var i:int=0; i < attributeFields.length; i++)
+				{
+					attributes.push({name: attributeFields[i].comment, value: item[attributeFields[i].name]});
+				}
+//				if (btnShowProperty.selected)
+//				{
+//					widgetContainInstance.showExtContain(item.caption, misLayerInfo);
+//					misLayerInfo.attributes=new ArrayCollection(attributes);
+//				}
+				if (focusMap && item.geometrys)
+				{
+					var extent:Extent=null;
+					for (var i:int=0; i < item.geometrys.length; i++)
+					{
+						var geometry:Geometry=item.geometrys[i].geometry as Geometry;
+						var geoExtent:Extent=null;
+						if (geometry is MapPoint)
+						{
+							var p:MapPoint=MapPoint(geometry);
+							geoExtent=new Extent(p.x, p.y, p.x, p.y);
+						}
+						else
+							geoExtent=geometry.extent;
+						if (extent == null)
+							extent=geoExtent;
+						else
+							extent=geoExtent.union(extent);
+					}
+					map.zoomTo(extent);
+				}
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			private var textSymbolFormat1:TextFormat=new TextFormat("YaHei Consolas Hybrid,微软雅黑,STXihei,宋体", 12, 0x000000, true);
+			private var textSymbolFormat2:TextFormat=new TextFormat("YaHei Consolas Hybrid,微软雅黑,STXihei,宋体", 12, 0xFFFFFF, true);
+			//查询数据
+			protected function btn4Search_clickHandler(event:MouseEvent):void
+			{
+				if (!btnShowGrid.selected)
+					btnShowGrid.selected=true;
+				generateFeatureTreeOrListDataProvider();
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function btn4Clear_clickHandler(event:MouseEvent):void
+			{
+				var filterControls:Array=currentSelectedDynamicService.filterControls;
+				if (filterControls)
+				{
+					for (var i:int=0; i < filterControls.length; i++)
+					{
+						var c:Object=filterControls[i];
+						if (c is FilterControl)
+							FilterControl(c).clear();
+					}
+					if (!btnShowGrid.selected)
+						btnShowGrid.selected=true;
+					callLater(function():void
+					{
+						generateFeatureTreeOrListDataProvider();
+					});
+					
+				}
+			}
+			private var visibleFiltePanelHeight:int=250;
+			private var invisibleFiltePanelHeight:int=28;
+			protected function btn4FilterPanel_clickHandler(event:MouseEvent):void
+			{
+				if(currentSelectedDynamicService!=null){
+					isFilterPanelVisible=!isFilterPanelVisible;
+					groupFilterPanel.height=isFilterPanelVisible ? visibleFiltePanelHeight : invisibleFiltePanelHeight;
+					btn4FilterPanel.icon=isFilterPanelVisible ? imgDown : imgUp;
+					currentSelectedDynamicService.isFilterVisible=isFilterPanelVisible;
+				}
+			}
+			
+			protected function btnShowGrid_clickHandler(event:MouseEvent):void
+			{
+				if (event != null)
+					btnShowGrid.selected=!btnShowGrid.selected;
+				
+				if (btnShowGrid.selected)
+				{
+					featureDataGrid.show();
+					if (featureDataGrid.datagrid.dataProvider == null || featureDataGrid.datagrid.dataProvider.source != newRecords)
+					{
+						featureDataGrid.datagrid.dataProvider=new ArrayCollection(newRecords);
+						for (var m:int=0; m < featureDataGrid.datagrid.columns.length; m++)
+						{
+							var maxWidth:int=featureDataGrid.datagrid.columns[m].headerText.length;
+							for (var n:int=0; n < newRecords.length; n++)
+								maxWidth=Math.max(maxWidth, (newRecords[n][featureDataGrid.datagrid.columns[m].dataField] + "").length);
+							featureDataGrid.datagrid.columns[m].width=measureText("宋").width * maxWidth + 60;
+						}
+					}
+				}
+				else
+					featureDataGrid.hide();
+			}
+			private function closeClickCallFunction():void
+			{
+				btnShowGrid.selected=false;
+				featureDataGrid.hide();
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<ns:PictureMarkerSymbol yoffset="16" width="19" height="32" source="../images/gis/market-32.png" id="ssPoint"/>
+		<ns:SimpleLineSymbol id="ssPolyline" width="2" color="0xFF0000"/>
+		<ns:SimpleFillSymbol id="ssPolygon" color="#FFFF00">
+			<ns:SimpleLineSymbol width="2" color="#FF0000"/>
+		</ns:SimpleFillSymbol>
+		<ns:CompositeSymbol id="textSymbol">
+			<ns:TextSymbol id="textSymbol1" textFormat="{textSymbolFormat1}" textAttribute="v" yoffset="1" xoffset="1">
+			</ns:TextSymbol>
+			<ns:TextSymbol id="textSymbol2" textFormat="{textSymbolFormat2}" textAttribute="v">
+			</ns:TextSymbol>
+		</ns:CompositeSymbol>
+		<ns:GraphicsLayer id="misLayer" mouseChildren="true"/>
+		<ns:GraphicsLayer id="specialLayer" mouseChildren="true"/>
+		<ns:GraphicsLayer id="thematicRenderingLayer" mouseChildren="true"/>
+	</fx:Declarations>
+
+	<map:MapControl mouseWheel="map_mouseWheelHandler(event)" zoomEnd="map_zoomEndHandler(event)" identifyFuntion="{identifyFunction}" focusIn="map_focusInHandler(event)" focusOut="map_focusOutHandler(event)" extentChange="map_extentChangeHandler(event)" scaleBarVisible="false" id="map" width="100%"
+					height="100%" mapLayerManager="{mapLayerManager}"/>
+
+	<component:NavigatorSogoStyle map="{map}" id="navigatorContain" left="-1" top="-1"/>
+
+	<!--
+	<navigator:Navigation map="{map}" left="5" top="5"/>
+	-->
+	<s:HGroup verticalAlign="top" top="3" gap="4" id="toolbar">
+		<component:ToolbarTextPopupButton id="labelNavigator" label="叠加图层" click="{popupPanel.displayPopUp=true;}"/>
+		<component:ToolbarTextPopupButton id="labelNavigatorSpecial" label="叠加专题" click="{popupPanelSpecial.displayPopUp=true;}"/>
+		<component:ToolbarButton click="toolbarbutton1_clickHandler(event)" icon="@Embed('/assets/webgis/Full_Screen16.png')" toolTip="显示在主地图中"/>
+		<component:ToolbarButton id="btnLegend" click="toolbarbutton2_clickHandler(event)" icon="@Embed('/assets/webgis/Legend16.png')" toggle="true" toolTip="是否显示图例"/>
+		<s:HGroup gap="-1" id="toolbarBaseMap">
+		</s:HGroup>
+	</s:HGroup>
+
+	<s:PopUpAnchor id="popupPanel" left="-1" top="-1" height="0" popUpPosition="below">
+		<s:BorderContainer id="panelTree" borderColor="#BDCBD3" backgroundColor="0xFFFFFF" width="{map.width/2}" height="{map.height+2}">
+			<s:layout>
+				<s:VerticalLayout gap="0"/>
+			</s:layout>
+			<s:BorderContainer width="100%" borderVisible="false" height="28" backgroundColor="#F8F8F8">
+				<s:Label verticalCenter="0" color="#7C7070" left="4" text="叠加图层" fontWeight="bold"/>
+				<component:ToolbarButton right="3" top="3" icon="@Embed('/assets/common/close.png')" click="{popupPanel.displayPopUp=false;}"/>
+			</s:BorderContainer>
+			<s:Line width="100%" height="0">
+				<s:stroke>
+					<s:SolidColorStroke color="0xE6EDF1"/>
+				</s:stroke>
+			</s:Line>
+			<component:LayerTree creationComplete="tree_creationCompleteHandler(event)" borderVisible="false" width="100%" height="100%" map="{map}" id="tree"/>
+		</s:BorderContainer>
+	</s:PopUpAnchor>
+	
+	<s:PopUpAnchor id="popupPanelSpecial" left="-1" top="-1" height="0" popUpPosition="below">
+		<s:BorderContainer borderColor="#BDCBD3" backgroundColor="0xFFFFFF" width="{map.width/3}" height="{map.height}">
+			<s:VGroup width="{map.width/3}" height="{map.height}" gap="0">
+				<s:BorderContainer id="panelTreeSpecial" borderColor="#BDCBD3" backgroundColor="0xFFFFFF" width="{map.width/3}">
+					<s:layout>
+						<s:VerticalLayout gap="0"/>
+					</s:layout>
+					<s:BorderContainer width="100%" borderVisible="false" height="28" backgroundColor="#F8F8F8">
+						<s:Label verticalCenter="0" color="#7C7070" left="4" text="叠加专题" fontWeight="bold"/>
+						<component:ToolbarButton right="3" top="3" icon="@Embed('/assets/common/close.png')" click="{popupPanelSpecial.displayPopUp=false;}"/>
+					</s:BorderContainer>
+					<s:Line width="100%" height="0">
+						<s:stroke>
+							<s:SolidColorStroke color="0xE6EDF1"/>
+						</s:stroke>
+					</s:Line>
+					
+					<s:HGroup gap="3" height="25" verticalAlign="middle" width="100%" paddingTop="2" paddingRight="2" paddingLeft="2" paddingBottom="2">
+						<s:Label text="专题" paddingTop="2"/>
+						<component1:MultiComboTree initialize="layerTreeSpecial_initializeHandler(event)" creationComplete="layerTreeSpecial_creationCompleteHandler(event)" event4ItemSelected="{event4LayerTreeItemChange}" width="100%" height="100%" id="layerTreeSpecial"/>
+					</s:HGroup>
+					<s:HGroup gap="3" height="25" verticalAlign="middle" width="100%" paddingTop="2" paddingRight="2" paddingLeft="2" paddingBottom="2">
+						<s:Label text="分组" paddingTop="2"/>
+						<s:ComboBox change="groupCombobox_changeHandler(event)" id="groupCombobox" width="100%" labelField="label"/>
+						<!--
+						<component:ToolbarButton toolTip="生成专题地图" click="btnSpecialMap_clickHandler(event)" id="btnSpecialMap" selected="false" width="22" height="22" tag="filter" icon="@Embed('/assets/webgis/polygon16.png')"/>
+						<component:ToolbarButton toolTip="生成统计图表" click="btnChart_clickHandler(event)" id="btnChart" selected="false" width="22" height="22" tag="filter" icon="@Embed('/assets/common/chart.png')"/>
+						
+						<component:ToolbarButton toolTip="是否只显示有图斑的记录" click="toolbarbuttonSpecial2_clickHandler(event)" id="btnFilterGIS" selected="false" width="22" height="22" tag="filter" icon="@Embed('/assets/webgis/marker.png')"/>
+						-->
+						<component:ToolbarButton toolTip="是否显示数据列表" click="btnShowGrid_clickHandler(event)" id="btnShowGrid" selected="false" width="22" height="22" tag="filter" icon="@Embed('/assets/common/export2excel.png')"/>
+						<!--
+						<component:ToolbarButton toolTip="是否显示属性信息" click="btnShowProperty_clickHandler(event)" id="btnShowProperty" selected="false" width="22" height="22" tag="filter" icon="@Embed('/assets/webgis/TableStandalone16.png')"/>
+						
+						<component:ToolbarButton toolTip="设置专题图" click="specialViewClick(event)" id="toolbarItemSpecialView" width="22" height="22" tag="special_view" icon="@Embed('/assets/webgis/special_view.png')"/>
+						
+						<component:ToolbarButton toolTip="设置专题图" click="btnShowSpecialView_clickHandler(event)" id="btnShowSpecialView" selected="false" width="22" height="22" tag="filter" icon="@Embed('/assets/webgis/special_view.png')"/>
+						-->
+					</s:HGroup>
+				</s:BorderContainer>
+				<mx:Tree id="treeSpecial" dataProvider="{willShowRecords}" includeIn="treeView"  doubleClickEnabled="true" doubleClick="tree_doubleClickHandler(event)" click="tree_clickHandler(event)" change="tree_changeHandler(event)" width="100%" height="100%" borderVisible="false" labelField="caption"
+						 itemRenderer="com.webgis.module.mislayer.LayerItemRender">
+				</mx:Tree>
+				<mx:List id="list" change="list_changeHandler(event)" doubleClick="list_doubleClickHandler(event)" doubleClickEnabled="true" click="list_clickHandler(event)" dataProvider="{willShowRecords}" labelField="caption" borderVisible="false" includeIn="listView" width="100%" height="100%"/>
+				<s:VGroup width="{map.width/3}" height="{invisibleFiltePanelHeight}" id="groupFilterPanel" gap="0" right="-1" bottom="-1" >
+					<s:Line width="100%" bottom="0" height="0">
+						<s:stroke>
+							<s:SolidColorStroke color="#DDE1E5"/>
+						</s:stroke>
+					</s:Line>
+					<s:BorderContainer width="100%" borderVisible="false" height="28" backgroundColor="#F4F7F8">
+						<s:Label verticalCenter="0" left="4" text="过滤条件" fontWeight="bold"/>
+						<component:ToolbarButton toolTip="点击查询数据" right="58" top="2" icon="{imgSearch}" id="btn4Search" visible="{isFilterPanelVisible}" click="btn4Search_clickHandler(event)"/>
+						<component:ToolbarButton toolTip="点击清除查询条件" right="30" top="2" icon="{imgClear}" id="btn4Clear" visible="{isFilterPanelVisible}" click="btn4Clear_clickHandler(event)"/>
+						<component:ToolbarButton toolTip="点击打开(收缩)查询面板" right="2" top="2" icon="{imgUp}" id="btn4FilterPanel" click="btn4FilterPanel_clickHandler(event)"/>
+					</s:BorderContainer>
+					<s:Line width="100%" bottom="0" height="0">
+						<s:stroke>
+							<s:SolidColorStroke color="#DDE1E5"/>
+						</s:stroke>
+					</s:Line>
+					<s:Scroller width="100%" height="100%">
+						<s:VGroup width="100%" gap="0" paddingLeft="4" paddingRight="4" paddingTop="1" paddingBottom="1" id="groupFilterContain">
+						</s:VGroup>
+					</s:Scroller>
+				</s:VGroup>
+			</s:VGroup>
+		</s:BorderContainer>
+	</s:PopUpAnchor>
+	
+	
+	
+	<component:FeatureProperty borderVisible="true" map="{map}" visible="false" id="featureProperty" width="250" height="{this.height/2}"/>
+
+	<s:BorderContainer visible="false" right="-1" bottom="-1" id="panelLegend" borderColor="#BDCBD3" backgroundColor="0xFFFFFF" width="300" height="{map.height/3}">
+		<s:layout>
+			<s:VerticalLayout gap="0"/>
+		</s:layout>
+		<s:BorderContainer width="100%" borderVisible="false" height="28" backgroundColor="#F8F8F8">
+			<s:Label verticalCenter="0" color="#7C7070" left="4" text="地图图例" fontWeight="bold"/>
+			<component:ToolbarButton right="3" top="3" icon="@Embed('/assets/common/close.png')" click="{panelLegend.visible=false;btnLegend.selected=false;}"/>
+		</s:BorderContainer>
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="0xE6EDF1"/>
+			</s:stroke>
+		</s:Line>
+		<component:LegendPanel width="100%" height="100%" id="legend" map="{map}"/>
+	</s:BorderContainer>
+	
+	<!-- 详细信息数据列表 -->
+	<mislayer:MISLayerFeatureDataGridPanel closeCallFunction="{closeClickCallFunction}" right="0" bottom="0" width="{map.width*2/3}" visible="false" height="250" id="featureDataGrid"/>
+</s:Group>

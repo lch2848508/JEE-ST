@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow move="moveMe(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="400" height="300">
+	<fx:Script>
+		<![CDATA[
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+
+
+			private function moveMe(e:Event):void
+			{
+				var target:UIComponent=e.target as UIComponent;
+				var targetX:Number=target.x;
+				var targetY:Number=target.y;
+				var appWidth:Number=FlexGlobals.topLevelApplication.width;
+				var appHeight:Number=FlexGlobals.topLevelApplication.height;
+
+				if (targetX + this.width > appWidth)
+					target.x=appWidth - this.width;
+				if (targetX < 0)
+					target.x=0;
+
+				if (targetY + this.height > appHeight)
+					target.y=appHeight - this.height;
+				if (targetY < 0)
+					target.y=0;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:states>
+	</s:states>
+</s:TitleWindow>

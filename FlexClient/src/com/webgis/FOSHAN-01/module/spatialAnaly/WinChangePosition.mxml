@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx creationComplete="titlewindowex1_creationCompleteHandler(event)" title="调整顺序" close="titlewindowex1_closeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:component="com.estudio.flex.component.*" width="400" height="300">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+			import spark.components.Group;
+
+			private var pContain:UIComponent=null;
+			private var callFunction:Function=null;
+			private var controlList:ArrayCollection=new ArrayCollection([]);
+
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			private static var instance:WinChangePosition=null;
+
+			public static function execute(p:UIComponent, callFunction:Function):void
+			{
+				if (instance == null)
+					instance=new WinChangePosition();
+				instance.pContain=p;
+				instance.callFunction=callFunction;
+				if (instance.listList)
+					instance.initControlList();
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(instance);
+			}
+
+			private function initControlList():void
+			{
+				var list:Array=[];
+				for (var i:int=0; i < (pContain as Group).numElements; i++)
+				{
+					var c:Object=(pContain as Group).getElementAt(i);
+					var item:Object={label: c.label, c: c};
+					list.push(item);
+				}
+				controlList=new ArrayCollection(list);
+				listList.dataProvider=controlList;
+				listList.invalidateList();
+			}
+
+			protected function titlewindowex1_creationCompleteHandler(event:FlexEvent):void
+			{
+				initControlList();
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			//确定
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				button1_clickHandler(null);
+				(pContain as Group).removeAllElements();
+				for(var i:int=0;i<controlList.length;i++)
+					(pContain as Group).addElement(controlList.getItemAt(i).c);
+				(pContain as Group).invalidateDisplayList();
+				callFunction();
+			}
+
+			protected function button3_clickHandler(event:MouseEvent):void
+			{
+				var index:int=listList.selectedIndex;
+				if (index != -1 && index > 0)
+				{
+					var toIndex:int=index - 1;
+					var item:Object=listList.selectedItem;
+					controlList.removeItemAt(controlList.getItemIndex(item));
+					controlList.addItemAt(item, toIndex);
+					listList.selectedIndex=toIndex;
+					listList.selectedItem=item;
+					listList.invalidateList();
+				}
+			}
+			
+			protected function button4_clickHandler(event:MouseEvent):void
+			{
+				var index:int=listList.selectedIndex;
+				if (index != -1 && index <controlList.length-1)
+				{
+					var toIndex:int=index + 1;
+					var item:Object=controlList.getItemAt(toIndex);
+					controlList.removeItemAt(controlList.getItemIndex(item));
+					controlList.addItemAt(item, index);
+					listList.selectedIndex=toIndex;
+					listList.invalidateList();
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<mx:List left="5" top="5" right="80" bottom="5" borderVisible="true" id="listList">
+
+	</mx:List>
+
+	<s:Button width="70" height="25" right="5" top="5" label="确定" click="button2_clickHandler(event)"/>
+	<s:Button width="70" height="25" right="5" top="35" click="button1_clickHandler(event)" label="关闭"/>
+
+	<s:Line width="75" right="2" top="65">
+		<s:stroke>
+			<s:SolidColorStroke color="#7B889C"/>
+		</s:stroke>
+	</s:Line>
+
+	<s:Button width="70" height="25" right="5" top="70" label="上移" click="button3_clickHandler(event)"/>
+	<s:Button width="70" height="25" right="5" top="100" label="下移" click="button4_clickHandler(event)"/>
+</component:TitleWindowEx>

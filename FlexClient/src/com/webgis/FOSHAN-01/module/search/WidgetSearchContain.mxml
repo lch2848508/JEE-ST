@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module visible="false" creationComplete="module1_creationCompleteHandler(event)" implements="com.webgis.intf.MapWidgetIntf,com.webgis.intf.MapControlSearchContainIntf" xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:component="com.webgis.component.*" xmlns:ns="http://www.esri.com/2008/ags">
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.MapDynamicLayerChangeEvent;
+			import com.webgis.MapLayerManager;
+			import com.webgis.event.MapWidgetEvent;
+			import com.webgis.event.MapWidgetTypes;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.intf.MapWidgetIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+
+			import flash.net.navigateToURL;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+
+			import spark.events.IndexChangeEvent;
+			[Bindable]
+			private var mapInstance:Map=null;
+			private var mapAppInstance:Object=null;
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+			private var searchResult:Object={};
+			private var mapLayerFilter:Object={};
+			private var layerName2LayerInfo:Object={};
+			private var layerSearchResultCaption2Records:Object={};
+			private var whereGeometry:Geometry=null;
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//创建完成事件
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				widgetContainInstance.getSearchResultContain()["addElement"](this.owner);
+
+				featureDataGrid.map=MapControl(mapInstance);
+				featureDataGrid.mapServiceClient=mapServiceClient;
+				widgetContainInstance.getSearchResultContain()
+				widgetContainInstance.getMapContain()["addElement"](featureDataGrid);
+				featureDataGrid.mapContainIntf=widgetContainInstance;
+				this.visible=true;
+
+				var config:Object=extParams.search;
+				if (!config.export2excel)
+					removeToolbarItem(barItemExport2Excel);
+				if (!config.export2shape)
+					removeToolbarItem(barItemExport2Shape);
+				featureDataGrid.setToolbarItemVisible(config.export2excel, config.export2shape);
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+
+			private function removeToolbarItem(item:UIComponent):void
+			{
+				if (item.parent != null)
+					(item.parent as Object).removeElement(item);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+				widgetContainInstance.searchContain=this;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function clear():void
+			{
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function registerSearchContent(obj:Object, whereGeometry:Geometry=null):void
+			{
+				this.whereGeometry=whereGeometry;
+				graphicLayer.clear();
+				if (this.whereGeometry != null)
+				{
+					var graphic:Graphic=new Graphic(this.whereGeometry);
+					graphic.symbol=whereGeometry is MapPoint ? pointSymbol : whereGeometry is Polyline ? lineSymbol : fillSymbol;
+					graphic.toolTip="空间查询范围";
+					graphicLayer.add(graphic);
+					graphicLayer.refresh();
+				}
+				mapLayerFilter={};
+				searchResult={};
+				layerName2LayerInfo={};
+				layerSearchResultCaption2Records={};
+
+				for (var k:String in obj.layerInfos)
+				{
+					searchResult[k]={mbr: obj.layerInfos[k].mbr, records: [], layerName: obj.layerInfos[k].title, layerId: k, ids: [], layerInfo: obj.layerInfos[k], objectIds: []};
+					layerName2LayerInfo[obj.layerInfos[k].title]=searchResult[k];
+				}
+				var records:Array=obj.records;
+				var globalHtmlContent:String="";
+				if (!records)
+				{
+					records=[];
+					globalHtmlContent="<textformat leftmargin='6' rightmargin='4' leading='6'>没有查询到数据，请重新输入查询条件。</textformat>";
+				}
+
+				for each (var record:Object in records)
+				{
+					searchResult[record.layerId].records.push(record);
+					searchResult[record.layerId].ids.push(record.id);
+					searchResult[record.layerId].objectIds.push(record.objectId);
+				}
+				var totalRecord:Number=0;
+				for (var k:String in searchResult)
+				{
+					if (searchResult[k].records.length != 0)
+					{
+						searchResult[k].htmlContent=generalSearchContent(searchResult[k]);
+						globalHtmlContent+=searchResult[k].htmlContent;
+						totalRecord+=searchResult[k].records.length;
+						mapLayerFilter[k]={type: searchResult[k].layerInfo.type, express: searchResult[k].layerInfo.objectFieldName + " in (" + searchResult[k].objectIds.join(",") + ")", serverId: searchResult[k].layerInfo.serverId, layers: searchResult[k].layerInfo.layers};
+					}
+				}
+				var layerRecords:Array=[{layerName: "全部(" + totalRecord + ")", htmlContent: globalHtmlContent, layerId: -1}];
+				for (var k:String in searchResult)
+				{
+					if (searchResult[k].records && searchResult[k].records.length != 0)
+						layerRecords.push({mbr: searchResult[k].mbr, layerId: k, layerName: searchResult[k].layerName + "(" + searchResult[k].records.length + ")", htmlContent: searchResult[k].htmlContent});
+				}
+				layerCombobox.dataProvider=new ArrayCollection(layerRecords);
+				layerCombobox.selectedIndex=0;
+				textarea.htmlText=globalHtmlContent;
+				featureDataGrid.filterObject=null;
+
+				//显示明细查询结果
+				if (records.length != 0)
+				{
+					showDetailClick(null);
+					toolbarItemShowDataGrid.enabled=true;
+				}
+				else
+				{
+					toolbarItemShowDataGrid.selected=false;
+					toolbarItemShowDataGrid.enabled=false;
+					featureDataGrid.hide();
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			private function generalSearchContent(obj:Object):String
+			{
+				var htmlContent:String="<textformat leftmargin='6' rightmargin='4' leading='6'>";
+				htmlContent+="<font color='#0000FF' size='14' face='黑体'><b><a href='event:" + obj.layerName + "'>" + obj.layerName + "(" + obj.records.length + ")</a></b></font>";
+				htmlContent+="<br>";
+				htmlContent+="<textformat leftmargin='10' leading='6'>";
+				var records:Array=obj.records as Array;
+				var cap2Records:Object={};
+				for (var j:int=0; j < records.length; j++)
+				{
+					var record:Object=records[j];
+					var label:String=record.label;
+					var key:String=obj.layerName + "-" + label;
+
+					if (layerSearchResultCaption2Records.hasOwnProperty(key))
+						layerSearchResultCaption2Records[key].ids.push(record.id + "");
+					else
+						layerSearchResultCaption2Records[key]={ids: [record.id + ""], layerName: obj.layerName};
+
+					if (cap2Records.hasOwnProperty(label))
+						cap2Records[label].count=cap2Records[label].count + 1;
+					else
+						cap2Records[label]={count: 1};
+				}
+
+				for (var k:String in cap2Records)
+				{
+					if (cap2Records[k].count > 1)
+					{
+						htmlContent+="<font color='#000080'><a href='event:" + obj.layerName + "-" + k + "'>" + k + "[" + cap2Records[k].count + "]" + "</a></font>  ";
+					}
+					else
+					{
+						htmlContent+="<font color='#000080'><a href='event:" + obj.layerName + "-" + k + "'>" + k + "</a></font>  ";
+					}
+				}
+
+				htmlContent+="</textformat><br>"
+				htmlContent+="</textformat>";
+				return htmlContent;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function textarea_linkHandler(event:TextEvent):void
+			{
+				if (!featureDataGrid.visible)
+					showDetailClick(null);
+				if (layerSearchResultCaption2Records[event.text])
+				{
+					var record:Object=layerSearchResultCaption2Records[event.text];
+					var layerName:String=record.layerName;
+					var recordIds:Array=record.ids;
+					filterSearchDetail(layerName, recordIds);
+				}
+				else
+				{
+					featureDataGrid.filterObject=null;
+					featureDataGrid.selectedLayer(event.text);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			protected function showDetailClick(event:MouseEvent):void
+			{
+				trace("protected function showDetailClick");
+				if (event != null)
+				{
+					toolbarItemShowDataGrid.selected=!toolbarItemShowDataGrid.selected;
+					if (!toolbarItemShowDataGrid.selected)
+					{
+						closeClickCallFunction();
+						return;
+					}
+				}
+
+				var caption:String="";
+				var layerIds:Array=[];
+				var wheres:Object={};
+				var hasRecord:Boolean=false;
+				var layerId2MBR:Object={};
+				if (layerCombobox.selectedIndex == 0)
+				{
+					for (var k:String in searchResult)
+					{
+						if (searchResult[k].ids)
+						{
+							layerIds.push(k);
+							wheres[k]=[{fieldName: "Q_UID", compare: "in", value: searchResult[k].ids.join(",")}];
+							layerId2MBR[k]=searchResult[k].mbr;
+							hasRecord=true;
+						}
+					}
+					caption="查询结果"
+				}
+				else
+				{
+					if (searchResult[layerCombobox.selectedItem.layerId].ids)
+					{
+						var layerId:String=layerCombobox.selectedItem.layerId;
+						caption=layerCombobox.selectedItem.layerName + "- 查询结果";
+						layerIds.push(layerId);
+						wheres[layerId]=[{fieldName: "Q_UID", compare: "in", value: searchResult[layerId].ids.join(",")}];
+						layerId2MBR[layerId]=searchResult[layerId].mbr;
+						hasRecord=true;
+					}
+				}
+				if (hasRecord)
+					showSearchDetail(caption, layerIds, wheres, mapLayerFilter, layerId2MBR);
+				else
+					AlertUtils.alert("没有查询结果，不能执行此操作.");
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			protected function layerCombobox_changeHandler(event:IndexChangeEvent):void
+			{
+				featureDataGrid.filterObject=null;
+				callLater(function():void
+				{
+					if (layerCombobox.dataProvider.length > 2)
+					{
+						textarea.htmlText=layerCombobox.dataProvider.getItemAt(event.newIndex).htmlContent;
+						if (featureDataGrid.visible)
+							showDetailClick(null);
+//						else if (mapApp.isSplashSearchResult)
+//						{
+//							var item:Object=layerCombobox.dataProvider.getItemAt(event.newIndex);
+//							var layerId:String=item.layerId;
+//							if (layerId != "-1")
+//							{
+//								var layerInfo:Object=searchResult[layerId].layerInfo;
+//								MapLayerManager(map.mapLayerManager).setLayerFilter(map as Map, layerInfo.serverId, layerInfo.layers, layerInfo.type, mapLayerFilter[layerId].express, item.mbr);
+//							}
+//						}
+					}
+				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////
+			//导出文件
+			protected function export2File(event:MouseEvent):void
+			{
+				var tag:String=event.currentTarget.tag;
+				var layerIds:Array=[];
+				var wheres:Object={};
+				var hasRecord:Boolean=false;
+				if (layerCombobox.selectedIndex == 0)
+				{
+					for (var k:String in searchResult)
+					{
+						if (searchResult[k].ids)
+						{
+							layerIds.push(k);
+							wheres[k]=[{fieldName: "Q_UID", compare: "in", value: searchResult[k].ids.join(",")}];
+							hasRecord=true;
+						}
+					}
+				}
+				else
+				{
+					if (searchResult[layerCombobox.selectedItem.layerId].ids)
+					{
+						layerIds.push(layerCombobox.selectedItem.layerId);
+						wheres[layerCombobox.selectedItem.layerId]=[{fieldName: "Q_UID", compare: "in", value: searchResult[layerCombobox.selectedItem.layerId].ids.join(",")}];
+						hasRecord=true;
+					}
+				}
+
+				if (hasRecord)
+					mapServiceClient.exportServerOrLayerFeature2File(false, layerIds.join(","), wheres, tag == "export_shape" ? 1 : 0, function(json:Object):void
+					{
+						navigateToURL(new URLRequest(json.url), "_blank");
+					});
+				else
+					AlertUtils.alert("没有查询结果，不能执行此操作.");
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function active():void
+			{
+				var mapLayerManager:MapLayerManager=map.mapLayerManager as MapLayerManager;
+				mapLayerManager.setSearchResultLayerVisible(true);
+				mapInstance.addLayer(graphicLayer);
+				if (toolbarItemShowDataGrid.selected)
+					showDetailClick(null);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function inactive():void
+			{
+				var mapLayerManager:MapLayerManager=map.mapLayerManager as MapLayerManager;
+				mapLayerManager.setSearchResultLayerVisible(false);
+				featureDataGrid.visible=false;
+				(mapInstance as Object).clearFeature();
+				mapInstance.removeLayer(graphicLayer);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			//过滤查询结果
+			public function filterSearchDetail(layerName:String, filterIds:Array):void
+			{
+				featureDataGrid.filterObject={layerName: layerName, filterIds: filterIds};
+				var layerId:String=layerName2LayerInfo[layerName].layerId;
+				mapServiceClient.getFeatures(layerId, filterIds, function(json:Object):void
+				{
+					map.setFocus();
+					map.clearFeature();
+					var features:Array=[];
+					for each (var record:Object in json.records)
+					{
+						var geometry:Geometry=Geometry.fromJSON(record.wkt);
+						var feature:Graphic=new Graphic(geometry, null, null);
+						features.push(feature);
+					}
+					map.splashFeatures(features, true, false);
+				});
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function showFeatureDataGrid(caption:String, isServer:Boolean, objectId:String, whereParams:Object=null, mapLayerFilter:Object=null, layerId2MBR:Object=null):void
+			{
+				if (!whereParams)
+					whereParams={};
+				featureDataGrid.filterObject=null;
+				featureDataGrid.show();
+				featureDataGrid.setServerOrLayerInfo(caption, isServer, objectId, whereParams, mapLayerFilter);
+				toolbarItemShowDataGrid.selected=true;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			private function showSearchDetail(caption:String, layerIds:Array, wheres:Object, mapLayerFilter:Object, layerId2MBR:Object):void
+			{
+				showFeatureDataGrid(caption, false, layerIds.join(","), wheres, mapLayerFilter, layerId2MBR);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			private function closeClickCallFunction():void
+			{
+				featureDataGrid.hide();
+				toolbarItemShowDataGrid.selected=false;
+			}
+			///////////////////////////////////////////////////////////////////////////////
+			private var extParams:Object=null;
+
+			public function setParams(v:Object):void
+			{
+				this.extParams=v;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<ns:SimpleMarkerSymbol id="pointSymbol" style="circle" color="0xFF0000" size="20"/>
+		<ns:SimpleFillSymbol id="fillSymbol" color="#FFFF00">
+			<ns:SimpleLineSymbol width="5" style="dash" color="#FF0000"/>
+		</ns:SimpleFillSymbol>
+		<ns:SimpleLineSymbol width="10" id="lineSymbol" style="dash" color="#FF0000"/>
+		<ns:GraphicsLayer id="graphicLayer"/>
+	</fx:Declarations>
+
+	<s:BorderContainer width="100%" height="27" borderVisible="false" backgroundColor="#F4F7F8">
+		<s:HGroup gap="2" height="25" verticalAlign="middle" width="100%" paddingTop="2" paddingRight="2" paddingLeft="2" paddingBottom="2">
+			<s:Label text="图层列表" paddingTop="2"/>
+			<s:ComboBox labelField="layerName" change="layerCombobox_changeHandler(event)" creationComplete="{layerCombobox.textInput.editable=false;}" dataProvider="{new ArrayCollection([''])}"
+						skinClass="com.webgis.module.toolbar.SearchComboBoxSkin" width="100%" minHeight="22" height="22" selectedIndex="0" id="layerCombobox"/>
+			<component:ToolbarButton id="toolbarItemShowDataGrid" click="showDetailClick(event)" toolTip="显示查询结果详细数据" width="22" height="22" tag="data_grid" icon="@Embed('/assets/webgis/TableStandalone16.png')"/>
+			<component:ToolbarButton click="export2File(event)" toolTip="导出到Excel" icon="@Embed('/assets/webgis/xls.png')" tag="export_excel" id="barItemExport2Excel"/>
+			<component:ToolbarButton click="export2File(event)" toolTip="导出到Shape文件" icon="@Embed('/assets/webgis/ExportE00File16.png')" tag="export_shape" id="barItemExport2Shape"/>
+		</s:HGroup>
+		<s:Line width="100%" bottom="0" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#DDE1E5"/>
+			</s:stroke>
+		</s:Line>
+	</s:BorderContainer>
+	<mx:TextArea selectable="true" borderStyle="none" link="textarea_linkHandler(event)" editable="false" buttonMode="false" id="textarea" width="100%" height="100%"/>
+
+	<!-- 详细信息数据列表 -->
+	<component:FeatureDataGridPanel clientSortEnabled="true" closeCallFunction="{closeClickCallFunction}" left="0" bottom="0" width="100%" visible="false" height="250" id="featureDataGrid"/>
+
+</s:Module>

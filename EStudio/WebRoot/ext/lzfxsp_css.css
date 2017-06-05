@@ -1,0 +1,59 @@
+@charset "UTF-8";
+/* CSS Document */
+
+a
+{
+	text-decoration: none;
+	background-color: transparent;
+	font-weight: bold;
+	color: #333;
+	font-size: 14px;
+}
+img
+{
+	height: 100px;
+	width: 172px;
+	border-top-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-top-style: none;
+	border-right-style: none;
+	border-bottom-style: none;
+	border-left-style: none;
+	border-top-color: #333;
+	border-right-color: #333;
+	border-bottom-color: #333;
+	border-left-color: #333;
+}
+.box
+{
+	margin:0px auto;
+	width:910px;
+}
+
+.content
+{
+	height: 165px;
+	width: 182px;
+	float: left;
+	font-family: "微软雅黑", "新宋体";
+	font-size: 12pt;
+}
+
+.vpic
+{
+	height:100px;
+	width:172px;
+	margin:10px 5px 5px 5px;
+}
+
+.vname
+{
+	width:172px;
+	margin:5px 5px 5px 5px;
+}
+
+body {
+	background-color: #F5f5f5;
+}

@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module creationPolicy="all" implements="com.webgis.intf.MapWidgetContainIntf" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.webgis.intf.MapControlFavorite;
+			import com.webgis.intf.MapControlShare;
+			import com.webgis.intf.MapControlMultiMapIntf;
+			import com.webgis.intf.MapControlSearchContainIntf;
+			import com.webgis.intf.MapControlStatisticIntf;
+			
+			import mx.core.UIComponent;
+			//////////////////////////////////////////////////////////////////////
+			public function getMapContain():UIComponent //地图容器
+			{
+				return mapContain;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function getNavigatorContain():UIComponent //导航面板容器
+			{
+				return mapContain;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function getOverviewMapContain():UIComponent //鹰眼图容器
+			{
+				return mapContain;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function getDynamicLayerTreeContain():UIComponent //动态图层树状列表
+			{
+				return layerTreeContain;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function getToolbarContain():UIComponent //工具条容器
+			{
+				return toolbarContain;
+			}
+			//////////////////////////////////////////////////////////////////////
+			public function focusLayerTree():void
+			{
+				navagatorContain.selectedChild=layerTreeContain;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function getNavigatorAreaContain():UIComponent
+			{
+				return areaNavigatorContain;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function getSearchResultContain():UIComponent
+			{
+				return searchResultContain;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapSearchContainInstance:MapControlSearchContainIntf=null;
+
+			public function get searchContain():MapControlSearchContainIntf
+			{
+				return mapSearchContainInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set searchContain(value:MapControlSearchContainIntf):void
+			{
+				mapSearchContainInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function focusSearchContain():void
+			{
+				navagatorContain.selectedChild=searchResultContain;
+			}
+
+			private var multiMapInstance:MapControlMultiMapIntf=null;
+
+			public function get multiMap():MapControlMultiMapIntf
+			{
+				return multiMapInstance;
+			}
+
+			public function set multiMap(value:MapControlMultiMapIntf):void
+			{
+				multiMapInstance=value;
+			}
+			
+			private var shareInstance:MapControlShare=null;
+			
+			public function get share():MapControlShare
+			{
+				return shareInstance;
+			}
+			
+			public function set share(value:MapControlShare):void
+			{
+				shareInstance=value;
+			}
+			
+			public function getShareContain():UIComponent //分享地图
+			{
+				return shareContain;
+			}
+			
+			public function focusShare():void
+			{
+				navagatorContain.selectedChild=shareContain;
+			}
+			
+			private var favoriteInstance:MapControlFavorite=null;
+
+			public function get favorite():MapControlFavorite
+			{
+				return favoriteInstance;
+			}
+
+			public function set favorite(value:MapControlFavorite):void
+			{
+				favoriteInstance=value;
+			}
+
+			public function getFavoriteContain():UIComponent //收藏夹
+			{
+				return favoriteContain;
+			}
+
+			public function focusFavorite():void
+			{
+				navagatorContain.selectedChild=favoriteContain;
+			}
+
+			public function getStatisticContain():UIComponent
+			{
+				return statisticContain;
+			}
+
+			private var statisticInstance:MapControlStatisticIntf=null;
+
+			public function get statistic():MapControlStatisticIntf
+			{
+				return statisticInstance;
+			}
+
+			public function set statistic(value:MapControlStatisticIntf):void
+			{
+				statisticInstance=value;
+			}
+
+			public function getPlottingContain():UIComponent
+			{
+				return plottingContain;
+			}
+
+			public function getMISLayerContain():UIComponent
+			{
+				return projectContain;
+			}
+			
+			public function getSpatialAnalyContain():UIComponent
+			{
+				return spatialAnalyzeContain;
+			}
+			
+			//////////////////////////////////////////////////////////////////////////////////////////
+			//显示隐藏附加信息
+			public function showExtContain(caption:String, control:UIComponent,closedFucntion:Function=null):void
+			{
+				
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function hideExtContain(caption:String, control:UIComponent):void
+			{
+				
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private var extParams:Object = null;
+			public function setParams(v:Object):void
+			{
+				this.extParams = v;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			public function getContainByLabel(label:String):UIComponent
+			{
+				return null;
+			}
+
+		]]>
+	</fx:Script>
+	<mx:HDividedBox width="100%" height="100%" horizontalGap="4" verticalGap="4" creationPolicy="all">
+		<s:Group width="350" height="100%">
+			<mx:TabNavigator left="0" id="navagatorContain" bottom="0" top="0" right="0" tabHeight="28" paddingTop="0">
+				<s:NavigatorContent icon="@Embed('FolderWithGISData16.png')" label="图集" id="layerTreeContain" width="100%" height="100%">
+				</s:NavigatorContent>
+				<s:NavigatorContent icon="@Embed('NetworkAnalystDatasetList16.png')" label="区域" id="areaNavigatorContain" width="100%" height="100%">
+				</s:NavigatorContent>
+				<s:NavigatorContent icon="@Embed('Legend16.png')" label="查询" id="searchResultContain" width="100%" height="100%">
+				</s:NavigatorContent>
+				<s:NavigatorContent icon="@Embed('Legend16.png')" label="社会经济" id="statisticContain" width="100%" height="100%">
+				</s:NavigatorContent>
+				<s:NavigatorContent icon="@Embed('Legend16.png')" label="收藏夹" id="favoriteContain" width="100%" height="100%">
+				</s:NavigatorContent>
+				<s:NavigatorContent icon="@Embed('Legend16.png')" label="分享地图" id="shareContain" width="100%" height="100%">
+				</s:NavigatorContent>
+				<s:NavigatorContent icon="@Embed('Legend16.png')" label="地图标绘" id="plottingContain" width="100%" height="100%">
+				</s:NavigatorContent>
+				<s:NavigatorContent icon="@Embed('Legend16.png')" label="项目信息" id="projectContain" width="100%" height="100%">
+				</s:NavigatorContent>
+				<s:NavigatorContent icon="@Embed('Legend16.png')" label="项目信息" id="spatialAnalyzeContain" width="100%" height="100%">
+				</s:NavigatorContent>
+			</mx:TabNavigator>
+		</s:Group>
+
+
+		<s:Group width="100%" height="100%">
+			<s:BorderContainer backgroundColor="#EBF4FF" left="0" top="0" right="0" height="28" id="toolbarContain"/>
+			<s:BorderContainer left="0" top="27" right="0" bottom="0" id="mapContain" backgroundColor="0xFFFFFF">
+			</s:BorderContainer>
+		</s:Group>
+
+	</mx:HDividedBox>
+</s:Module>

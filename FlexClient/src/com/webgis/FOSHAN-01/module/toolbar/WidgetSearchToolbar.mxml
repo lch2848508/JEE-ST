@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module creationComplete="module1_creationCompleteHandler(event)" implements="com.webgis.intf.MapWidgetIntf" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="200" height="25">
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.MapDynamicLayerChangeEvent;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.intf.MapWidgetIntf;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.events.FlexEvent;
+			[Bindable]
+			private var mapInstance:Map=null;
+			private var mapAppInstance:Object=null;
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+				mapAppInstance.search
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//创建完成事件
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				widgetContainInstance.getToolbarContain()["addElement"](this.owner);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+
+			//开始查询
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var text:String=StringUtils.trim(searchTextBox.text);
+				if (!StringUtils.isEmpty(text))
+				{
+					mapAppInstance.findFeatureProperty(text);
+				}
+				searchTextBox.text=text;
+			}
+
+			protected function text_keyDownHandler(event:KeyboardEvent):void
+			{
+				if (event.keyCode == Keyboard.ENTER)
+				{
+					button1_clickHandler(null);
+				}
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+			
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var extParams:Object = null;
+			public function setParams(v:Object):void
+			{
+				this.extParams = v;
+			}
+
+		]]>
+	</fx:Script>
+	<s:HGroup paddingLeft="2" paddingRight="2" gap="2" verticalAlign="middle" height="100%" width="100%">
+		<s:TextInput id="searchTextBox" width="100%" height="22" keyDown="text_keyDownHandler(event)"/>
+		<s:Button width="22" height="22" icon="@Embed('/assets/webgis/GenericSearch16.png')" click="button1_clickHandler(event)"/>
+	</s:HGroup>
+</s:Module>

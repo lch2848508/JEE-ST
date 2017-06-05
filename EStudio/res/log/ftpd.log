@@ -1,0 +1,104 @@
+[ INFO] 2016-08-19 10:33:36,133 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 10:33:36,138 [] [] Retrying request
+[ INFO] 2016-08-19 10:33:37,140 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 10:33:37,140 [] [] Retrying request
+[ INFO] 2016-08-19 10:33:38,143 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 10:33:38,143 [] [] Retrying request
+[ERROR] 2016-08-19 10:33:39,144 [] [] java.net.ConnectException: Connection refused: connect
+[ INFO] 2016-08-19 11:05:49,916 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 11:05:49,920 [] [] Retrying request
+[ INFO] 2016-08-19 11:05:50,923 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 11:05:50,923 [] [] Retrying request
+[ INFO] 2016-08-19 11:05:51,938 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 11:05:51,938 [] [] Retrying request
+[ERROR] 2016-08-19 11:05:52,944 [] [] java.net.ConnectException: Connection refused: connect
+[ INFO] 2016-08-19 11:44:33,016 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 11:44:33,021 [] [] Retrying request
+[ INFO] 2016-08-19 11:44:34,024 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 11:44:34,024 [] [] Retrying request
+[ INFO] 2016-08-19 11:44:35,027 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 11:44:35,027 [] [] Retrying request
+[ERROR] 2016-08-19 11:44:36,029 [] [] java.net.ConnectException: Connection refused: connect
+[ INFO] 2016-08-19 15:30:23,238 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 15:30:23,280 [] [] Retrying request
+[ INFO] 2016-08-19 15:30:24,283 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 15:30:24,283 [] [] Retrying request
+[ INFO] 2016-08-19 15:30:25,283 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 15:30:25,283 [] [] Retrying request
+[ERROR] 2016-08-19 15:30:26,285 [] [] java.net.ConnectException: Connection refused: connect
+[ INFO] 2016-08-19 16:24:28,783 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 16:24:28,787 [] [] Retrying request
+[ INFO] 2016-08-19 16:24:29,790 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 16:24:29,790 [] [] Retrying request
+[ INFO] 2016-08-19 16:24:30,793 [] [] I/O exception (java.net.ConnectException) caught when processing request: Connection refused: connect
+[ INFO] 2016-08-19 16:24:30,793 [] [] Retrying request
+[ERROR] 2016-08-19 16:24:31,796 [] [] java.net.ConnectException: Connection refused: connect
+[ERROR] 2016-08-26 13:08:29,526 [] [] java.net.SocketException: Connection reset
+[ INFO] 2016-09-23 15:35:21,350 [] [] {dataSource-1} inited
+[ INFO] 2016-09-23 16:01:18,377 [] [] {dataSource-1} inited
+[ INFO] 2016-09-23 16:05:03,731 [] [] {dataSource-1} inited
+[ INFO] 2016-09-23 16:07:51,686 [] [] {dataSource-1} inited
+[ INFO] 2016-09-23 16:12:51,306 [] [] {dataSource-1} inited
+[ INFO] 2016-09-23 16:18:51,673 [] [] {dataSource-1} inited
+[ INFO] 2016-09-23 16:20:20,071 [] [] {dataSource-1} inited
+[ INFO] 2016-09-23 16:21:10,642 [] [] {dataSource-1} inited
+[ INFO] 2016-09-23 16:22:44,959 [] [] {dataSource-1} inited
+[ INFO] 2016-09-23 16:33:21,805 [] [] {dataSource-1} inited
+[ INFO] 2016-09-27 10:09:00,396 [] [] {dataSource-1} inited
+[ERROR] 2017-03-15 13:09:02,688 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 13:09:02,727 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 13:09:02,817 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 13:10:27,383 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 13:10:27,394 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 13:10:27,463 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 13:11:10,963 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 13:11:10,995 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 13:11:11,070 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 13:23:28,068 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 13:23:28,083 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 13:23:28,161 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 13:53:50,231 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 13:53:50,247 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 13:53:50,327 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 14:13:40,720 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 14:13:40,767 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 14:13:40,860 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 14:14:31,827 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 14:14:31,858 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 14:14:31,958 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 14:24:48,838 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 14:24:48,848 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 14:24:48,917 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 14:29:24,540 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 14:29:24,572 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 14:29:24,648 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 14:33:04,682 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 14:33:04,692 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 14:33:04,761 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 14:39:18,045 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 14:39:18,075 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 14:39:18,146 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 14:40:43,820 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 14:40:43,886 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 14:40:43,963 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 14:43:25,600 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 14:43:25,612 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 14:43:25,682 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 14:43:58,157 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 14:43:58,169 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 14:43:58,238 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 14:44:13,463 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 14:44:13,473 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 14:44:13,542 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 15:44:00,375 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 15:44:00,386 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 15:44:00,455 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 15:45:10,637 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 15:45:10,648 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 15:45:10,717 [] [] not full timeout retry : 1
+[ERROR] 2017-03-15 16:40:34,837 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-15 16:40:34,847 [] [] {dataSource-1} inited
+[ WARN] 2017-03-15 16:40:34,916 [] [] not full timeout retry : 1
+[ERROR] 2017-03-16 14:07:22,171 [] [] testWhileIdle is true, validationQuery not set
+[ INFO] 2017-03-16 14:07:22,196 [] [] {dataSource-1} inited
+[ WARN] 2017-03-16 14:07:22,265 [] [] not full timeout retry : 1

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow title="即时消息提醒" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="300" height="200" right="0" bottom="18">
+    <fx:Declarations>
+
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+            import mx.events.FlexEvent;
+
+            private var timer:Timer = null;
+            private var timerIsStart:Boolean = false;
+            private var contentCache:String = "";
+
+
+            //-----------------------------------------------------------------------------------------
+            //增加消息
+            public function addMessage(msg:String):void
+            {
+                if (this.content != null)
+                {
+                    content.htmlText = content.htmlText + msg;
+                }
+                else
+                {
+                    contentCache = contentCache + msg;
+                }
+            }
+
+            //-----------------------------------------------------------------------------------------
+            protected function eventContentCreateCompleted(event:FlexEvent):void
+            {
+                this.content.htmlText = contentCache;
+                contentCache = "";
+
+            }
+
+            //-----------------------------------------------------------------------------------------
+
+            protected function content_valueCommitHandler(event:FlexEvent):void
+            {
+                content.verticalScrollPosition = content.maxVerticalScrollPosition + 500;
+            }
+
+            protected function content_doubleClickHandler(event:MouseEvent):void
+            {
+                if (event.ctrlKey && event.altKey && event.shiftKey)
+                {
+                    content.text = "";
+                }
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+    </fx:Declarations>
+    <mx:TextArea doubleClickEnabled="true" doubleClick="content_doubleClickHandler(event)" borderVisible="false" valueCommit="content_valueCommitHandler(event)" horizontalScrollPolicy="off" editable="false" width="100%" height="100%" x="0" y="0" id="content"
+                 creationComplete="eventContentCreateCompleted(event)">
+    </mx:TextArea>
+</s:TitleWindow>

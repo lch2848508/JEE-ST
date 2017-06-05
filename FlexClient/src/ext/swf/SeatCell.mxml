@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group minHeight="0" minWidth="0" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+	<!-- 填充是否有人 -->
+
+
+
+
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			private var _caption:String="";
+
+			public var seat_no:int=0;
+
+			private var _isOrder:Boolean=false;
+
+			private var _username:String="";
+
+			public function get username():String
+			{
+				return _username;
+			}
+
+			public function set username(value:String):void
+			{
+				_username=value;
+				label.toolTip=value;
+			}
+
+
+			public var busTable:BusSeatTable=null;
+
+			public function get isOrder():Boolean
+			{
+				return _isOrder;
+			}
+
+			public function set isOrder(value:Boolean):void
+			{
+				_isOrder=value;
+				label.setStyle("backgroundColor", value ? "0x00CC00" : "0xFFFFFF");
+			}
+
+
+			public function set caption(v:String):void
+			{
+				_caption=v;
+				if (label)
+					label.text=v;
+			}
+
+			public function get caption():String
+			{
+				return _caption;
+			}
+
+
+			public function set hasUser(v:Boolean):void
+			{
+				_hasUser=v;
+				label.setStyle("backgroundColor", v ? "0xCC0000" : "0xFFFFFF");
+			}
+
+			public function get hasUser():Boolean
+			{
+				return _hasUser;
+			}
+
+			private var _hasUser:Boolean=false;
+
+			protected function label_doubleClickHandler(event:MouseEvent):void
+			{
+				if (_hasUser || busTable.win.order_id == 0)
+					return;
+				busTable.selectOrUnSelect(this);
+			}
+		]]>
+	</fx:Script>
+	<s:Label doubleClick="label_doubleClickHandler(event)" doubleClickEnabled="true" buttonMode="true" backgroundAlpha="0.5" backgroundColor="0xFFFFFF" mouseChildren="false" width="100%" height="100%" fontFamily="Courier New" id="label" text="{_caption}" verticalAlign="middle" textAlign="center"
+			 fontSize="16">
+
+	</s:Label>
+</s:Group>

@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer alpha="0.95" currentState="picture" creationComplete="bordercontainer1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.webgis.component.*">
+	<s:layout>
+		<s:VerticalLayout gap="0" paddingLeft="0" paddingRight="0" paddingTop="0" paddingBottom="0"/>
+	</s:layout>
+
+	<s:states>
+		<s:State name="picture"/>
+		<s:State name="video"/>
+	</s:states>
+
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			import mx.managers.SystemManager;
+
+			[Bindable]
+			private var videoURL:String="";
+
+			private var swfInstance:Object=null;
+			public var callFunction:Function=null;
+
+			protected function toolbartextbutton3_clickHandler(event:MouseEvent):void
+			{
+				if (isNaN(selectedItem.rotation))
+					selectedItem.rotation=0;
+				selectedItem.rotation=(selectedItem.rotation + 180) % 360;
+				viewSelectedItemPicture(selectedItem);
+			}
+
+			protected function toolbartextbutton4_clickHandler(event:MouseEvent):void
+			{
+				if (isNaN(selectedItem.rotation))
+					selectedItem.rotation=0;
+				selectedItem.rotation=(selectedItem.rotation + 270) % 360;
+				viewSelectedItemPicture(selectedItem);
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function bordercontainer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				cbType.textInput.editable=false;
+				initPictures();
+				isCompleted=true;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			protected function cbType_changeHandler(event:IndexChangeEvent):void
+			{
+				dataProvider.filterFunction=function(item:Object):Boolean
+				{
+					if (cbType.selectedIndex < 1)
+						return true;
+					return StringUtils.equal(item.category, cbType.selectedItem);
+				};
+				dataProvider.refresh();
+				imageList.invalidateDisplayList();
+				if (dataProvider.getItemIndex(selectedItem) == -1)
+				{
+					selectedItem=dataProvider.getItemAt(0);
+					imageList_changeHandler(null);
+				}
+			}
+
+			protected function toolbartextbutton5_clickHandler(event:MouseEvent):void
+			{
+				navigateToURL(new URLRequest(selectedItem.url), "viewWindowEx");
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			protected function video_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (!StringUtils.isEmpty(videoURL))
+					swfInstance.play();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+
+			protected function swfloader1_completeHandler(event:Event):void
+			{
+				(swf.content as SystemManager).addEventListener(FlexEvent.APPLICATION_COMPLETE, function(e:Event):void
+				{
+					swfInstance=e.target.application;
+					swfInstance.setVideoURL(videoURL);
+					swfInstance.play();
+				});
+			}
+		]]>
+	</fx:Script>
+
+
+	<fx:Script>
+		<![CDATA[
+			import mx.events.ResizeEvent;
+			import com.estudio.flex.utils.FilenameUtils;
+			import com.estudio.flex.utils.ImageUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+
+			import spark.events.IndexChangeEvent;
+			[Bindable]
+			public var dataProvider:ArrayCollection=null;
+			public var bitmap4Picture:BitmapData=null;
+			[Bindable]
+			public var bitmap4View:BitmapData=null;
+			public var selectedItem:Object=null;
+			public var defaultType:String=null;
+			public var isCompleted:Boolean=false;
+			[Bindable]
+			private var typeDataProvider:ArrayCollection=new ArrayCollection([]);
+
+			///////////////////////////////////////////////////////////////////////////////////
+			private function initPictures():void
+			{
+				typeDataProvider.removeAll();
+				typeDataProvider.addItem("全部图片");
+				for (var i:int=0; i < dataProvider.length; i++)
+				{
+					var item:Object=dataProvider.getItemAt(i);
+					if (typeDataProvider.getItemIndex(item.category) == -1)
+						typeDataProvider.addItem(item.category);
+				}
+				typeDataProvider.refresh();
+				cbType.callLater(function():void
+				{
+					cbType.selectedItem=typeDataProvider.getItemAt(typeDataProvider.getItemIndex(defaultType));
+					cbType.callLater(function():void
+					{
+						cbType_changeHandler(null);
+						imageList.selectedIndex=dataProvider.getItemIndex(selectedItem);
+						imageList.callLater(function():void
+						{
+							imageList.ensureIndexIsVisible(imageList.selectedIndex);
+						});
+					});
+				});
+				imageList_changeHandler(null);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////
+			public static function execute(items:ArrayCollection, item:Object, defaultType:String, callFunction:Function):void
+			{
+				var instance:Object=FlexGlobals.topLevelApplication.cache["WinPictureView"];
+				if (instance == null)
+				{
+					instance=new WinPictureView();
+					FlexGlobals.topLevelApplication.addEventListener(ResizeEvent.RESIZE, function(e:Event):void
+					{
+						instance.width=FlexGlobals.topLevelApplication.width;
+						instance.height=FlexGlobals.topLevelApplication.height;
+					});
+					FlexGlobals.topLevelApplication.cache["WinPictureView"]=instance;
+				}
+				instance.callFunction=callFunction;
+				instance.dataProvider=new ArrayCollection(items.source);
+				instance.selectedItem=item;
+				instance.defaultType=defaultType;
+				var top:UIComponent=FlexGlobals.topLevelApplication as UIComponent;
+				instance.width=top.width;
+				instance.height=top.height;
+				PopUpManager.addPopUp(instance as UIComponent, top, true);
+				PopUpManager.centerPopUp(instance as UIComponent);
+				if (instance.isCompleted)
+					instance.initPictures();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function toolbartextbutton1_clickHandler(event:MouseEvent):void
+			{
+				bitmap4Picture=null;
+				bitmap4View=null;
+				normalImage.source="";
+				PopUpManager.removePopUp(this);
+				if (callFunction)
+					callFunction();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+
+			protected function imageList_doubleClickHandler(event:MouseEvent):void
+			{
+				if (!imageList.selectedItem)
+					return;
+				selectedItem=imageList.selectedItem;
+				var href:String=StringUtils.trim(selectedItem.href);
+				if (!StringUtils.isEmpty(href))
+					navigateToURL(new URLRequest(href), "viewWindowEx");
+				else
+					navigateToURL(new URLRequest(selectedItem.url), "viewWindowEx");
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function imageList_changeHandler(event:IndexChangeEvent):void
+			{
+				if (swfInstance)
+					swfInstance.stop();
+
+				bitmap4View=null;
+				bitmap4Picture=null;
+				if (event != null && event.newIndex >= 0)
+					selectedItem=imageList.selectedItem;
+				var href:String=StringUtils.trim(selectedItem.href);
+				if (!StringUtils.isEmpty(href))
+				{
+					var ext:String=FilenameUtils.getFileExt(selectedItem.href).toLocaleLowerCase();
+					if (ext == "flv" || ext == "f4v" || ext == "mov")
+					{
+						currentState="video";
+						videoURL=selectedItem.href;
+						if (swfInstance)
+						{
+							swfInstance.setVideoURL(videoURL);
+							swfInstance.play();
+						}
+					}
+					else
+					{
+						navigateToURL(new URLRequest(href), "viewWindowEx");
+					}
+
+				}
+				else
+				{
+					currentState="picture";
+					normalImage.source=selectedItem.url;
+				}
+
+				if (event && event.newIndex >= 0)
+					imageList.ensureIndexIsVisible(event.newIndex);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			protected function toolbartextbutton2_clickHandler(event:MouseEvent):void
+			{
+				if (isNaN(selectedItem.rotation))
+					selectedItem.rotation=0;
+				selectedItem.rotation=(selectedItem.rotation + 90) % 360;
+				viewSelectedItemPicture(selectedItem);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			private function viewSelectedItemPicture(item:Object):void
+			{
+				if (!bitmap4Picture)
+					return;
+				if (isNaN(item.rotation))
+					item.rotation=0;
+				if (item.rotation == 0)
+					bitmap4View=bitmap4Picture;
+				else if (item.rotation == 90)
+					bitmap4View=ImageUtils.rotat90(bitmap4Picture);
+				else if (item.rotation == 180)
+					bitmap4View=ImageUtils.rotat180(bitmap4Picture);
+				else if (item.rotation == 270)
+					bitmap4View=ImageUtils.rotat270(bitmap4Picture);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function normalImage_completeHandler(event:Event):void
+			{
+				bitmap4Picture=normalImage.bitmapData;
+				viewSelectedItemPicture(selectedItem);
+			}
+			//////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+
+	</fx:Declarations>
+	<s:BorderContainer height="30" backgroundColor="0xF5F5F5" width="100%" borderVisible="false">
+		<s:layout>
+			<s:HorizontalLayout verticalAlign="middle" gap="4" paddingRight="2" paddingLeft="2"/>
+		</s:layout>
+		<s:Label text="简易图片查看器" fontWeight="bold" color="0x0000FF"/>
+		<s:Spacer width="100%"/>
+		<component:ToolbarTextButton height="24" label="下载原图" click="toolbartextbutton5_clickHandler(event)"/>
+		<component:ToolbarTextButton height="24" label="向左旋转" click="toolbartextbutton4_clickHandler(event)"/>
+		<component:ToolbarTextButton height="24" label="垂直翻转" click="toolbartextbutton3_clickHandler(event)"/>
+		<component:ToolbarTextButton height="24" label="向右旋转" click="toolbartextbutton2_clickHandler(event)"/>
+		<s:HGroup width="284" height="100%" paddingLeft="0" gap="4" verticalAlign="middle">
+			<s:Label text="分类 " fontWeight="bold" paddingTop="2"/>
+			<s:ComboBox change="cbType_changeHandler(event)" dataProvider="{typeDataProvider}" id="cbType" width="100%"/>
+			<component:ToolbarTextButton color="0xFF0000" selected="true" fontWeight="bold" label="关闭" click="toolbartextbutton1_clickHandler(event)"/>
+		</s:HGroup>
+	</s:BorderContainer>
+	<s:HGroup width="100%" height="100%" gap="-1">
+		<s:BorderContainer width="100%" height="100%" id="imgContain">
+			<s:Image width="100%" height="100%" id="img" source="{bitmap4View}" includeIn="picture"/>
+			<s:SWFLoader id="swf" complete="swfloader1_completeHandler(event)" width="100%" height="100%" source="../ext/VideoPlayer.swf" includeIn="video"/>
+		</s:BorderContainer>
+		<s:List selectionColor="0xFFFF00" change="imageList_changeHandler(event)" doubleClick="imageList_doubleClickHandler(event)" verticalScrollPolicy="on" borderVisible="true" id="imageList"
+				doubleClickEnabled="true" width="284" height="100%" itemRenderer="com.webgis.component.ListItemRender4PictureViewOnly" dataProvider="{dataProvider}">
+		</s:List>
+	</s:HGroup>
+
+	<s:Image id="normalImage" complete="normalImage_completeHandler(event)" height="0" width="0"/>
+</s:BorderContainer>

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<s:BorderContainer backgroundColor="#F4F7F8" borderVisible="false" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+	<s:HGroup left="0" right="0" top="0" bottom="0" id="hgroup">
+		<fx:Script>
+			<![CDATA[
+				import mx.collections.ArrayCollection;
+				import mx.containers.ViewStack;
+				import mx.controls.PopUpButton;
+
+				import spark.components.NavigatorContent;
+				public var viewStack:ViewStack=null;
+
+				private var items:Array=[];
+				private var popupButton:NavigatorMoreItem=null;
+				private var extItems:Array=[];
+
+				////////////////////////////////////////////////////////////////////////////////////
+				public function createItems():void
+				{
+					for(var i:int=viewStack.numElements-1;i>=0;i--)
+					{
+						var contain:Object=viewStack.getElementAt(i);
+						if(!contain.enabled)(viewStack as Object).removeElement(contain);
+					}
+					
+					var maxNumber:int=Math.min(viewStack.numElements, 4);
+					for (var i:int=0; i < maxNumber; i++)
+					{
+						var contain:Object=viewStack.getElementAt(i);					
+						var label:String=contain.label;
+						var item:NavigatorItem=new NavigatorItem();
+						item.index=i;
+						item.label=label;
+						item.control=viewStack.getElementAt(i);
+						hgroup.addElement(item);
+						items.push(item);
+						item.addEventListener(MouseEvent.CLICK, event4ItemClick);
+						if (i != maxNumber - 1)
+							hgroup.addElement(new NavigatorSpector);
+					}
+					items[0].selected=true;
+					if (viewStack.numElements > 4)
+					{
+						hgroup.addElement(new NavigatorSpector);
+						popupButton=new NavigatorMoreItem();
+						hgroup.addElement(popupButton);
+						var w:int=0;
+						for (var i:int=4; i < viewStack.numElements; i++)
+						{
+							var contain:Object=viewStack.getElementAt(i);
+							var label:String=contain.label;
+							extItems.push({label: label, selected: false, control: contain, index: i});
+							w=Math.max(w, measureText(label).width);
+						}
+						popupButton.items=new ArrayCollection(extItems);
+						popupButton.cbWidth=w + 40;
+						popupButton.callFunction=extItemClickCallFunction;
+					}
+				}
+
+				////////////////////////////////////////////////////////////////////////////////////
+				private function extItemClickCallFunction(item:Object):void
+				{
+					for (var i:int=0; i < items.length; i++)
+					{
+						if (items[i].selected)
+							items[i].selected=false;
+					}
+					viewStack.selectedChild=viewStack.getElementAt(item.index) as NavigatorContent;
+					item.selected=true;
+				}
+
+				////////////////////////////////////////////////////////////////////////////////////
+				public function resetSelectedItem():void
+				{
+					if(popupButton)popupButton.selectIndex=-1;
+					for (var i:int=0; i < hgroup.numElements; i++)
+					{
+						var control:Object=hgroup.getElementAt(i);
+						if (control is NavigatorItem)
+						{
+							if (control.control == viewStack.selectedChild)
+								control.selected=true;
+							else
+								control.selected=false;
+						}
+					}
+					for (var i:int=0; i < extItems.length; i++)
+					{
+						var item:Object=extItems[i];
+						if (item.control == viewStack.selectedChild)
+						{
+							popupButton.selectIndex=i;
+							break;
+						}
+					}
+				}
+
+				////////////////////////////////////////////////////////////////////////////////////
+				private function event4ItemClick(event:MouseEvent):void
+				{
+					var item:Object=event.currentTarget;
+					if (item.selected)
+						return;
+					for (var i:int=0; i < items.length; i++)
+					{
+						if (items[i].selected)
+							items[i].selected=false;
+					}
+					item.selected=true;
+					viewStack.selectedChild=viewStack.getElementAt(item.index) as NavigatorContent;
+					if(popupButton)popupButton.selectIndex=-1;
+				}
+				////////////////////////////////////////////////////////////////////////////////////
+			]]>
+		</fx:Script>
+	</s:HGroup>
+	<s:Line id="line" width="100%" bottom="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#DDE1E5"/>
+		</s:stroke>
+	</s:Line>
+</s:BorderContainer>

@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module visible="false" creationComplete="module1_creationCompleteHandler(event)" implements="com.webgis.intf.MapWidgetIntf, com.webgis.intf.MapControlPlottingIntf" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%" height="100%" xmlns:component="com.webgis.component.*" xmlns:toolbar="com.webgis.module.toolbar.*" xmlns:ns="http://www.esri.com/2008/ags">
+	<fx:Style source="../../MapApp.css"/>
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.events.MapEvent;
+			import com.esri.ags.events.MapMouseEvent;
+			import com.esri.ags.events.ZoomEvent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polygon;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.CompositeSymbol;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.symbols.SimpleFillSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.tools.DrawTool;
+			import com.esri.ags.utils.WebMercatorUtil;
+			import com.estudio.flex.module.component.AdvDataGridColumnGroupHeaderRenderEx;
+			import com.estudio.flex.module.component.AdvDataGridColumnHeaderRenderEx;
+			import com.estudio.flex.module.component.AdvDataGridColumnIcon;
+			import com.estudio.flex.module.component.AdvancedDataGridGroupItemRendererEx;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.FilenameUtils;
+			import com.estudio.flex.utils.JSFunUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.event.MapModeEvent;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.module.favorite.FavoriteListItemRender;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.HierarchicalData;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumnGroup;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridRendererProvider;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			[Bindable]
+			private var mapInstance:Map=null;
+			[Bindable]
+			private var mapAppInstance:Object=null;
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+
+			[Embed(source="/assets/common/computer.png")] //新建
+			[Bindable]
+			private var imgRoot:Class;
+
+			[Embed(source="/assets/common/home.png")] //新建
+			[Bindable]
+			private var imgDepartment:Class;
+
+			[Embed(source="/assets/common/picture_camera.png")] //新建
+			[Bindable]
+			private var imgCamera:Class;
+
+			[Embed(source="video.png")] //新建
+			[Bindable]
+			private var imgVideo:Class;
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//创建完成事件
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				widgetContainInstance.getContainByLabel("视频监控")["addElement"](this.owner);
+				(map as Map).addEventListener(MapMouseEvent.MAP_CLICK, event4VideoClick);
+				this.visible=true;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private var isLoadVideoMonitor:Boolean=false;
+
+			private function loadVideoMonitors():void
+			{
+				if (isLoadVideoMonitor)
+					return;
+				AjaxUtils.getData("../ext/video.js", function(text:String, token:Object):void
+				{
+					var json:Array=JSON.parse(text) as Array;
+					processFun(json);
+					tree.dataProvider=new ArrayCollection(json);
+					tree.callLater(function():void
+					{
+						tree.expandChildrenOf(json[0], true);
+					});
+				});
+				isLoadVideoMonitor=true;
+			}
+
+			private function processFun(items:Array):void
+			{
+				for (var i:int=0; i < items.length; i++)
+				{
+					if (items[i].isRoot)
+						items[i].icon=imgRoot;
+					else if (items[i].children)
+						items[i].icon=imgDepartment;
+					else
+					{
+						items[i].icon=imgCamera;
+						var ss:Array=items[i].lonlat.split(",");
+						var p:MapPoint=new MapPoint(ss[0] * 1, ss[1] * 1);
+						p=WebMercatorUtil.geographicToWebMercator(p) as MapPoint;
+						var geometry:Graphic=new Graphic(p, symbol4Video, {id: items[i].id, name: items[i].name});
+						geometry.toolTip=items[i].name;
+						videoLayer.add(geometry);
+						items[i].geometry=geometry;
+					}
+					if (items[i].children)
+						processFun(items[i].children as Array);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function active():void
+			{
+				(map as MapControl).addLayer(videoLayer);
+				loadVideoMonitors();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function inactive():void
+			{
+				(map as MapControl).activePanMode();
+				(map as MapControl).removeLayer(videoLayer);
+			}
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			private var extParams:Object=null;
+
+			public function setParams(v:Object):void
+			{
+				this.extParams=v;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4VideoClick(event:MapMouseEvent):void
+			{
+				var target:Object=event.originalTarget;
+				if (target && target.hasOwnProperty("parent") && target.parent is Graphic)
+					target=target.parent;
+				if (target is Graphic && Graphic(target).owner == videoLayer && target.attributes)
+				{
+					var id:String=target.attributes.id;
+					flash.external.ExternalInterface.call("openFlatWindow", target.attributes.name, "../ext/video.jsp?id=" + id, 800, 500);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function tree_doubleClickHandler(event:MouseEvent):void
+			{
+				var item:Object=tree.selectedItem;
+				if (item && item.icon == imgCamera)
+				{
+					mapInstance.centerAt(item.geometry.geometry as MapPoint);
+					//mapInstance.zoomTo();
+					var id:String=item.id;
+					flash.external.ExternalInterface.call("openFlatWindow", item.name, "../ext/video.jsp?id=" + id, 800, 500);
+				}
+
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<ns:GraphicsLayer id="videoLayer" mouseChildren="true"/>
+		<ns:PictureMarkerSymbol id="symbol4Video" source="{imgVideo}"/>
+	</fx:Declarations>
+	<mx:Tree width="100%" height="100%" labelField="name" iconField="icon" doubleClickEnabled="true" doubleClick="tree_doubleClickHandler(event)" borderStyle="solid" id="tree" borderVisible="true"/>
+</s:Module>

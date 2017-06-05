@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup verticalAlign="middle" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" height="28">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.component.FormToolbarVertline;
+			import com.estudio.flex.utils.ArrayUtils;
+
+			import spark.components.Label;
+			private var formLabels:Array=[];
+			private var labelClickFunction:Function=null;
+			private var selectIndex:int=0;
+
+			public function createLinkBars(forms:Array, clickFun:Function):void
+			{
+				labelClickFunction=clickFun;
+				for (var i:int=0; i < forms.length; i++)
+				{
+					var label:Label=new Label();
+					label.useHandCursor=true;
+					label.mouseChildren=false;
+					label.buttonMode=true;
+					label.doubleClickEnabled=false;
+					formLabels.push(label);
+					if (i == 0)
+					{
+						setLabelStyle(label, true);
+					}
+					label.addEventListener(MouseEvent.CLICK, LinkBarItemClick);
+
+					label.text=forms[i].label;
+					this.addElement(label);
+					if (i != forms.length - 1)
+					{
+						var line:FormToolbarVertline=new FormToolbarVertline();
+						this.addElement(line);
+					}
+				}
+			}
+
+			private function LinkBarItemClick(event:MouseEvent):void
+			{
+				var index:int=ArrayUtils.indexOf(formLabels, event.currentTarget);
+				if (selectIndex != index)
+				{
+					labelClickFunction(index);
+					var oldLabel:Label=formLabels[selectIndex];
+					var newLabel:Label=formLabels[index];
+					selectIndex=index;
+					setLabelStyle(oldLabel, false);
+					setLabelStyle(newLabel, true);
+				}
+			}
+
+			private function setLabelStyle(label:Label, isSelected:Boolean):void
+			{
+				if (isSelected)
+				{
+					label.setStyle("fontWeight", "bold");
+					label.setStyle("color", "0x0000EE");
+				}
+				else
+				{
+					label.setStyle("fontWeight", "normal");
+					label.setStyle("color", "0x000000");
+				}
+			}
+
+			public function selectFirst():void
+			{
+				var index:int=0;
+				if (selectIndex != index)
+				{
+					labelClickFunction(index);
+					var oldLabel:Label=formLabels[selectIndex];
+					var newLabel:Label=formLabels[index];
+					selectIndex=index;
+					setLabelStyle(oldLabel, false);
+					setLabelStyle(newLabel, true);
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:Label text="业务表单列表:" fontWeight="bold" fontSize="14">
+
+	</s:Label>
+</s:HGroup>

@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:esri="http://www.esri.com/2008/ags"
+			   pageTitle="Charts in infowindow" xmlns:symbols="com.esri.ags.symbols.*" creationComplete="application1_creationCompleteHandler(event)">
+	
+		<fx:Style>
+		.chartStyle
+		{
+			borderThickness: 0;
+			infoPlacement: center;
+			backgroundAlpha: 0;
+			infoOffsetX: 0;
+			infoOffsetY: 0;
+			paddingLeft: 0;
+			paddingRight: 0;
+			paddingTop: 0;
+			paddingBottom: 0;
+		}
+	</fx:Style>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.FeatureSet;
+			import com.esri.ags.Graphic;
+			import com.esri.ags.events.MapEvent;
+			import com.esri.ags.events.MapMouseEvent;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polygon;
+			import com.esri.ags.symbols.CompositeSymbol;
+			import com.esri.ags.symbols.SimpleFillSymbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.tasks.QueryTask;
+			import com.esri.ags.tasks.supportClasses.Query;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.rpc.AsyncResponder;
+			
+			import spark.primitives.Rect;
+			
+			protected function myMap_initializeHandler(event:MapEvent):void
+			{
+				var pie:MapPoint = new MapPoint(113.55185,22.82289);
+				var column:MapPoint = new MapPoint(113.59637985600011,22.758225999000047);
+				var bar:MapPoint = new MapPoint(113.52757794,22.84012158);
+				var gpie:Graphic = new Graphic(pie);
+				var gcolumn:Graphic = new Graphic(column);
+				var gbar:Graphic = new Graphic(bar);   
+				var thematic:ArrayCollection = new ArrayCollection(
+					[                  
+						{ Name: "危化品1", Rate: 25 },                
+						{ Name: "危化品2", Rate: 15 },                
+						{ Name: "危化品3", Rate: 23 }
+					]);
+				
+				gpie.attributes = thematic;
+				gcolumn.attributes = thematic;
+				gbar.attributes = thematic;
+				
+				//this.myGraphicsLayerpie.add(gpie);
+				//this.myGraphicsLayercolumn.add(gcolumn);
+				//this.myGraphicsLayerbar.add(gbar);
+			}
+			
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var c1:uint=0x129412;
+				var c2:uint=0xB3FFB3;
+				var colors:Array=ColorGradient.generateTransitionalColor(c1,c2,2);
+				trace(colors.length);
+//				var xx:String="224-258";
+//				trace(xx);
+//				var array:Array=xx.split('-');
+//				for(var i:int=0;i<array.length;i++){
+//					trace(array[i]);
+//				}
+//				var c1:uint=0xFF0000;
+//				var c2:uint=0x000000;
+//				var colors:Array=ColorGradient.generateTransitionalColor(c1,c2,10);
+//				
+//				for(var i:int;i<colors.length;i++){
+//					trace("0x"+colors[i].toString(16));
+//					//this.myGraphicsLayercolumn.add(xx);
+//				}
+//				
+//				var records:Array = new Array();
+//				records.push({name:"john", city:"omaha", zip:68144});
+//				records.push({name:"john", city:"kansas city", zip:72345});
+//				records.push({name:"bob", city:"omaha", zip:94010});
+//				for(var i:int = 0; i < records.length; i++) {
+//					trace(records[i].name + ", " + records[i].city);
+//				}
+//				// Results:
+//				// john, omaha
+//				// john, kansas city
+//				// bob, omaha
+//				trace("records.sortOn('name', 'city');");
+//				records.sortOn(["name", "city"]);
+//				for(var i:int = 0; i < records.length; i++) {
+//					trace(records[i].name + ", " + records[i].city);
+//				}
+//				// Results:
+//				// bob, omaha
+//				// john, kansas city
+//				// john, omaha
+//				trace("records.sortOn('city', 'name');");
+//				records.sortOn(["city", "name"]);
+//				for(var i:int = 0; i < records.length; i++) {
+//					trace(records[i].name + ", " + records[i].city);
+//				}
+				
+//			   var array:Array=([150,255,255],[255,255,150],[255,150,150]);
+//		        var arraycolor:Array=ColorsGradient([new Color(150,255,255),new Color(255,255,150),new Color(255,150,150)]);  
+//				trace(arraycolor.length);
+//				for(var i:int;i<arraycolor.length;i++){
+//					trace(arraycolor[i]);
+//					var xx:Rect=new Rect();
+//					
+//					xx.width=500;
+//					xx.height=500;
+//					//xx.
+//					this.addElement(xx);
+//					//this.myGraphicsLayercolumn.add(xx);
+//				}
+				
+				// TODO Auto-generated method stub
+//				var targetRegExp1:RegExp=/^[A-Z]+$/;
+//				var targetRegExp2:RegExp=/^[0-9]+\.[0-9]+%/;
+//				var targetRegExp3:RegExp=/^\d+(\.\d+)?%$/;
+//				var targetRegExp:RegExp=/^\d+\.d+%$/;
+//				if(targetRegExp3.test("112.2211%")){
+//					trace("OK");
+//				}else{
+//					trace("NO");
+//				}
+			}
+			
+			private function ColorsGradient(ColorArray:Array):Array  
+			{  
+				var r:int;  
+				var g:int;  
+				var b:int;  
+				var colorArr:Array=new Array();  
+				var num:Number=255/(ColorArray.length-1); //根据渲染颜色数，获得颜色变化次数  
+				for(var i:int=0;i<ColorArray.length-1;i++)  
+				{  
+					for(var j:int=0;j<num+1;j++)  
+					{  
+						r=ColorArray[i+1].red-ColorArray[i].red;  
+						g=ColorArray[i+1].green-ColorArray[i].green;  
+						b=ColorArray[i+1].blue-ColorArray[i].blue;  
+						
+						r=ColorArray[i].red+r*j/num;  
+						g=ColorArray[i].green+g*j/num;  
+						b=ColorArray[i].blue+b*j/num;  
+						
+						colorArr.push([r,g,b]); 
+//						colorArr.push([0,r,g,b]);  
+					}  
+				}  
+				return colorArr;  
+			}  
+			
+			private function MapClick(evt:MapMouseEvent):void
+			{
+				var cs:CompositeSymbol = new CompositeSymbol();
+				var textSymbol1:TextSymbol = new TextSymbol("hello");
+				textSymbol1.textFormat= new TextFormat("Arial",5);
+				var textSymbol2:TextSymbol = new TextSymbol("hello 123");
+				textSymbol2.textFormat= new TextFormat("Arial",10);
+				
+				var myPolygon:Polygon = new Polygon(
+					[[
+						evt.mapPoint,
+						new MapPoint(evt.mapPoint.x, evt.mapPoint.y+8),
+						new MapPoint(evt.mapPoint.x+8, evt.mapPoint.y+8),
+						new MapPoint(evt.mapPoint.x+8, evt.mapPoint.y+0)
+					]], new SpatialReference(4326));
+//				cs.symbols= [textSymbol1, textSymbol2, new SimpleFillSymbol(SimpleFillSymbol.STYLE_BACKWARD_DIAGONAL,0xFF00FF,1)];
+//				cs.symbols= [new SimpleFillSymbol(SimpleFillSymbol.STYLE_VERTICAL,0xFF0000,1)];
+				cs.symbols= [textSymbol1];
+				var m_graphic:Graphic = new Graphic(myPolygon , cs );
+				gLayer.add( m_graphic);
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<esri:InfoSymbol id="infoSymbolpie" infoRenderer="InfoRendererPieChart" containerStyleName="chartStyle">
+		</esri:InfoSymbol>
+		<esri:InfoSymbol id="infoSymbolcolumn" infoRenderer="InfoRendererColumnChart" containerStyleName="chartStyle">
+		</esri:InfoSymbol>
+		<esri:InfoSymbol id="infoSymbolbar" infoRenderer="InfoRendererBarChart" containerStyleName="chartStylee">
+		</esri:InfoSymbol>
+	</fx:Declarations>
+	
+	<esri:Map id="myMap" load="myMap_initializeHandler(event)" mapClick="MapClick(event)">
+		<esri:extent>
+			<esri:Extent xmin="113.284171273203" ymin="22.6348519473499" xmax="113.774816132605" ymax="22.9103935318251">
+				<esri:spatialReference>
+					<esri:SpatialReference wkid="4326"/>
+				</esri:spatialReference>
+			</esri:Extent>
+		</esri:extent>
+		<esri:ArcGISTiledMapServiceLayer url="http://localhost:6080/arcgis/rest/services/GDS/TD_GDS/MapServer"/>
+		<esri:GraphicsLayer id="myGraphicsLayercolumn" symbol="{infoSymbolcolumn}">
+		</esri:GraphicsLayer>
+		<esri:GraphicsLayer id="myGraphicsLayerpie" symbol="{infoSymbolpie}">
+		</esri:GraphicsLayer>
+		<esri:GraphicsLayer id="myGraphicsLayerbar" symbol="{infoSymbolbar}">
+		</esri:GraphicsLayer>
+		<esri:GraphicsLayer id="gLayer">
+		</esri:GraphicsLayer>
+	</esri:Map>
+</s:Application>

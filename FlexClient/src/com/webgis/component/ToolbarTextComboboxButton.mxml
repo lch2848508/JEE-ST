@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer creationComplete="bordercontainer1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" mouseOver="{focused=true}" mouseOut="{focused=false}" height="22"
+				   fontWeight="{selected?'bold':'normal'}" backgroundColor="{selected?0xE6EDF1:0xF8FAFA}" backgroundAlpha="{selected||focused?1:0.5}" borderVisible="true" borderColor="#BDCBD3">
+
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.DropdownEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			[Bindable]
+			public var selected:Boolean=false;
+			public var groupIndex:int=0;
+			public var toggle:Boolean=false;
+			public var tag:String="";
+
+			[Bindable]
+			public var label:String="";
+
+			[Bindable]
+			public var icon:Class=null;
+
+			[Bindable]
+			private var focused:Boolean=false;
+
+			private function calcToolbarItemWidth():void
+			{
+				this.width=this.measureText(label).width + 20 + 7;
+			}
+
+			protected function bordercontainer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				calcToolbarItemWidth();
+			}
+
+			public function open():void
+			{
+				popup.open();
+			}
+
+			[Bindable]
+			public var items:ArrayCollection=null;
+
+			[Bindable]
+			public var labelField:String="label";
+
+			public var selectedChangeCallFunction:Function=null;
+
+			public var selectedIndex:int=-1;
+
+			protected function list1_changeHandler(event:ListEvent):void
+			{
+
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				popup.open();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////
+
+			protected function list_creationCompleteHandler(event:FlexEvent):void
+			{
+
+			}
+
+			var isCalcListSize:Boolean=false;
+
+			protected function popup_openHandler(event:DropdownEvent):void
+			{
+				if (isCalcListSize)
+					return;
+				var w:int=0;
+				for (var i:int=0; i < items.length; i++)
+					w=Math.max(measureText(items.getItemAt(i).label).width + 60, 30);
+				list.height=Math.min(items.length * 25 + 10, 400);
+				list.width=w;
+				isCalcListSize=true;
+			}
+
+			protected function list_changeHandler(event:ListEvent):void
+			{
+				selectedIndex=list.selectedIndex;
+				for (var i:int=0; i < items.length; i++)
+				{
+					items[i].selected=i == list.selectedIndex;
+				}
+				items.refresh();
+				list.invalidateList();
+				if (selectedChangeCallFunction != null)
+					selectedChangeCallFunction(this, list.selectedIndex);
+			}
+		]]>
+
+	</fx:Script>
+
+	<mx:PopUpButton width="100%" height="100%" id="popup" alpha="0" minWidth="1" open="popup_openHandler(event)">
+		<mx:popUp>
+			<mx:List id="list" dataProvider="{items}" itemRenderer="com.webgis.component.ComboboxButtomItemRender" labelField="{labelField}" change="list_changeHandler(event)">
+			</mx:List>
+		</mx:popUp>
+	</mx:PopUpButton>
+
+
+	<s:HGroup horizontalCenter="0" height="100%" verticalAlign="middle" gap="2" paddingRight="2">
+		<s:Label text="{label}" id="lbl" width="100%" textAlign="right"/>
+		<s:Image source="@Embed('combobox_btn.png')" click="image1_clickHandler(event)"/>
+	</s:HGroup>
+
+</s:BorderContainer>
+

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx title="查找对话框" close="titlewindowex1_closeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="400" height="100">
+    <fx:Declarations>
+        <!-- Place non-visual elements (e.g., services, value objects) here -->
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+            import com.estudio.flex.utils.StringUtils;
+
+            import mx.core.FlexGlobals;
+            import mx.events.CloseEvent;
+            private static var _instance:WinSearchForm = new WinSearchForm ();
+            private var _callFunction:Function = null;
+            private var _isVisible:Boolean = false;
+
+            //------------------------------------------------------------------------------------------------
+            public static function showForm(callFunction:Function , x:int , y:int):void
+            {
+                _instance._callFunction = callFunction;
+                if (!_instance._isVisible)
+                {
+                    FlexGlobals.topLevelApplication.showPopupWindow (_instance , false , false , x , y);
+                    _instance._isVisible = true;
+                }
+            }
+
+            //-----------------------------------------------------------------------------------------------
+            //关闭按钮事件
+            protected function titlewindowex1_closeHandler(event:CloseEvent):void
+            {
+                FlexGlobals.topLevelApplication.closePopupWindow (_instance);
+                _instance._isVisible = false;
+            }
+
+            //-------------------------------------------------------------------------------------------------
+            //取消按钮
+            protected function btnCancelClick(event:MouseEvent):void
+            {
+                titlewindowex1_closeHandler (null);
+            }
+
+            //-------------------------------------------------------------------------------------------------
+
+            protected function checkDOWN_changeHandler(event:Event):void
+            {
+                if (event.currentTarget == checkDOWN)
+                {
+                    checkDOWN.selected = true;
+                    checkUP.selected = false;
+                }
+                else
+                {
+                    checkDOWN.selected = false;
+                    checkUP.selected = true;
+                }
+            }
+
+            //---------------------------------------------------------------------------------------------------
+            protected function btnOK_clickHandler(event:MouseEvent):void
+            {
+                var text:String = StringUtils.trim (inputText.text);
+                if (!StringUtils.isEmpty (text) && _callFunction != null)
+                {
+                    _callFunction (text , checkDOWN.selected);
+                }
+            }
+
+            //--------------------------------------------------------------------------------------------------
+            protected function inputText_keyDownHandler(event:KeyboardEvent):void
+            {
+                if (event.charCode == Keyboard.ENTER)
+                {
+                    btnOK_clickHandler (null);
+                }
+                else if (event.charCode == Keyboard.ESCAPE)
+                {
+                    btnCancelClick (null);
+                }
+            }
+        ]]>
+    </fx:Script>
+    <s:Group width="100%" height="100%">
+        <s:Button label="查找" right="5" top="5" height="25" width="75" id="btnOK" click="btnOK_clickHandler(event)">
+        </s:Button>
+        <s:Button label="取消" right="5" top="35" height="25" width="75" click="btnCancelClick(event)">
+        </s:Button>
+        <s:Label id="label" text="查找内容" left="8" top="12">
+        </s:Label>
+        <s:TextInput left="60" top="5" height="25" right="85" id="inputText" keyDown="inputText_keyDownHandler(event)">
+        </s:TextInput>
+        <s:CheckBox label="向上查找" left="60" top="37" id="checkUP" click="checkDOWN_changeHandler(event)">
+        </s:CheckBox>
+        <s:CheckBox label="向下查找" left="135" top="37" id="checkDOWN" selected="true" click="checkDOWN_changeHandler(event)">
+        </s:CheckBox>
+    </s:Group>
+</component:TitleWindowEx>

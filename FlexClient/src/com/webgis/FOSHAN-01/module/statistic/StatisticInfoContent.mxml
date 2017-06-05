@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer creationComplete="bordercontainer1_creationCompleteHandler(event)" borderVisible="true" backgroundColor="0xF5F5F5" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:component="com.estudio.flex.module.component.*">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			private var isComplete:Boolean=false;
+			public var chartSeries:Object={keyFieldName: "", columns: [], isChartChildren: false};
+			public var dataProvider:Array=null;
+			public var minAndMaxValue:Array=null;
+
+			//////////////////////////////////////////////////////////////////////////////////////////
+			public function createChartContent():void
+			{
+				if (!isComplete)
+					return;
+				var params:Object=null;
+				if (chartSeries.isChartChildren)
+				{
+					params={caption: "", groupField: "[" + chartSeries.keyFieldName + "]"};
+					var columns:Array=[];
+					for (var i:int=0; i < chartSeries.columns.length; i++)
+					{
+						var item:Object=chartSeries.columns[i];
+						columns.push(i + ":" + item.label + "[" + item.name + "]");
+					}
+					params.valueFields=";" + columns.join("");
+				}
+				else
+				{
+					params={caption: "", groupField: "[name]", valueFields: ";值[value]"};
+				}
+				if (bar)
+				{
+					params.type=1;
+					bar.minAndMaxValues=minAndMaxValue;
+					bar.buildChartData(params, new ArrayCollection(dataProvider));
+				}
+				if (pie)
+				{
+					params.type=0;
+					pie.buildChartData(params, new ArrayCollection(dataProvider));
+				}
+				if (line)
+				{
+					line.minAndMaxValues=minAndMaxValue;
+					params.type=2;
+					line.buildChartData(params, new ArrayCollection(dataProvider));
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////
+			protected function bordercontainer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				isComplete=true;
+				createChartContent();
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<mx:TabNavigator backgroundColor="0xFFFFFF" left="-1" right="-1" top="-1" bottom="-1" tabHeight="28" borderVisible="true">
+		<s:NavigatorContent label="柱状图">
+			<component:ChartPanel creationComplete="bordercontainer1_creationCompleteHandler(event)" id="bar" borderStyle="solid" borderColor="0x000000" borderVisible="false" left="0" top="-1" bottom="-1" right="0"/>
+		</s:NavigatorContent>
+
+		<s:NavigatorContent label="饼图">
+			<component:ChartPanel creationComplete="bordercontainer1_creationCompleteHandler(event)" id="pie" borderStyle="solid" borderColor="0x000000" borderVisible="false" left="0" top="-2" bottom="-1" right="0"/>
+		</s:NavigatorContent>
+
+		<s:NavigatorContent label="折线图">
+			<component:ChartPanel creationComplete="bordercontainer1_creationCompleteHandler(event)" id="line" borderStyle="solid" borderColor="0x000000" borderVisible="false" left="0" top="-1" bottom="-1" right="0"/>
+		</s:NavigatorContent>
+
+	</mx:TabNavigator>
+</s:BorderContainer>

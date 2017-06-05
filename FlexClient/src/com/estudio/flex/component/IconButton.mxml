@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group creationComplete="group1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" minWidth="25" minHeight="25" height="25" buttonMode="true" mouseChildren="false"
+		 mouseOut="{isFocusIn=false;}" mouseOver="{isFocusIn=true;}" useHandCursor="true">
+
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.StringUtils;
+			
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			
+			import spark.components.Image;
+			import spark.components.Label;
+
+			[Bindable]
+			private var isFocusIn:Boolean=false;
+			[Bindable]
+			private var _iconURL:String="";
+			[Bindable]
+			private var _label:String="";
+
+			private var img:Image=null;
+
+			private var _params:Object=null;
+
+			public function set iconURL(v:String):void
+			{
+				_iconURL=v;
+				if (img)
+					img.source=v;
+			}
+
+			public function get iconURL():String
+			{
+				return _iconURL;
+			}
+
+			public function set label(v:String):void
+			{
+				_label=v;
+			}
+
+			public function get label():String
+			{
+				return _label;
+			}
+
+			public function set params(v:Object):void
+			{
+				_params=v;
+			}
+
+			public function get params():Object
+			{
+				return _params;
+			}
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var img:Image=new Image();
+				this.addElement(img);
+				img.source=_iconURL;
+				img.width=img.height=this.height;
+				img.verticalAlign="middle";
+				img.horizontalAlign="center";
+				img.fillMode="clip";
+				this.img=img;
+				if (!StringUtils.isEmpty(_label))
+				{
+					var label:Label=new Label();
+					label.text=_label;
+					this.width=this.height + FlexGlobals.topLevelApplication.measureTextWidth(this._label) + 7;
+					label.left=img.width;
+					label.height=this.height;
+					label.setStyle("paddingTop", "2");
+					label.setStyle("verticalAlign", "middle");
+					this.addElement(label);
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<s:Rect id="fill" visible="{isFocusIn}" width="100%" height="100%">
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:GradientEntry alpha="0.85" color="0xFFFFFF"/>
+				<s:GradientEntry alpha="0.85" color="0xEFF7FE"/>
+			</s:LinearGradient>
+		</s:fill>
+		<s:stroke>
+			<s:SolidColorStroke color="0xCCCCCC"/>
+		</s:stroke>
+	</s:Rect>
+
+</s:Group>

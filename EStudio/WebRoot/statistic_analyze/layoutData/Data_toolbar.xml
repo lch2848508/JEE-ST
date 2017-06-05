@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<toolbar>
+<item id="dataToExcel" type="button" img="excel.ico" text="导出当前表格到EXCEL"/>
+</toolbar>

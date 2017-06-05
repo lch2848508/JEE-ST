@@ -1,0 +1,560 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:ResizableTitleWindow skinClass="com.estudio.flex.component.ResizableTitleWindowSkin" creationComplete="titlewindowex2_creationCompleteHandler(event)" close="titlewindowex2_closeHandler(event)" title="高级查询"
+								xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="540" height="400"
+								xmlns:component1="com.webgis.component.*" xmlns:layertree="com.webgis.module.layertree.*" xmlns:acm="com.acm.*" xmlns:ns="http://www.esri.com/2008/ags">
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.events.DrawEvent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.layers.supportClasses.LayerDefinition;
+			import com.esri.ags.layers.supportClasses.LayerDrawingOptions;
+			import com.esri.ags.renderers.ClassBreaksRenderer;
+			import com.esri.ags.renderers.UniqueValueRenderer;
+			import com.esri.ags.renderers.supportClasses.ClassBreakInfo;
+			import com.esri.ags.renderers.supportClasses.UniqueValueInfo;
+			import com.esri.ags.symbols.FillSymbol;
+			import com.esri.ags.symbols.SimpleFillSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.tools.EditTool;
+			import com.esri.ags.utils.GeometryUtil;
+			import com.estudio.flex.component.ResizableTitleWindowSkin;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.MapLayerManager;
+			import com.webgis.intf.MapControlSearchContainIntf;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.ColorPicker;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.events.DropdownEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.utils.ObjectUtil;
+
+			import spark.components.supportClasses.ItemRenderer;
+			import spark.events.DropDownEvent;
+			import spark.events.IndexChangeEvent;
+
+			public var mapLayerManager:MapLayerManager=null;
+			public var serverId:String="";
+			public var layerId:String="";
+			public var compareOperations:ArrayCollection=new ArrayCollection([{label: "等于(=)", value: '='}, {label: "相似(like)", value: 'like'}, {label: "不等于(<>)", value: '<>'}, {label: "大于(>)", value: '>'}, {label: "大于等于(>=)", value: '>='}, {label: "小于(<)", value: '<'}, {label: "小于等于(<=)", value: '<='}, {label: "在两值之间(between)", value: 'between'}]);
+			public var spatialTypes:ArrayCollection=new ArrayCollection(["全地图范围", "当前地图范围", "当前行政区", "自定义区域(矩形)", "自定义区域(点)", "自定义区域(线)", "自定义区域(面)"]);
+			public var mapContain:MapWidgetContainIntf=null;
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public static function execute(layers:Array, serverId:String, mapLayerManager:MapLayerManager, mapServiceClient:MapServiceClient, map:Map, mapContain:MapWidgetContainIntf, fieldName:String=""):void
+			{
+				var instance:Object=FlexGlobals.topLevelApplication.cache["WinAdvancedSearch"];
+				if (!instance)
+				{
+					instance=new WinAdvSearch();
+					FlexGlobals.topLevelApplication.cache["WinAdvancedSearch"]=instance;
+				}
+				if (!instance.isPopUp)
+				{
+					PopUpManager.addPopUp(instance as UIComponent, FlexGlobals.topLevelApplication as DisplayObject);
+					PopUpManager.centerPopUp(instance as UIComponent);
+				}
+				instance.right=0;
+				instance.layers=new ArrayCollection(layers);
+				instance.serverId=serverId;
+				instance.mapLayerManager=mapLayerManager;
+				instance.map=map;
+				instance.mapServiceClient=mapServiceClient;
+				instance.mapContain=mapContain;
+				if (instance.comboboxLayer)
+				{
+					instance.comboboxLayer.selectedIndex=0;
+					instance.comboboxLayer.selectedItem=layers[0];
+					instance.comboboxLayer.callLater(function():void
+					{
+						instance.comboboxLayer_changeHandler(null);
+					});
+				}
+				if (!StringUtils.isEmpty(fieldName))
+					instance.callLater(function():void
+					{
+						for (var i:int=0; i < instance.comboboxField.dataProvider.length; i++)
+						{
+							var item:Object=instance.comboboxField.dataProvider.getItemAt(i);
+							if (item.name == fieldName)
+							{
+								instance.comboboxField.selectedIndex=i;
+								instance.comboboxField.selectedItem=item;
+								instance.comboboxField_changeHandler(null);
+								break;
+							}
+
+						}
+					});
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////
+			[Bindable]
+			public var layers:ArrayCollection=new ArrayCollection([]); //图层
+			[Bindable]
+			public var fields:ArrayCollection=new ArrayCollection([]); //字段
+			[Bindable]
+			public var fieldValues:ArrayCollection=new ArrayCollection([]); //字段
+			[Bindable]
+			public var searchWheres:ArrayCollection=new ArrayCollection([]);
+			[Bindable]
+			public var map:Map=null;
+			public var mapServiceClient:MapServiceClient=null;
+			public var lastSearchLayerItem:Object=null;
+			public var lastSearchResultExpress:String="";
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			//关闭按钮
+			protected function titlewindowex2_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+				if (isLayerInMap)
+				{
+					map.removeLayer(drawLayer);
+					isLayerInMap=false;
+					comboboxSpatial.selectedIndex=0;
+				}
+				drawLayer.clear();
+				comboboxSpatial.selectedIndex=0;
+				drawTool.deactivate();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function titlewindowex2_creationCompleteHandler(event:FlexEvent):void
+			{
+				comboboxField.textInput.editable=false;
+				comboboxLayer.textInput.editable=false;
+				comboboxCompare.textInput.editable=false;
+				comboboxSpatial.textInput.editable=false;
+
+				comboboxLayer.callLater(function():void
+				{
+					comboboxLayer.selectedIndex=0;
+					comboboxLayer.selectedItem=layers.getItemAt(0);
+					comboboxLayer_changeHandler(null);
+				});
+
+				mainGroup.removeElement(groupTwoValue);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			protected function btnClose_clickHandler(event:MouseEvent):void
+			{
+				titlewindowex2_closeHandler(null);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function comboboxLayer_changeHandler(event:IndexChangeEvent):void
+			{
+				fields=new ArrayCollection(comboboxLayer.selectedItem.items);
+				comboboxField.selectedIndex=0;
+				comboboxField.selectedItem=fields.getItemAt(0);
+				comboboxField.callLater(function()
+				{
+					comboboxField_changeHandler(null);
+				});
+
+				if (!comboboxLayer.selectedItem.searchOptions)
+					comboboxLayer.selectedItem.searchOptions={searchText: "", wheres: []};
+
+				textInputSearch.text=comboboxLayer.selectedItem.searchOptions.searchText;
+				searchWheres=new ArrayCollection(comboboxLayer.selectedItem.searchOptions.wheres);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			protected function comboboxField_changeHandler(event:IndexChangeEvent):void
+			{
+				var fieldItem:Object=comboboxField.selectedItem;
+				fieldValues=new ArrayCollection(fieldItem.values ? fieldItem.values : []);
+				popupList.height=Math.min(fieldValues.length * 25, 250) + 2;
+				btnPopupList.enabled=fieldValues.length != 0;
+				textCompareValue.text="";
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			protected function btnPopupList_closeHandler(event:DropdownEvent):void
+			{
+				var l:Array=[];
+				for (var i:int=0; i < fieldValues.length; i++)
+					if (fieldValues.getItemAt(i).selected)
+						l.push(fieldValues.getItemAt(i).value);
+				textCompareValue.text=l.join(",");
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			//清除选定或当前条件
+			protected function btnClearAll_clickHandler(event:MouseEvent):void
+			{
+				if (btnPopupList.isPopUp)
+					btnPopupList.close();
+				if (event.currentTarget == btnClearAll)
+					searchWheres.removeAll();
+				else if (datagrid.selectedItem)
+					searchWheres.removeItemAt(searchWheres.getItemIndex(datagrid.selectedItem));
+				datagrid.invalidateList();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			//添加查询条件
+			protected function btnAddWhereClick(event:MouseEvent):void
+			{
+				if (btnPopupList.isPopUp)
+					btnPopupList.close();
+				var fieldName:String=comboboxField.selectedItem.name;
+				var compareOperation:String=comboboxCompare.selectedItem.value;
+				var compareStr:String=textCompareValue.text;
+				var compareValue1:String=StringUtils.trim(textCompareValue1.text);
+				var compareValue2:String=StringUtils.trim(textCompareValue2.text);
+				if (compareOperation != "between")
+				{
+					if (StringUtils.isEmpty(compareStr))
+					{
+						if (event != null)
+							AlertUtils.alert("查询条件不能为空。");
+						return;
+					}
+				}
+				else
+				{
+					if (StringUtils.isEmpty(compareValue1) || StringUtils.isEmpty(compareValue2))
+					{
+						if (event != null)
+							AlertUtils.alert("查询条件不完整，请完整输入最大及最小值。");
+						return;
+					}
+					compareStr=compareValue1 + "<= 条件 >=" + compareValue2;
+				}
+
+
+				var isExists:Boolean=false;
+				var item:Object=null;
+				for (var i:int=0; i < searchWheres.length; i++)
+				{
+					item=searchWheres.getItemAt(i);
+					if (item.fieldName == fieldName)
+					{
+						isExists=true;
+						item.value=compareStr;
+						item.compare=compareOperation;
+						item.value1=textCompareValue1.text;
+						item.value2=textCompareValue2.text;
+						break;
+					}
+				}
+				if (!isExists)
+				{
+					item={datatype: comboboxField.selectedItem.datatype, v1: compareValue1, v2: compareValue2, title: comboboxField.selectedItem.title, fieldName: fieldName, compare: compareOperation, value: compareStr, isEnumType: fieldValues.length != 0};
+					searchWheres.addItem(item);
+				}
+				searchWheres.refresh();
+				datagrid.invalidateList();
+				datagrid.selectedItem=item;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			protected function datagrid_itemClickHandler(event:ListEvent):void
+			{
+				var item:Object=datagrid.selectedItem;
+				if (!item)
+					return;
+				var fieldName:String=item.fieldName;
+				var compare:String=item.compare;
+				if (fieldName == comboboxField.selectedItem.name && compare == comboboxCompare.selectedItem.value)
+					return;
+
+				//字段
+				for (var i:int=0; i < fields.length; i++)
+				{
+					if (fields.getItemAt(i).name == fieldName)
+					{
+						comboboxField.selectedIndex=i;
+						comboboxField.selectedItem=fields.getItemAt(i);
+						break;
+					}
+				}
+
+				//条件运算符
+				for (var i:int=0; i < compareOperations.length; i++)
+				{
+					if (compareOperations.getItemAt(i).value == compare)
+					{
+						comboboxCompare.selectedIndex=i;
+						comboboxCompare.selectedItem=compareOperations.getItemAt(i);
+						break;
+					}
+				}
+
+				//值 
+				textCompareValue.text=item.value;
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function btnPopupList_openHandler(event:DropdownEvent):void
+			{
+				var v:String=textCompareValue.text;
+				if (StringUtils.isEmpty(v))
+					return;
+				var items:Array=v.split(",");
+				for (var i:int=0; i < fieldValues.length; i++)
+				{
+					var item:Object=fieldValues.getItemAt(i);
+					item.selected=ArrayUtils.indexOf(items, item.value) != -1;
+				}
+				fieldValues.refresh();
+				popupList.invalidateList();
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			private var isLayerInMap:Boolean=false;
+
+			protected function comboboxSpatial_changeHandler(event:IndexChangeEvent):void
+			{
+				var index:int=event.newIndex;
+				if (index >= 3)
+				{
+					drawTool.activate([DrawTool.EXTENT, DrawTool.MAPPOINT, DrawTool.POLYLINE, DrawTool.POLYGON][index - 3]);
+					if (!isLayerInMap)
+					{
+						map.addLayer(drawLayer);
+						isLayerInMap=true;
+					}
+					comboboxBuffer.enabled=true;
+				}
+				else
+				{
+					drawTool.deactivate();
+					if (isLayerInMap)
+					{
+						map.removeLayer(drawLayer);
+						isLayerInMap=false;
+					}
+					comboboxBuffer.enabled=false;
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			protected function drawTool_drawStartHandler(event:DrawEvent):void
+			{
+				drawLayer.clear();
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			protected function btnSearch_clickHandler(event:MouseEvent):void
+			{
+				btnAddWhereClick(null);
+				var searthText:String=StringUtils.trim(textInputSearch.text);
+				if (searchWheres.length == 0 && StringUtils.isEmpty(searthText) && (!isLayerInMap || (isLayerInMap && drawLayer.numGraphics == 0)))
+				{
+					if (event != null)
+						AlertUtils.alert("没有设置任何查询条件，不能执行查询。");
+					return;
+				}
+				comboboxLayer.selectedItem.searchOptions.searchText=searthText;
+
+				var searchParams:Object={};
+				searchParams.wheres=comboboxLayer.selectedItem.searchOptions.wheres;
+				searchParams.searthText=searthText;
+				if (comboboxSpatial.selectedIndex == 0) //全图范围
+				{
+					var baseLayer:Object=map.layers.source[0];
+					if (baseLayer.hasOwnProperty("fullExtent"))
+						searchParams.geometry=baseLayer.fullExtent;
+					else if (baseLayer.hasOwnProperty("initialExtent"))
+						searchParams.geometry=baseLayer.initialExtent;
+					else
+						searchParams.geometry=map.initialExtent;
+					
+					searchParams.geometryType=searchParams.geometry.type;
+					searchParams.buffer=0;
+					mapServiceClient.searchEx(comboboxLayer.selectedItem.layerId, JSON.stringify(searchParams), searchExCallFunction);
+				}
+				else if (comboboxSpatial.selectedIndex == 1) //当前地图范围
+				{
+					searchParams.geometry=map.extent;
+					searchParams.geometryType=map.initialExtent.type;
+					searchParams.buffer=0;
+					mapServiceClient.searchEx(comboboxLayer.selectedItem.layerId, JSON.stringify(searchParams), searchExCallFunction);
+				}
+				else if (comboboxSpatial.selectedIndex == 2) //当前行政区域
+				{
+					searchParams.districtId=MapControl(map).navigatorAreaId;
+					searchParams.buffer=0;
+					mapServiceClient.searchEx(comboboxLayer.selectedItem.layerId, JSON.stringify(searchParams), searchExCallFunction);
+				}
+				else if (drawLayer.numGraphics)
+				{
+					var buf:int=Convert.str2Number(comboboxBuffer.textInput.text, 0);
+					if (buf != 0)
+					{
+						mapServiceClient.buffer(drawLayer.graphicProvider.getItemAt(0).geometry, buf, function(bufGeometry:Geometry):void
+						{
+							searchParams.geometry=bufGeometry;
+							searchParams.buffer=0;
+							searchParams.geometryType=bufGeometry.type;
+							var searchGeometry:Graphic=drawLayer.graphicProvider.getItemAt(0);
+							drawLayer.clear();
+							drawLayer.add(searchGeometry);
+							drawLayer.add(new Graphic(bufGeometry, sfs));
+							mapServiceClient.searchEx(comboboxLayer.selectedItem.layerId, JSON.stringify(searchParams), searchExCallFunction);
+						});
+					}
+					else
+					{
+						searchParams.geometry=drawLayer.graphicProvider.getItemAt(0).geometry;
+						searchParams.buffer=Convert.str2Number(comboboxBuffer.textInput.text, 0);
+						searchParams.geometryType=searchParams.geometry.type;
+						mapServiceClient.searchEx(comboboxLayer.selectedItem.layerId, JSON.stringify(searchParams), searchExCallFunction);
+					}
+				}
+
+				//生成查询条件
+
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			//查询结果回调函数
+			private function searchExCallFunction(json:Object):void
+			{
+				mapContain.searchContain.registerSearchContent(json);
+				mapContain.focusSearchContain();
+
+				lastSearchLayerItem=comboboxLayer.selectedItem;
+				lastSearchResultExpress="";
+				if (json.records)
+				{
+					var objectFieldName:String=json.objectFieldName;
+					var objectIds:Array=[];
+					for (var i:int=0; i < json.records.length; i++)
+						objectIds.push(json.records[i].objectId);
+					lastSearchResultExpress=objectFieldName + " in (" + objectIds.join(",") + ")";
+					lastSearchLayerItem.mbr=json.layerInfos[comboboxLayer.selectedItem.layerId].mbr;
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			protected function comboboxLayer_changingHandler(event:IndexChangeEvent):void
+			{
+				if (event.oldIndex != -1)
+					layers.getItemAt(event.oldIndex).searchOptions.searchText=StringUtils.trim(textInputSearch.text);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			protected function comboboxCompare_changeHandler(event:IndexChangeEvent):void
+			{
+				var item:Object=comboboxCompare.selectedItem;
+				if (item.value == "between" && groupTwoValue.parent == null)
+				{
+					var index:int=mainGroup.getElementIndex(groupOneValue);
+					mainGroup.addElementAt(groupTwoValue, index);
+					mainGroup.removeElement(groupOneValue);
+				}
+				else if (groupOneValue.parent == null)
+				{
+					var index:int=mainGroup.getElementIndex(groupTwoValue);
+					mainGroup.addElementAt(groupOneValue, index);
+					mainGroup.removeElement(groupTwoValue);
+				}
+			}
+		]]>
+	</fx:Script>
+
+
+
+	<s:VGroup gap="0" left="5" top="5" right="5" bottom="45" id="mainGroup">
+		<s:HGroup verticalAlign="middle" width="100%" height="30">
+			<s:Label text="选择图层:" width="60"/>
+			<s:ComboBox id="comboboxLayer" changing="comboboxLayer_changingHandler(event)" change="comboboxLayer_changeHandler(event)" dataProvider="{layers}" width="100%" labelField="title"/>
+			<s:Label text="空间范围:" color="0x0000FF" width="65"/>
+			<s:ComboBox id="comboboxSpatial" selectedIndex="0" width="140" dataProvider="{spatialTypes}" change="comboboxSpatial_changeHandler(event)"/>
+		</s:HGroup>
+
+		<s:HGroup width="100%" height="30" verticalAlign="middle">
+			<s:Label text="全文检索:" width="60"/>
+			<mx:TextInput width="100%" id="textInputSearch"/>
+			<s:Label text="空间缓冲区:" color="0x0000FF" width="65"/>
+			<s:ComboBox width="114" enabled="false" dataProvider="{new ArrayCollection( [50,100,200,250,500,1000,1500,2000,2500,5000,10000,15000,20000,50000])}" id="comboboxBuffer"/>
+			<s:Label text="米" width="20"/>
+		</s:HGroup>
+
+		<s:HGroup width="100%" height="30" verticalAlign="middle">
+			<s:Label text="字段列表:" width="60"/>
+			<s:ComboBox id="comboboxField" change="comboboxField_changeHandler(event)" width="100%" dataProvider="{fields}" labelField="title"/>
+			<s:Label text="比较方式:" width="65"/>
+			<s:ComboBox id="comboboxCompare" change="comboboxCompare_changeHandler(event)" width="140" selectedIndex="0" dataProvider="{compareOperations}" labelField="label"/>
+		</s:HGroup>
+
+		<s:HGroup width="100%" height="30" verticalAlign="middle" id="groupOneValue">
+			<s:Label text="条件值:" width="60"/>
+			<s:HGroup width="100%" height="100%" gap="-2" verticalAlign="middle">
+				<s:TextInput width="100%" id="textCompareValue"/>
+				<mx:PopUpButton width="20" open="btnPopupList_openHandler(event)" close="btnPopupList_closeHandler(event)" id="btnPopupList" height="{textCompareValue.height}" popUp="{popupList}"/>
+			</s:HGroup>
+			<s:Button width="100" height="25" label="添加当前条件" click="btnAddWhereClick(event)"/>
+		</s:HGroup>
+
+		<s:HGroup width="100%" height="30" verticalAlign="middle" id="groupTwoValue">
+			<s:Label text="最小值:" width="60"/>
+			<s:TextInput width="100%" id="textCompareValue1"/>
+			<s:Label text="最大值:" width="60" textAlign="center"/>
+			<s:TextInput width="100%" id="textCompareValue2"/>
+			<s:Button width="100" height="25" label="添加当前条件" click="btnAddWhereClick(event)"/>
+		</s:HGroup>
+
+		<s:HGroup width="100%" height="30" verticalAlign="middle">
+			<s:Label text="已选择查选条件列表:" fontWeight="bold" color="0x0000FF"/>
+			<s:Spacer width="100%"/>
+			<s:Button width="100" height="25" label="清除所有条件" id="btnClearAll" click="btnClearAll_clickHandler(event)"/>
+			<s:Button width="100" height="25" label="删除选定条件" id="btnClearSelected" click="btnClearAll_clickHandler(event)"/>
+		</s:HGroup>
+
+		<mx:DataGrid dataProvider="{searchWheres}" itemClick="datagrid_itemClickHandler(event)" width="100%" height="100%" id="datagrid" headerHeight="25" rowHeight="25">
+			<mx:columns>
+				<mx:DataGridColumn width="100" headerText="字段" dataField="title"/>
+				<mx:DataGridColumn width="60" headerText="比较方式" dataField="compare"/>
+				<mx:DataGridColumn headerText="比较值" dataField="value"/>
+			</mx:columns>
+		</mx:DataGrid>
+
+	</s:VGroup>
+
+	<s:Line width="100%" left="0" right="0" bottom="40" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#000000"/>
+		</s:stroke>
+	</s:Line>
+
+	<s:Button label="关闭" click="btnClose_clickHandler(event)" id="btnClose" right="5" bottom="5" height="30" width="70"/>
+	<s:Button label="清除" click="{drawLayer.clear();}" id="btnClear" right="80" bottom="5" height="30" width="70"/>
+	<s:Button label="查询" id="btnSearch" click="btnSearch_clickHandler(event)" right="160" bottom="5" height="30" width="70"/>
+	<mx:List visible="false" itemRenderer="com.webgis.module.layertree.CheckBoxListItemRender" id="popupList" width="200" height="300" dataProvider="{fieldValues}">
+	</mx:List>
+
+	<fx:Declarations>
+		<ns:SimpleLineSymbol id="sls" style="solid" color="0xFF0000" width="4"/>
+		<ns:SimpleFillSymbol id="sfs" color="#FFFF00">
+			<ns:SimpleLineSymbol width="1.5" color="#FF0000"/>
+		</ns:SimpleFillSymbol>
+		<ns:SimpleMarkerSymbol id="sms" style="circle" color="0xFF0000" size="15"/>
+		<ns:GraphicsLayer id="drawLayer"/>
+		<ns:DrawTool map="{map}" id="drawTool" drawStart="drawTool_drawStartHandler(event)" graphicsLayer="{drawLayer}" markerSymbol="{sms}" lineSymbol="{sls}" fillSymbol="{sfs}"/>
+	</fx:Declarations>
+
+</component:ResizableTitleWindow>

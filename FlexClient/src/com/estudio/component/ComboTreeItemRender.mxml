@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXTreeItemRenderer click="mxtreeitemrenderer1_clickHandler(event)" dataChange="mxtreeitemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.Convert;
+
+			import mx.controls.Tree;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+
+			protected function mxtreeitemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				var comboTree:ComboTree=(owner as Tree).document as ComboTree;
+				this.currentState=comboTree.isCheckEnable ? "checkState" : "normalState";
+				if (chk && comboTree.isCheckEnable)
+					chk.selected=Convert.object2Boolean(data[comboTree.selectedField], false);
+				if (data[comboTree.iconField])
+				{
+					img.source=data[comboTree.iconField];
+					if (img.parent == null)
+						group.addElementAt(img, group.numElements - 1);
+				}
+				else if (img.parent != null)
+				{
+					group.removeElement(img);
+				}
+			}
+
+			protected function chk_changeHandler(event:Event):void
+			{
+				var comboTree:ComboTree=(owner as Tree).document as ComboTree;
+				data[comboTree.selectedField]=chk.selected;
+				if (comboTree.event4ItemCheckBoxClick != null)
+					comboTree.event4ItemCheckBoxClick(data);
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+			}
+
+			protected function mxtreeitemrenderer1_clickHandler(event:MouseEvent):void
+			{
+				var comboTree:ComboTree=(owner as Tree).document as ComboTree;
+				if (event.target != chk)
+					comboTree.popup.displayPopUp=false;
+			}
+
+			protected function mxtreeitemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+			}
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="normalState"/>
+		<s:State name="checkState"/>
+	</s:states>
+	<s:HGroup left="0" right="0" top="0" bottom="0" verticalAlign="middle" id="group">
+		<s:Rect id="indentationSpacer" width="{treeListData.indent}" percentHeight="100" alpha="0">
+			<s:fill>
+				<s:SolidColor color="0xFFFFFF"/>
+			</s:fill>
+		</s:Rect>
+		<s:BitmapImage source="{treeListData.disclosureIcon}" visible="{treeListData.hasChildren}"/>
+		<s:CheckBox includeIn="checkState" width="14" id="chk" change="chk_changeHandler(event)"/>
+		<s:Image id="img"/>
+		<s:Label id="labelField" text="{treeListData.label}" paddingTop="2" toolTip="{treeListData.label}"/>
+	</s:HGroup>
+</s:MXTreeItemRenderer>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application  creationComplete="application1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:local="*" xmlns:component="com.estudio.component.*">
+	<fx:Style source="com/estudio/flex/client/MainForm.css"/>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				comboTree.dataProvider = new ArrayCollection([{label:"测试1",children:[{label:"测试1-1"}]},{label:"测试2"},{label:"测试3"},{label:"测试4"}]);
+			}
+			
+		]]>
+	</fx:Script>
+	<component:ComboTree isCheckEnable="true" width="200" left="10" top="10" id="comboTree">
+		
+	</component:ComboTree>
+</s:Application>

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module implements="com.webgis.intf.MapWidgetIntf" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  xmlns:imgComp="com.webgis.module.basemapSwitch.*">
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.ags.layers.Layer;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.intf.MapWidgetIntf;
+			[Bindable]
+			var mapInstance:Map=null;
+			var mapAppInstance:Object=null;
+
+			var layerInfo:Object=null;
+			
+			public function set mapApp(value:Object):void
+			{
+				// TODO Auto Generated method stub
+				mapAppInstance=value;
+			}
+			
+			public function get mapApp():Object
+			{
+				// TODO Auto Generated method stub
+				return mapAppInstance;
+			}
+			
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+			
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				// TODO Auto Generated method stub
+				widgetContainInstance=value;
+			}
+			
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				// TODO Auto Generated method stub
+				return widgetContainInstance;
+			}
+			
+			
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+				layerInfo=obj;
+				var url:String=layerInfo.url;
+				var type:String=layerInfo.type;
+				var layers:Array=layerInfo.layers;
+				var extProp:Object=layerInfo.extProp;
+				var layer:Object=map.createLayer(type, url, layers, extProp);
+				if (layer)
+				{
+					map.removeAllLayers();
+					map.addLayer(layer as Layer, 0);
+				}
+				else
+					visible=false;
+			}
+
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				var layer:Object=map.createLayer("ArcGISDynamicMapServiceLayer", "http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer", null, null);
+				if (layer)
+				{
+					map.removeAllLayers();
+					map.addLayer(layer as Layer, 0);
+				}
+				else
+					visible=false;
+			}
+
+			protected function image2_clickHandler(event:MouseEvent):void
+			{
+				var layer:Object=map.createLayer("ArcGISDynamicMapServiceLayer", "http://sampleserver3.arcgisonline.com/ArcGIS/rest/services/BloomfieldHillsMichigan/Parcels/MapServer", null, null);
+				if (layer)
+				{
+					map.removeAllLayers();
+					map.addLayer(layer as Layer, 0);
+				}
+				else
+					visible=false;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<s:Group>
+		<imgComp:BaseImageComp imgUrl=".//assets/webgis/basemap_imagery.jpg" labelStr="影像" borderColor="#ADADAD"  left="0" top="35" click="image2_clickHandler(event)"/>
+		<imgComp:BaseImageComp imgUrl=".//assets/webgis/basemap_topographic.jpg" labelStr="卫星" borderColor="#ADADAD" left="75" top="35" click="image1_clickHandler(event)"/>
+	</s:Group>	
+</s:Module>

@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx close="titlewindowex1_closeHandler(event)" creationComplete="titlewindowex1_creationCompleteHandler(event)" title="上传Excel文件" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:component="com.estudio.flex.component.*" width="500" height="300">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.FilenameUtils;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.JSFunUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.google.code.flexiframe.IFrame;
+
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			public var uploadParams:String=null;
+			public var templateParams:String=null;
+			public var extParams:Object=null;
+			public var uploadExcel:Object
+			public var frameID:String="";
+			public var funName:String="";
+			private var _fileRef:FileReference=new FileReference();
+			private var _isUploading:Boolean=false;
+			private var callFun:Function=null;
+
+			protected function titlewindowex1_creationCompleteHandler(event:FlexEvent):void
+			{
+				_fileRef.addEventListener(Event.SELECT, fileRef_select);
+				_fileRef.addEventListener(Event.COMPLETE, fileRef_complete);
+				setProgressStatus(false);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			protected function btnClose_click(event:MouseEvent):void
+			{
+				FlexGlobals.topLevelApplication.closePopupWindow(this);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			protected function btn_download_clickHandler(event:MouseEvent):void
+			{
+				AjaxUtils.postData("../client/excelservlet?o=downtemplate", {edit_template: templateParams}, function(text:String, token:Object):void
+				{
+					var json:Object=JSON.parse(text);
+					if (json)
+					{
+						if (json.r)
+							FlexGlobals.topLevelApplication.goURL(json.path);
+						else if (json.errorCode * 1 == -65535)
+						{
+							FlexGlobals.topLevelApplication.raiseSessionMissError();
+						}
+					}
+				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			//上传
+			protected function btn_Upload_Click(event:MouseEvent):void
+			{
+				if (!_isUploading && !StringUtils.isEmpty(editFileName.text))
+				{
+					labelProgress.text="准备上传文件...";
+					labelProgress.invalidateDisplayList();
+					_fileRef.load();
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////
+			//选择文件
+			private function fileRef_select(evt:Event):void
+			{
+				if (_fileRef.size != 0 && _fileRef.size < 256 * 1024 * 1024)
+					editFileName.text=_fileRef.name;
+				else
+					AlertUtils.alert("选择的文件大小为0字节或超过256M!", AlertUtils.ALERT_WARNING);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////
+			//上传完成
+			private function fileRef_complete(evt:Event):void
+			{
+				labelProgress.text="开始上传文件...";
+				labelProgress.invalidateDisplayList();
+				labelProgress.validateNow();
+				var params:Object={};
+				params.o="upload";
+				params.edit_dataformat=uploadParams;
+				params.edit_template=templateParams;
+				params.params=JSON.stringify(extParams);
+				for (var k:String in extParams)
+					params[k]=extParams[k];
+				AjaxUtils.uploadFile("../client/excelservlet", "filename", new Date().time + "." + FilenameUtils.getFileExt(_fileRef.name), _fileRef.data, function(data:String):void
+				{
+					labelProgress.text="成功上传文件。";
+					labelProgress.invalidateDisplayList();
+					labelProgress.validateNow();
+					var json:Object=JSON.parse(data);
+					if (json && json.errorCode * 1 == -65535)
+					{
+						FlexGlobals.topLevelApplication.raiseSessionMissError();
+						return;
+					}
+					setProgressStatus(false);
+					_isUploading=false;
+					btnClose_click(null);
+					var json:Object=JSON.parse(data);
+					if (json.r)
+					{
+						if (callFun != null)
+							callFun(json);
+						else
+							AlertUtils.alert("导入Excel模版完成，请点击刷新按钮重新加载数据。");
+					}
+					else
+					{
+						AlertUtils.alert("导入Excel模版失败:" + json.msg, AlertUtils.ALERT_WARNING);
+					}
+				}, function(w:int, t:int):void
+				{
+					var p:int=w * 100 / t;
+					labelProgress.text="上传进度:" + p + "%...";
+					labelProgress.invalidateDisplayList();
+					labelProgress.validateNow();
+				}, function(event:Event):void
+				{
+					AlertUtils.alert("上传文件失败！！！", AlertUtils.ALERT_WARNING);
+					setProgressStatus(false);
+					this.invalidateDisplayList();
+					editFileName.text="";
+					_isUploading=false
+				}, params);
+			}
+
+
+			private function setProgressStatus(isUpload:Boolean):void
+			{
+				labelProgress.text=isUpload ? "" : "";
+			}
+
+			protected function btnBrowse_clickHandler(event:MouseEvent):void
+			{
+				_fileRef.browse([new FileFilter("Excel文件(*.xls)", "*.xls")]);
+			}
+
+			private static var _instance:UploadExcelWindow=new UploadExcelWindow();
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			public static function execute(uploadURL:String, templateURL:String, extParams:Object, frameID:String, funName:String, callFun:Function=null)
+			{
+				_instance.uploadParams=uploadURL;
+				_instance.templateParams=templateURL;
+				_instance.extParams=extParams;
+				_instance.frameID=frameID;
+				_instance.funName=funName;
+				_instance.callFun=callFun == null ? _instance.uploadCallFunction : callFun;
+
+				if (_instance.editFileName)
+				{
+					_instance.editFileName.text="";
+					_instance.labelProgress.text="";
+					_instance._isUploading=false;
+				}
+
+				FlexGlobals.topLevelApplication.showPopupWindow(_instance, true);
+
+				//PopUpManager.centerPopUp(_instance);
+				if (callFun)
+					_instance.btnBrowse_clickHandler(null);
+			}
+
+			private function uploadCallFunction(param:Object):void
+			{
+				if (!StringUtils.isEmpty(frameID) && !StringUtils.isEmpty(funName))
+					IFrameUtils.execute(frameID, funName, {});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				btnClose_click(null);
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%" height="100%" gap="2" paddingLeft="5" paddingRight="2">
+		<s:Group width="100%" height="100%">
+			<s:Label x="31" y="17" fontSize="12" fontWeight="bold" text="上传Excel文件要注意下列问题:">
+			</s:Label>
+			<s:Label x="66" y="44" width="400" height="42" fontSize="12" fontWeight="normal" text="首先下载模板文件(点击 '下载模板' 按钮下载)">
+			</s:Label>
+			<s:Label x="46" y="45" text="1.">
+			</s:Label>
+			<s:Label x="46" y="81" text="2.">
+			</s:Label>
+			<s:Label x="45" y="119" text="3.">
+			</s:Label>
+			<s:Label x="66" y="81" width="400" fontSize="12" fontStyle="normal" fontWeight="normal" text="打开下载的模板文件，根据列顺序将数据复制进去，复制完毕将文件保存，保存格式必须为XLS(Office2003)格式。">
+			</s:Label>
+			<s:Label x="66" y="119" width="400" fontSize="12" fontStyle="normal" fontWeight="normal" text="点击下面控件的 '浏览...' 按钮，选择第2步中保存的文件，然后再点击 '上传' 按钮，上传文件完成批量导入功能。">
+			</s:Label>
+			<s:TextInput id="editFileName" x="48" y="175" width="346" height="25" editable="false">
+			</s:TextInput>
+			<s:Button id="btnBrowse" width="90" height="25" right="29" y="175" label="(2)浏览..." click="btnBrowse_clickHandler(event)">
+			</s:Button>
+		</s:Group>
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="0xCCCCCC" weight="1" caps="square"/>
+			</s:stroke>
+		</s:Line>
+		<s:Group width="100%" height="44">
+			<s:Label left="5" verticalCenter="0" width="200" id="labelProgress">
+			</s:Label>
+			<s:Button width="90" height="30" right="5" verticalCenter="0" label="关闭" click="btnClose_click(event)">
+			</s:Button>
+			<s:Button width="90" height="30" right="195" verticalCenter="0" label="(1)下载模版" click="btn_download_clickHandler(event)">
+			</s:Button>
+			<s:Button width="90" height="30" right="100" verticalCenter="0" label="(3)上传" click="btn_Upload_Click(event)">
+			</s:Button>
+		</s:Group>
+	</s:VGroup>
+</component:TitleWindowEx>

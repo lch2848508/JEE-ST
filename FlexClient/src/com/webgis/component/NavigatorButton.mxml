@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group creationComplete="group1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.webgis.component.*">
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.events.ExtentEvent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+
+			protected function labelNavigator_clickHandler(event:MouseEvent):void
+			{
+				panelNavigator.height=map.height;
+				popupPanel.displayPopUp=true;
+				if (popupPanelShowCallFunction != null)
+					popupPanelShowCallFunction();
+			}
+			/////////////////////////////////////////////////////////////////////////////////////
+			private var areaCode2Object:Object={};
+			private var areaCodeList:Array=[];
+			[Bindable]
+			private var navigatorAreaHtml:String="";
+			public var mapServiceClient:MapServiceClient=null;
+			public var popupPanelShowCallFunction:Function=null;
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			private function createAreaHTML(cityList:Array):void
+			{
+				var htmlContent:String="<textformat leftmargin='6' rightmargin='4' leading='6'>";
+				for (var i:int=0; i < cityList.length; i++)
+				{
+					var record0:Object=cityList[i];
+					htmlContent+="<font color='#0000FF' size='14'><b><a href='event:" + record0.code + "|" + record0.name + "'>" + record0.name + "</a></b></font>";
+					htmlContent+="<br>";
+					areaCode2Object[record0.code]=record0;
+					areaCodeList.push(record0.id);
+					areaCode2Object[record0.id]=record0;
+					var areaList:Array=record0.children;
+					if (areaList != null)
+					{
+						htmlContent+="<textformat leftmargin='10' leading='6'>";
+						for (var j:int=0; j < areaList.length; j++)
+						{
+							var record1:Object=areaList[j];
+							htmlContent+="<font color='#000080' size='12'><a href='event:" + record1.code + "|" + record0.name + "-" + record1.name + "'>" + record1.name + "</a>    </font>";
+							areaCode2Object[record1.code]=record1;
+							areaCode2Object[record1.id]=record1;
+							if (!StringUtils.startWith(record1.name, record0.name))
+								record1.name=record0.name + "-" + record1.name;
+							areaCodeList.push(record1.id);
+						}
+						htmlContent+="</textformat><br>"
+					}
+				}
+				htmlContent+="</textformat>";
+				this.navigatorAreaHtml=htmlContent;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			public function initCityList(cityList:Array, addEvent:Boolean):void
+			{
+				if (!cityList)
+					return;
+				if (cityList.length == 1 && cityList[0].children)
+					cityList=cityList[0].children;
+				if (cityList)
+					createAreaHTML(cityList);
+				if (addEvent)
+					map.addEventListener(ExtentEvent.EXTENT_CHANGE, event4MapExtent);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			private function event4MapExtent(event:ExtentEvent):void
+			{
+				updateCity();
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			public function updateCity():void
+			{
+				if (areaCodeList.length != 0)
+				{
+					var mapCenter:MapPoint=Map(map).center;
+					if (mapCenter)
+					{
+						mapServiceClient.getMapCenterInDistrict(mapCenter, areaCodeList, function(json:Object):void
+						{
+							var qUid:String=json.uid;
+							labelNavigator.label=json.name;
+							var record:Object=areaCode2Object[qUid];
+							if (record)
+								map.navigatorAreaId=qUid;
+							else
+								map.navigatorAreaId=-1;
+						});
+					}
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			protected function textarea_linkHandler(event:TextEvent):void
+			{
+				var text:String=event.text;
+				var code:String=StringUtils.before(text, "|");
+				var name:String=StringUtils.after(text, "|");
+				var record:Object=areaCode2Object[code];
+				mapServiceClient.getDistrictFeature(record.id, function(json:Object):void
+				{
+					if (json.wkt)
+					{
+						map.setFocus();
+						labelNavigator.label=name;
+						var geometry:Geometry=Geometry.fromJSON(json.wkt);
+						var feature:Graphic=new Graphic(geometry, null, {});
+						map.splashFeature(feature, true, true, false);
+					}
+					map.navigatorAreaId=record.id;
+				});
+				popupPanel.displayPopUp=false;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			public var mapApp:Object=null;
+			public var map:Object=null;
+
+			////////////////////////////////////////////////////////////////////////////////////
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				FlexGlobals.topLevelApplication.addEventListener(MouseEvent.MOUSE_DOWN, appMouseDownEvent, false);
+				FlexGlobals.topLevelApplication.addEventListener(MouseEvent.MOUSE_DOWN, appMouseDownEvent, true);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function appMouseDownEvent(event:MouseEvent):void
+			{
+				if (popupPanel.displayPopUp == true)
+				{
+					if (popupPanel.mouseX < 0 || popupPanel.mouseX > panelNavigator.width || popupPanel.mouseY > panelNavigator.height)
+						popupPanel.displayPopUp=false;
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<component:ToolbarTextPopupButton id="labelNavigator" label="区域" click="labelNavigator_clickHandler(event)"/>
+	<s:PopUpAnchor id="popupPanel" focusOut="{popupPanel.displayPopUp=false;}" left="-4" bottom="-3" height="0" popUpPosition="below">
+		<s:BorderContainer id="panelNavigator" borderColor="#BDCBD3" backgroundColor="0xFFFFFF" width="480">
+			<s:layout>
+				<s:VerticalLayout gap="0">
+
+				</s:VerticalLayout>
+			</s:layout>
+			<s:BorderContainer width="100%" borderVisible="false" height="28" backgroundColor="#F8F8F8">
+				<s:Label verticalCenter="0" color="#7C7070" left="4" text="切换区域" fontWeight="bold"/>
+				<component:ToolbarButton right="3" top="3" icon="@Embed('/assets/common/close.png')" click="{popupPanel.displayPopUp=false;}"/>
+			</s:BorderContainer>
+			<s:Line width="100%" height="0">
+				<s:stroke>
+					<s:SolidColorStroke color="0xE6EDF1"/>
+				</s:stroke>
+			</s:Line>
+			<mx:TextArea link="textarea_linkHandler(event)" htmlText="{navigatorAreaHtml}" selectable="true" doubleClickEnabled="false" borderStyle="none" editable="false" buttonMode="false" id="textarea" width="100%" height="100%"/>
+
+		</s:BorderContainer>
+	</s:PopUpAnchor>
+</s:Group>

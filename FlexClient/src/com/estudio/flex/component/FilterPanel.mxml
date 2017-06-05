@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup creationComplete="vgroup1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" gap="0">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			private var _filterComponent:Array=null;
+
+			//-----------------------------------------------------------------------------------------------
+			public function getFilterPanel(i:int):HGroup
+			{
+				if (_filterComponent == null)
+					_filterComponent=[{panel: this.filterPanel1, line: this.line1, contain: this.groupFilter1}, {panel: this.filterPanel2, line: this.line2, contain: this.groupFilter2}, {panel: this.filterPanel3, line: this.line3, contain: this.groupFilter3}, {panel: this.filterPanel4, line: this.line4, contain: this.groupFilter4}, {panel: this.filterPanel5, line: this.line5, contain: this.groupFilter5}];
+				return _filterComponent[i].contain;
+			}
+
+			public function setPanelVisible(vs:Array):void
+			{
+				if (_filterComponent == null)
+					_filterComponent=[{panel: this.filterPanel1, line: this.line1, contain: this.groupFilter1}, {panel: this.filterPanel2, line: this.line2, contain: this.groupFilter2}, {panel: this.filterPanel3, line: this.line3, contain: this.groupFilter3}, {panel: this.filterPanel4, line: this.line4, contain: this.groupFilter4}, {panel: this.filterPanel5, line: this.line5, contain: this.groupFilter5}];
+				if (vs.length != 6)
+					vs.push(false);
+				var willHeight:int=0;
+				for (var i:int=1; i < vs.length; i++)
+				{
+					if (vs[i])
+					{
+						willHeight+=28;
+					}
+					else
+					{
+						this.removeElement(_filterComponent[i - 1].panel);
+					}
+				}
+				this.height=willHeight;
+			}
+
+			//-----------------------------------------------------------------------------------------------
+			protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+
+			}
+			//-----------------------------------------------------------------------------------------------
+		]]>
+	</fx:Script>
+
+	<!-- 过滤器工具栏 -->
+	<s:BorderContainer width="100%" height="28" backgroundColor="0xDCEBFE" borderVisible="false" id="filterPanel1">
+		<s:HGroup width="100%" height="100%" verticalAlign="middle">
+			<s:HGroup gap="4" paddingLeft="2" x="0" paddingTop="-2" y="0" width="100%" height="100%" id="groupFilter1" verticalAlign="middle">
+			</s:HGroup>
+		</s:HGroup>
+
+		<s:Line width="100%" height="0" left="0" bottom="0">
+			<s:stroke>
+				<s:SolidColorStroke color="0x606976" id="line1" weight="1" caps="square"/>
+			</s:stroke>
+		</s:Line>
+	</s:BorderContainer>
+
+	<s:BorderContainer width="100%" height="28" backgroundColor="0xDCEBFE" borderVisible="false" id="filterPanel2">
+		<s:HGroup gap="4" paddingLeft="2" x="0" paddingTop="-2" y="0" width="100%" height="100%" id="groupFilter2" verticalAlign="middle">
+		</s:HGroup>
+		<s:Line width="100%" height="0" left="0" bottom="0">
+			<s:stroke>
+				<s:SolidColorStroke id="line2" color="0x606976" weight="1" caps="square"/>
+			</s:stroke>
+		</s:Line>
+	</s:BorderContainer>
+
+	<s:BorderContainer width="100%" height="28" backgroundColor="0xDCEBFE" borderVisible="false" id="filterPanel3">
+		<s:HGroup gap="4" paddingLeft="2" x="0" paddingTop="-2" y="0" width="100%" height="100%" id="groupFilter3" verticalAlign="middle">
+		</s:HGroup>
+		<s:Line width="100%" height="0" left="0" bottom="0">
+			<s:stroke>
+				<s:SolidColorStroke color="0x606976" id="line3" weight="1" caps="square"/>
+			</s:stroke>
+		</s:Line>
+	</s:BorderContainer>
+
+	<s:BorderContainer width="100%" height="28" backgroundColor="0xDCEBFE" borderVisible="false" id="filterPanel4">
+		<s:HGroup gap="4" paddingLeft="2" x="0" paddingTop="-2" y="0" width="100%" height="100%" id="groupFilter4" verticalAlign="middle">
+		</s:HGroup>
+		<s:Line width="100%" height="0" left="0" bottom="0">
+			<s:stroke>
+				<s:SolidColorStroke id="line4" color="0x606976" weight="1" caps="square"/>
+			</s:stroke>
+		</s:Line>
+	</s:BorderContainer>
+
+	<s:BorderContainer width="100%" height="28" backgroundColor="0xDCEBFE" borderVisible="false" id="filterPanel5">
+		<s:HGroup gap="4" paddingLeft="2" x="0" paddingTop="-2" y="0" width="100%" height="100%" id="groupFilter5" verticalAlign="middle">
+		</s:HGroup>
+		<s:Line width="100%" height="0" left="0" bottom="0">
+			<s:stroke>
+				<s:SolidColorStroke id="line5" color="0x606976" weight="1" caps="square"/>
+			</s:stroke>
+		</s:Line>
+	</s:BorderContainer>
+
+</s:VGroup>

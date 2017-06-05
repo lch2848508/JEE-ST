@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<toolbar>
+	<item type="button"	id="trafficStatistics"  text="交通统计汇编资料" img="folder_database.png"/>
+	<item type="button"	id="trafficCensus" text="交通情况调查资料" img="folder_page.png"/>
+	<item type="button"	id="economicStatistics" text="社会经济统计资料" img="folder_brick.png"/>
+	<item type="button" id="searchResult" text="查询统计结果数据"  img="folder_explore.png"/>
+	<item type="buttonSelect" id="otherStatistics" text="其他交通统计资料" img="other.gif">
+		<item type="button"	id="odData"  text="OD期望数据" img="text_document.gif"/>
+		<item type="button"	id="trafficFlow" text="交通流量数据" img="text_document.gif"/>
+		<item type="button"	id="WeatherConditions" text="天气情况数据" img="text_document.gif"/>
+	</item>
+	<!-- <item id="sep1" type="separator"/> -->
+	<!-- <item id="chartSelect" type="button" img="chart-add.ico" text="图表选择"/>
+	<item id="paramSetting" type="button" img="param-config.ico" text="参数设置"/>
+	<item id="refresh" type="button" img="Refresh.ico" text="刷新"/>
+	<item id="collectSubject" type="button" img="favorite.ico" text="收藏专题"/> -->
+	<!-- <item id="saveImage" type="button" img="saveImage.ico" text="专题保存"/> -->
+	<!-- <item id="FileofSubject" type="button" img="FileofSubject.ico" text="专题管理"/> -->
+	<!-- <item id="testbutton" type="button" img="print.png"  text="功能测试"/> -->
+	<!-- <item id="print" type="button" img="print.png" text="打印"/> -->
+</toolbar>

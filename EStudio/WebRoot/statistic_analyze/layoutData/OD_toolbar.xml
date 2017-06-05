@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<toolbar>
+	<!-- <item id="fromCity" type="text" text="起点城市："/>
+	<item id="cityGather" type="buttonSelect" text="">
+		<item type="button"	id="guangzhou"	text="广州市"/>
+		<item type="button"	id="shaoguan"	text="韶关市"/>
+		<item type="button"	id="shenzhen"	text="深圳市"/>
+		<item type="button"	id="zhuhai"		text="珠海市"/>
+		<item type="button"	id="shantou"  	text="汕头市"/>
+		<item type="button"	id="foshan"  	text="佛山市"/>
+		<item type="button"	id="shunde"  	text="顺德区"/>
+		<item type="button"	id="jiangmen" 	text="江门市"/>
+		<item type="button"	id="zhanjiang"  text="湛江市"/>
+		<item type="button"	id="maoming"  	text="茂名市"/>
+		<item type="button"	id="zhaoqing"  	text="肇庆市"/>
+		<item type="button"	id="huizhou"  	text="惠州市"/>
+		<item type="button"	id="meizhou"  	text="梅州市"/>
+		<item type="button"	id="shanwei"  	text="汕尾市"/>
+		<item type="button"	id="heyuan"  	text="河源市"/>
+		<item type="button"	id="yangjiang"  text="阳江市"/>
+		<item type="button"	id="qingyuan"  	text="清远市"/>
+		<item type="button"	id="dongguan"  	text="东莞市"/>
+		<item type="button"	id="zhongshan"  text="中山市"/>
+		<item type="button"	id="chaozhou"  	text="潮州市"/>
+		<item type="button"	id="jieyang"  	text="揭阳市"/>
+		<item type="button"	id="yunfu"  	text="云浮市"/>
+	</item>
+	
+	<item type="separator" id="button_separator_1" /> -->
+	
+	<item id="userDefined" type="button" img="param-config.ico" text="自定义配置"/>
+	
+	<!-- <item id="chartsPrint" type="button" img="print.png" text="图形输出"/> -->
+	
+	<!-- <item id="collectSubject" type="button" img="favorite.ico" text="收藏专题"/> -->
+	
+</toolbar>

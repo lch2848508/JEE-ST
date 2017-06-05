@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:ResizableTitleWindow skinClass="com.estudio.flex.component.ResizableTitleWindowSkin" minWidth="600" minHeight="300" title="流程查看器" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+								xmlns:component="com.estudio.flex.component.*" xmlns:workflow="com.estudio.flex.module.component.workflow.*" width="800" height="450" close="resizabletitlewindow1_closeHandler(event)" creationComplete="resizabletitlewindow1_creationCompleteHandler(event)">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.RUNTIME_COMMAND;
+			import com.estudio.flex.component.ResizableTitleWindowSkin;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			private var _params:Object=null;
+			private var _processTypeId:String=null;
+			private var _isCompleted:Boolean=false;
+			private var _uiOptions:Object=null;
+			private static var _instance:WinDiagram=null;
+
+			//--------------------------------------------------------------------------------------------
+			public static function show(params:Object, options:Object):void
+			{
+				if ((_instance=FlexGlobals.topLevelApplication.cache["WIN_WORKFLOW_DIAGRAM"]) == null)
+					FlexGlobals.topLevelApplication.cache["WIN_WORKFLOW_DIAGRAM"]=_instance=new WinDiagram();
+				_instance._uiOptions=options;
+				var p:DisplayObject=FlexGlobals.topLevelApplication as DisplayObject;
+				_instance.width=Math.min(_instance.width, p.width);
+				_instance.height=Math.min(_instance.height, p.height);
+				_instance._params=params;
+				_instance._processTypeId=params.processTypeId;
+				if (_instance.workflowDiagram)
+				{
+					_instance.createDiagram();
+					_instance.bestSize();
+				}
+				if (_instance._isCompleted)
+				{
+					_instance.initButtomButtons();
+				}
+				FlexGlobals.topLevelApplication.showPopupWindow(_instance, true);
+
+				//PopUpManager.centerPopUp(_instance);
+			}
+
+			//--------------------------------------------------------------------------------------------
+			//创建Diagram
+			private function createDiagram():void
+			{
+				var diagramJson:Object=_params.diagram;
+				workflowDiagram.diagramJson=diagramJson;
+				datagrid.dataProvider=new ArrayCollection(_params.steps);
+				workflowDiagram.focusedActionByName(_params.steps[_params.steps.length - 1].activityName);
+				var map:Object={};
+				for (var i:int=0; i < _params.steps.length; i++)
+				{
+					var n:String=_params.steps[i].activityName;
+					var no:String=_params.steps[i].step_no;
+					if (map[n])
+						map[n].push(no);
+					else
+						map[n]=[no];
+				}
+				for (var k:String in map)
+					workflowDiagram.getAction(k).setSteps(map[k].join(" "));
+			}
+
+			//--------------------------------------------------------------------------------------------
+			//最佳尺寸
+			private var _bestsizeMap:Object={};
+
+			private function bestSize():void
+			{
+				if (_bestsizeMap[_processTypeId])
+				{
+					this.width=_bestsizeMap[_processTypeId][0];
+					this.height=_bestsizeMap[_processTypeId][1];
+					this.diagramGroup.width=_bestsizeMap[_processTypeId][2];
+				}
+				else
+				{
+					var p:DisplayObject=FlexGlobals.topLevelApplication as DisplayObject;
+					this.width=Math.max(800, Math.min(workflowDiagram.diagramWidth * 2 + 6, p.width));
+					this.height=Math.max(400, Math.min(workflowDiagram.diagramHeight + 76, p.height));
+					this.diagramGroup.width=this.width / 2;
+				}
+			}
+
+			//--------------------------------------------------------------------------------------------
+			//关闭窗体
+			protected function resizabletitlewindow1_closeHandler(event:CloseEvent):void
+			{
+				_bestsizeMap[_processTypeId]=[this.width, this.height, diagramGroup.width];
+				FlexGlobals.topLevelApplication.closePopupWindow(_instance);
+
+			}
+
+			//---------------------------------------------------------------------------------------------
+			protected function resizabletitlewindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.width=Math.min(1400, FlexGlobals.topLevelApplication.width - 20);
+				_instance.setStyle("skinClass", ResizableTitleWindowSkin);
+				createDiagram();
+				bestSize();
+				_isCompleted=true;
+				initButtomButtons();
+			}
+
+			//---------------------------------------------------------------------------------------------
+//			private function moveMe(e:Event):void
+//			{
+//				var target:UIComponent=e.target as UIComponent;
+//				var targetX:Number=target.x;
+//				var targetY:Number=target.y;
+//				var appWidth:Number=FlexGlobals.topLevelApplication.width;
+//				var appHeight:Number=FlexGlobals.topLevelApplication.height;
+//
+//				if (targetX + this.width > appWidth)
+//					target.x=appWidth - this.width;
+//				if (targetX < 0)
+//					target.x=0;
+//
+//				if (targetY + this.height > appHeight)
+//					target.y=appHeight - this.height;
+//				if (targetY < 0)
+//					target.y=0;
+//			}
+
+			//----------------------------------------------------------------------------------------------
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				resizabletitlewindow1_closeHandler(null);
+			}
+
+			protected function event4EditForm(event:MouseEvent):void
+			{
+				resizabletitlewindow1_closeHandler(null);
+				if (!_uiOptions.isDataReadOnly && _uiOptions.isEditFormAble)
+					_params.instance.workFunction4Href(RUNTIME_COMMAND.COMMAND_WORKFLOW_EDIT_FORM);
+				else
+					_params.instance.workFunction4Href(RUNTIME_COMMAND.COMMAND_WORKFLOW_VIEW_FORM);
+			}
+
+			protected function event4Idea(event:MouseEvent):void
+			{
+				resizabletitlewindow1_closeHandler(null);
+				_params.instance.workFunction4Href(RUNTIME_COMMAND.COMMAND_WORKFLOW_VIEW_IDEA);
+			}
+
+			protected function event4Send(event:MouseEvent):void
+			{
+				resizabletitlewindow1_closeHandler(null);
+				_params.instance.workFunction4Href(RUNTIME_COMMAND.COMMAND_WORKFLOW_SEND_CASE);
+			}
+
+			protected function event4Back(event:MouseEvent):void
+			{
+				resizabletitlewindow1_closeHandler(null);
+				_params.instance.workFunction4Href(RUNTIME_COMMAND.COMMAND_WORKFLOW_BACK_CASE);
+			}
+
+			private function initButtomButtons():void
+			{
+				group4Buttons.removeAllElements();
+				if ((!_uiOptions.isDataReadOnly && _uiOptions.isEditFormAble) || _uiOptions.isViewFormAble)
+					group4Buttons.addElement(btnViewForm);
+				if (_uiOptions.isIdeaAble)
+					group4Buttons.addElement(btnIdea);
+				if (!_uiOptions.isDataReadOnly && _uiOptions.isBackAble)
+					group4Buttons.addElement(btnSaveAndBack);
+				if (!_uiOptions.isDataReadOnly && _uiOptions.isSendAble)
+					group4Buttons.addElement(btnSaveAndSend);
+				group4Buttons.addElement(btnClose);
+			}
+		]]>
+	</fx:Script>
+
+	<mx:HDividedBox left="0" top="0" width="100%" bottom="40" id="hBox" horizontalGap="3" backgroundColor="0xEBF4FF">
+		<s:HGroup width="100%" height="100%" gap="0" id="diagramGroup">
+			<s:Scroller width="100%" height="100%">
+				<s:Group width="100%" height="100%" id="group1">
+					<s:Rect x="0" y="0" width="100%" height="100%">
+						<s:fill>
+							<s:SolidColor color="#FFFFFF">
+							</s:SolidColor>
+						</s:fill>
+					</s:Rect>
+					<workflow:DiagramPanel x="0" y="0" width="100%" height="100%" id="workflowDiagram">
+
+					</workflow:DiagramPanel>
+				</s:Group>
+			</s:Scroller>
+			<s:Line height="100%" width="0" right="0" bottom="0">
+				<s:stroke>
+					<s:SolidColorStroke color="0x606976" weight="1" caps="square"/>
+				</s:stroke>
+			</s:Line>
+		</s:HGroup>
+
+		<s:HGroup width="100%" height="100%" gap="0" id="group2">
+
+			<s:Line height="100%" width="0" left="0" bottom="0">
+				<s:stroke>
+					<s:SolidColorStroke color="0x606976" weight="1" caps="square"/>
+				</s:stroke>
+			</s:Line>
+			<mx:DataGrid id="datagrid" alternatingItemColors="[0xFEFEFE]" lockedColumnCount="3" horizontalScrollPolicy="auto" verticalScrollPolicy="auto" width="100%" height="100%" sortableColumns="false" borderVisible="false" rowHeight="25" headerHeight="28">
+				<mx:columns>
+					<mx:DataGridColumn fontWeight="bold" color="0xFF0000" textAlign="right" dataField="step_no" headerText="步骤" width="40" resizable="false"/>
+					<mx:DataGridColumn dataField="activityCaption" headerText="环节标题" width="120"/>
+					<mx:DataGridColumn dataField="reciver" headerText="经办人" width="120"/>
+					<mx:DataGridColumn dataField="send_date" headerText="接收日期" width="132" textAlign="center" resizable="false"/>
+					<mx:DataGridColumn dataField="finish_date" headerText="完成日期" width="132" textAlign="center" resizable="false"/>
+					<mx:DataGridColumn dataField="" headerText="经办时间" width="80" textAlign="right" resizable="false"/>
+					<mx:DataGridColumn dataField="" headerText="超期" width="70" textAlign="center" resizable="false"/>
+					<mx:DataGridColumn dataField="type" headerText="类型" width="40" resizable="false"/>
+					<mx:DataGridColumn dataField="activityName" headerText="环节名称" visible="false"/>
+					<mx:DataGridColumn dataField="step_id" headerText="步骤ID" visible="false"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</s:HGroup>
+	</mx:HDividedBox>
+
+	<s:Line id="line1" width="100%" bottom="40">
+		<s:stroke>
+			<s:SolidColorStroke caps="square" color="0x606976" weight="1"/>
+		</s:stroke>
+	</s:Line>
+
+	<s:HGroup id="group4Buttons" right="0" bottom="0" height="40" fontWeight="bold" gap="5" paddingRight="5" textAlign="right" verticalAlign="middle">
+		<s:Button id="btnViewForm" label="编辑表单 " width="85" height="28" right="85" verticalCenter="0" click="event4EditForm(event)"/>
+		<s:Button id="btnIdea" label="批注" width="85" height="28" right="85" verticalCenter="0" click="event4Idea(event)"/>
+		<s:Button label="退回案件" id="btnSaveAndBack" width="85" height="28" right="85" verticalCenter="0" click="event4Back(event)"/>
+		<s:Button label="发送案件" id="btnSaveAndSend" width="85" height="28" right="85" verticalCenter="0" click="event4Send(event)"/>
+		<s:Button id="btnClose" label="关闭" width="75" height="28" right="5" verticalCenter="0" click="button1_clickHandler(event)"/>
+	</s:HGroup>
+
+
+
+</component:ResizableTitleWindow>

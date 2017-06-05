@@ -1,0 +1,525 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module backgroundColor="#F6F6F6" visible="false" creationComplete="module1_creationCompleteHandler(event)" implements="com.webgis.intf.MapControlMultiMapIntf,com.webgis.intf.MapWidgetIntf" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:toolbar="com.webgis.module.toolbar.*" xmlns:multimap="com.webgis.module.multimap.*" xmlns:component="com.webgis.component.*">
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.MapPoint;
+			import com.estudio.flex.component.InputTextForm;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.MapDynamicLayerChangeEvent;
+			import com.webgis.MapLayerManager;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.intf.MapWidgetIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.rpc.AsyncResponder;
+			[Bindable]
+			private var mapInstance:Map=null;
+			private var mapAppInstance:Object=null;
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+
+			[Bindable]
+			private var is4Map:Boolean=false;
+
+			private var isCompareSchemaLoaded:Boolean=false;
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+				widgetContainInstance.multiMap=this;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function viewModeClick(event:MouseEvent):void
+			{
+				var barItem:ToolbarTextButton=event.currentTarget as ToolbarTextButton;
+				if (barItem.selected)
+					return;
+				for (var i:int=0; i < toolbarViewMode.numElements; i++)
+				{
+					if (toolbarViewMode.getElementAt(i) != barItem)
+						toolbarViewMode.getElementAt(i)["selected"]=false;
+				}
+				barItem.selected=true;
+				this.is4Map=barItem.tag == "2x2";
+				mapGroup2.percentHeight=is4Map ? 100 : 0;
+				if (is4Map)
+				{
+					map1.map.setFocus();
+					map2.map.isFocused=false;
+					map3.map.isFocused=false;
+					map4.map.isFocused=false;
+					var r:Number=map1.map.extent.width / map1.map.width;
+					var p:MapPoint=map1.map.center;
+					p.y=p.y - r;
+					map1.map.centerAt(p);
+					p.y=p.y + r;
+					map1.map.centerAt(p);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function closeBtnClick(event:MouseEvent):void
+			{
+				mapApp.hideMultiMap();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private var maps:Array=null;
+			private var mapLayerManager:MapLayerManager=null;
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function initParams(value:MapLayerManager):void
+			{
+				mapLayerManager=value;
+				for (var i:int=0; i < maps.length; i++)
+				{
+					var mapItem:MultiMapItem=maps[i] as MultiMapItem;
+					mapItem.selectedFieldName="selected" + i;
+					mapItem.mapLayerManager=mapLayerManager;
+					mapItem.extentChangeCallFunction=extentChangeCallFunction;
+					mapItem.mapServiceClient=mapServiceClient;
+					mapItem.mapApp=mapAppInstance;
+					mapItem.legend.mapLayerManager=value;
+					mapItem.createControls();
+					mapItem.mouseWhellCallFunction=mouseWhellCallFunction;
+				}
+				areaNavigatorButton.mapApp=mapApp;
+				areaNavigatorButton.map=maps[0].map;
+				areaNavigatorButton.mapServiceClient=mapServiceClient;
+				areaNavigatorButton.initCityList(mapApp.getNavigatorAreaContent().children, false);
+
+				applyHostMapLayers();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			//设置为所有的属性都同主地图相同
+			private function applyHostMapLayers():void
+			{
+				trace("applyHostMapLayers:");
+				var map:Map=maps[0].map;
+				var mapItem:MultiMapItem=maps[0];
+				if (map.loaded)
+				{
+					var list:Array=[];
+					ArrayCollectionUtils.TreeData2List(mapLayerManager.getDynamicLayerTree(), list);
+					for (var i:int=0; i < list.length; i++)
+					{
+						var item:Object=list[i];
+						if (item.selected)
+							item[mapItem.selectedFieldName]=true;
+					}
+					mapLayerManager.switchDynamicLayerVisible(map as MapControl, null, mapItem.selectedFieldName);
+				}
+				else
+				{
+					callLater(applyHostMapLayers);
+				}
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private function extentChangeCallFunction(map:MultiMapItem, center:MapPoint, level:int):void
+			{
+				for (var i:int=0; i < maps.length; i++)
+				{
+					if (maps[i] != map)
+						maps[i].setMapCenter(center, level);
+				}
+				areaNavigatorButton.updateCity();
+			}
+
+			private function mouseWhellCallFunction(mapItem:MultiMapItem):void
+			{
+				for (var i:int=0; i < maps.length; i++)
+				{
+					if (maps[i] != mapItem && maps[i].map)
+						maps[i].map.isFocused=false;
+				}
+				mapItem.map.setFocus();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//创建完成事件
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				maps=[map1, map2, map3, map4];
+				FlexGlobals.topLevelApplication.addEventListener(MouseEvent.MOUSE_DOWN, appMouseDownEvent, false);
+				FlexGlobals.topLevelApplication.addEventListener(MouseEvent.MOUSE_DOWN, appMouseDownEvent, true);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private function appMouseDownEvent(event:MouseEvent):void
+			{
+				if (panelCase.visible == true)
+				{
+					if (panelCase.mouseX < 0 || panelCase.mouseX > panelCase.width || panelCase.mouseY > panelCase.height)
+						panelCase.visible=false;
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function centerAt(p:MapPoint, level:int):void
+			{
+				trace("centerAt");
+				extentChangeCallFunction(null, p, level);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function toolbarItemClick(event:MouseEvent):void
+			{
+				var barItem:ToolbarButton=event.currentTarget as ToolbarButton;
+				event4ToolbarItemClick(barItem);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			private function event4ToolbarItemClick(barItem:com.webgis.component.ToolbarButton):void
+			{
+				var type:String=barItem.tag;
+				if (type == "toolbar_panel")
+				{
+					for (var i:int=0; i < maps.length; i++)
+						maps[i].map.activePanMode();
+				}
+				else if (type == "toolbar_identify")
+				{
+					for (var i:int=0; i < maps.length; i++)
+						maps[i].map.activeIdentifyMode();
+				}
+				else if (type == "toolbar_clear")
+				{
+					for (var i:int=0; i < maps.length; i++)
+						maps[i].map.clearFeature();
+				}
+				else if (type == "toolbar_multiMap")
+					mapApp.showMultiMap();
+				//else if (type == "toolbar_legend")
+				//	mapApp.showMapLegend(!barItem.selected);
+
+				var groupIndex:int=barItem.groupIndex;
+
+				if (groupIndex != 0) //分组
+				{
+					for (var i:int=0; i < toolbar.numElements; i++)
+					{
+						var item:Object=toolbar.getElementAt(i);
+						if (item is ToolbarButton && item != barItem && item.groupIndex == barItem.groupIndex)
+							item.selected=false;
+					}
+					barItem.selected=true;
+				}
+				else if (barItem.toggle)
+				{
+					barItem.selected=!barItem.selected;
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			//加载比对方案
+			private function loadCompareSchema():void
+			{
+				if (isCompareSchemaLoaded)
+					return;
+				isCompareSchemaLoaded=true;
+				mapServiceClientInstance.getCompareSchema(function(json:Object):void
+				{
+					var records:Array=json.children;
+					if (!records)
+						records=[];
+					schemaList.dataProvider=new ArrayCollection(records);
+				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+
+			protected function labelCompareCaseClickHandler(event:MouseEvent):void
+			{
+				areaNavigatorButton.popupPanel.displayPopUp=false;
+				for (var i:int=0; i < maps.length; i++)
+					maps[i].popupPanel.displayPopUp=false;
+				panelCase.visible=true;
+				loadCompareSchema();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			private function navigatorPopupPanelShowCallFunction():void
+			{
+				for (var i:int=0; i < maps.length; i++)
+					maps[i].popupPanel.displayPopUp=false;
+				panelCase.visible=false;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			protected function addFolderClick(event:MouseEvent):void
+			{
+				var str:String="";
+				InputTextForm.execute("请输入目录标题",str, function(text:String):void
+				{
+					trace(text);
+				});
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			protected function addSchemaClick(event:MouseEvent):void
+			{
+				var str:String="";
+				InputTextForm.execute("请输入方案名称",str, function(text:String):void
+				{
+					var config:Object=generalCompareSchema();
+					mapServiceClient.newCompareSchema(-1, 1, text, JSON.stringify(config), function(json:Object):void
+					{
+						schemaList.dataProvider.addItemAt({caption: text, id: json.id, config: config}, 0);
+						schemaList.invalidateDisplayList();
+						schemaList.selectedIndex=0;
+					});
+				});
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			protected function deleteSchemaClick(event:MouseEvent):void
+			{
+				var item:Object=schemaList.selectedItem;
+				if (!item)
+					return;
+				AlertUtils.confirm("确定要删除选定的方案?", function():void
+				{
+					mapServiceClient.deleteCompareSchema(item.id, function(json:Object):void
+					{
+						schemaList.dataProvider.removeItemAt(schemaList.selectedIndex);
+						schemaList.invalidateDisplayList();
+						schemaList.selectedIndex=0;
+					});
+				});
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			private function generalCompareSchema():Object
+			{
+				var mapItem:MultiMapItem=maps[0] as MultiMapItem;
+				var result:Object={layers: []};
+				result.mapLevel=mapItem.map.level;
+				result.mapCenter=mapItem.map.center;
+				result.is4Map=is4Map;
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(mapLayerManager.getDynamicLayerTree(), list);
+				for (var i:int=0; i < list.length; i++)
+				{
+					var item:Object=list[i];
+					if (item.selected0 || item.selected1 || item.selected2 || item.selected3)
+						result.layers.push({id: item.id, status: [item.selected0, item.selected1, item.selected2, item.selected3]});
+				}
+				result.baseMap=[maps[0].map.baseMapIndex, maps[1].map.baseMapIndex, maps[2].map.baseMapIndex, maps[3].map.baseMapIndex];
+				return result;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			private function applyCompareSchema(config:*):void
+			{
+				if (config is String)
+					config=JSON.parse(config);
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(mapLayerManager.getDynamicLayerTree(), list);
+				var configList:Object={};
+				for (var i:int=0; i < config.layers.length; i++)
+				{
+					var item:Object=config.layers[i];
+					configList[item.id]=item.status;
+				}
+				for (var i:int=0; i < list.length; i++)
+				{
+					var item:Object=list[i];
+					var configItem:Object=configList[item.id];
+					if (configItem)
+					{
+						item.selected0=configItem[0];
+						item.selected1=configItem[1];
+						item.selected2=configItem[2];
+						item.selected3=configItem[3];
+					}
+					else
+					{
+						item.selected0=false;
+						item.selected1=false;
+						item.selected2=false;
+						item.selected3=false;
+					}
+				}
+
+
+				mapLayerManager.switchDynamicLayerVisible(maps[0].map, null, maps[0].selectedFieldName);
+				mapLayerManager.switchDynamicLayerVisible(maps[1].map, null, maps[1].selectedFieldName);
+				mapLayerManager.switchDynamicLayerVisible(maps[2].map, null, maps[2].selectedFieldName);
+				mapLayerManager.switchDynamicLayerVisible(maps[3].map, null, maps[3].selectedFieldName);
+				maps[0].map.changeBaseMap(config.baseMap[0]);
+				maps[1].map.changeBaseMap(config.baseMap[1]);
+				maps[2].map.changeBaseMap(config.baseMap[2]);
+				maps[3].map.changeBaseMap(config.baseMap[3]);
+				var oldIs4Map:Boolean=is4Map;
+				is4Map=config.is4Map;
+				if (oldIs4Map != is4Map)
+				{
+					btn2X1.selected=!is4Map;
+					btn2X2.selected=is4Map;
+					mapGroup2.percentHeight=is4Map ? 100 : 0;
+				}
+				extentChangeCallFunction(null, new MapPoint(config.mapCenter.x, config.mapCenter.y), config.mapLevel);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			protected function schemaList_doubleClickHandler(event:MouseEvent):void
+			{
+				var item:Object=schemaList.selectedItem;
+				if (!item)
+					return;
+				applyCompareSchema(item.config);
+			}
+			
+			private var extParams:Object = null;
+			public function setParams(v:Object):void
+			{
+				this.extParams = v;
+			}
+
+		]]>
+	</fx:Script>
+	<!-- 工具条区域 -->
+	<s:BorderContainer id="toolbar" width="100%" height="30" left="0" top="0" backgroundColor="#F6F6F6" borderVisible="false">
+		<s:layout>
+			<s:HorizontalLayout gap="2" verticalAlign="middle"/>
+		</s:layout>
+		<component:NavigatorButton id="areaNavigatorButton" popupPanelShowCallFunction="navigatorPopupPanelShowCallFunction"/>
+
+		<!-- 比对方案 -->
+		<component:ToolbarTextPopupButton id="labelCompareCase" label="比对方案" click="labelCompareCaseClickHandler(event)"/>
+
+		<s:Spacer width="100%"/>
+
+		<component:ToolbarButton id="panelItem" click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/pan.png')" toolTip="拖动模式" groupIndex="1" selected="true" tag="toolbar_panel"/>
+		<component:ToolbarButton click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/IdentifyTool16.png')" toolTip="点选查看属性" groupIndex="1" selected="false" tag="toolbar_identify"/>
+		<component:ToolbarButton click="toolbarItemClick(event)" icon="@Embed('/assets/common/delete.png')" toolTip="清除" groupIndex="0" selected="false" tag="toolbar_clear"/>
+
+
+
+		<!-- 屏显方式 -->
+		<s:HGroup gap="-1" id="toolbarViewMode">
+			<component:ToolbarTextButton id="btn2X1" label="2x1" selected="true" click="viewModeClick(event)" tag="2x1"/>
+			<component:ToolbarTextButton id="btn2X2" label="2x2" click="viewModeClick(event)" tag="2x2"/>
+		</s:HGroup>
+
+		<component:ToolbarTextButton id="btnClose" label="地图模式" click="closeBtnClick(event)"/>
+
+	</s:BorderContainer>
+	<!-- 显示线 -->
+	<s:Line width="100%" left="0" top="30" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="0xE6EDF1"/>
+		</s:stroke>
+	</s:Line>
+
+	<!-- 地图区域 -->
+	<s:VGroup left="0" top="30" width="100%" bottom="0" gap="4">
+		<s:HGroup width="100%" height="100%" id="mapGroup1" gap="4" paddingLeft="-1" paddingTop="-1" paddingRight="-1">
+			<s:BorderContainer width="100%" height="100%" borderColor="#DDE1E5">
+				<multimap:MultiMapItem mapIndex="0" width="100%" height="100%" id="map1"/>
+			</s:BorderContainer>
+			<s:BorderContainer width="100%" height="100%" borderColor="#DDE1E5">
+				<multimap:MultiMapItem mapIndex="1" width="100%" height="100%" id="map2"/>
+			</s:BorderContainer>
+		</s:HGroup>
+		<s:HGroup width="100%" height="0" id="mapGroup2" gap="4" minHeight="0">
+			<s:BorderContainer width="100%" height="100%" minHeight="0" borderColor="#DDE1E5">
+				<multimap:MultiMapItem mapIndex="2" width="100%" height="100%" id="map3"/>
+			</s:BorderContainer>
+			<s:BorderContainer width="100%" height="100%" minHeight="0" borderColor="#DDE1E5">
+				<multimap:MultiMapItem mapIndex="3" width="100%" height="100%" id="map4"/>
+			</s:BorderContainer>
+		</s:HGroup>
+	</s:VGroup>
+
+	<!-- 比对方案 -->
+	<s:BorderContainer id="panelCase" visible="false" borderColor="#BDCBD3" backgroundColor="0xFFFFFF" left="0" bottom="0" top="29" width="350">
+		<s:layout>
+			<s:VerticalLayout gap="0">
+
+			</s:VerticalLayout>
+		</s:layout>
+		<s:BorderContainer width="100%" borderVisible="false" height="28" backgroundColor="#F8F8F8">
+			<s:Label verticalCenter="0" color="#7C7070" left="4" text="比对方案[双击使用选定方案]" fontWeight="bold"/>
+			<!--
+			<component:ToolbarButton right="93" top="3" icon="@Embed('/assets/webgis/folder16.png')" toolTip="添加分类" click="addFolderClick(event)"/>
+			-->
+			<component:ToolbarButton right="63" top="3" icon="@Embed('/assets/common/add.png')" toolTip="添加方案" click="addSchemaClick(event)"/>
+			<component:ToolbarButton right="33" top="3" icon="@Embed('/assets/common/delete.png')" toolTip="删除方案(分类)" click="deleteSchemaClick(event)"/>
+			<component:ToolbarButton right="3" top="3" icon="@Embed('/assets/common/close.png')" click="{panelCase.visible=false;}"/>
+		</s:BorderContainer>
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="0xE6EDF1"/>
+			</s:stroke>
+		</s:Line>
+		<s:List width="100%" doubleClickEnabled="true" doubleClick="schemaList_doubleClickHandler(event)" height="100%" itemRenderer="com.webgis.module.multimap.SchemaListItemRender" id="schemaList"/>
+	</s:BorderContainer>
+
+</s:Module>

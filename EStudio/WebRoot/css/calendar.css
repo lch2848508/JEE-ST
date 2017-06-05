@@ -1,0 +1,59 @@
+@charset "utf-8";
+#__div_calendar__ {
+	font-family: "Courier New", Courier, monospace;
+	font-size: 12px;
+	border: 1px solid #999;
+	background-color:#f5f5f5;
+	position:absolute;
+	top:-1000px;
+	left:-1000px;
+	display:none;
+    z-index:10000;
+}
+
+#__div_calendar__  *
+{
+	font-size:12px;
+}
+
+#__div_calendar__ .__btn_calendar__
+{
+	background-color: #CCC;
+	border: 1px solid #666;
+	height:25px;
+	width:50px;
+}
+
+#__div_calendar__ .__header_weeker__
+{
+	background-color:#09F;
+	font-weight:bold;
+}
+
+#__div_calendar__ .__header_weeker__ td
+{
+	font-family:"宋体";
+}
+
+#__div_calendar__ .__day_cell__
+{
+	text-align:center;
+	font-weight:bold;
+	cursor:pointer;
+}
+
+#__div_calendar__ .otherMonth
+{
+	color:gray;
+}
+
+#__div_calendar__ .currentMonth
+{
+	color:#900
+}
+
+#__div_calendar__ .selected
+{
+	background-color:#C06;
+	color:#FFF;
+}

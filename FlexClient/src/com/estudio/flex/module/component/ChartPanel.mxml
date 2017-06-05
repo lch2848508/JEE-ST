@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" borderVisible="false" resize="eventChartResize(event)" backgroundColor="0xFFFFFF" xmlns:ns="http://teethgrinder.co.uk"
+				   creationComplete="bordercontainer1_creationCompleteHandler(event)" xmlns:teethgrinder="uk.co.teethgrinder.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			
+			import uk.co.teethgrinder.Chart;
+
+			private var chartData:Object=null;
+			public var minAndMaxValues:Array=null;
+
+			protected function bordercontainer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				chart.width=this.width;
+				chart.height=this.height - 1;
+				if (chartData != null)
+				{
+					chart.chartData=chartData;
+				}
+			}
+
+			public function buildChartDataEx(params:Object, datas:ArrayCollection):void
+			{
+				FlexGlobals.topLevelApplication.initRandomColor();
+				var caption:String=params.caption;
+				var type:int=params.type;
+				chartData=null;
+				if (type == 0)
+					chartData=buildPieChartData(caption, params, datas.source);
+				else if (type == 1)
+					chartData=buildBarChartData(caption, params, datas.source);
+				else if (type == 2)
+					chartData=buildLineChartData(caption, params, datas.source);
+				if (chartData != null && chart != null)
+				{
+					chart.callLater(function():void
+					{
+						chart.chartData=chartData;
+					});
+				}
+			}
+
+			//----------------------------------------------------------------------------------------------
+			public function buildChartData(params:Object, datas:ArrayCollection):void
+			{
+				FlexGlobals.topLevelApplication.initRandomColor();
+				var caption:String=params.caption;
+				var type:int=params.type;
+				if (!params.okParams)
+				{
+					var groupFieldLabel:String=StringUtils.before(params.groupField, "[");
+					var groupFieldName:String=StringUtils.between(params.groupField, "[", "]");
+					var valueFields:Array=[];
+					if (params.valueFields != "")
+					{
+						var tempStr:String=params.valueFields.substr(1);
+						var temps:Array=tempStr.split(":");
+
+						//;7:总数[A]8:总数2[B]
+						for (var i:int=0; i < temps.length; i++)
+						{
+							if (temps[i] != "" && temps[i].indexOf("[") != -1)
+							{
+								var label:String=StringUtils.before(temps[i], "[");
+								var field:String=StringUtils.between(temps[i], "[", "]");
+								valueFields.push({label: label, field: field});
+							}
+						}
+					}
+					var okParams:Object={groupFieldLabel: groupFieldLabel, groupFieldName: groupFieldName, valueFields: valueFields};
+					params.okParams=okParams;
+				}
+				chartData=null;
+				if (type == 0)
+					chartData=buildPieChartData(caption, params.okParams, datas.source);
+				else if (type == 1)
+					chartData=buildBarChartData(caption, params.okParams, datas.source);
+				else if (type == 2)
+					chartData=buildLineChartData(caption, params.okParams, datas.source);
+				if (chartData != null && chart != null)
+				{
+					chart.callLater(function():void
+					{
+						chart.chartData=chartData;
+					});
+				}
+
+
+			}
+
+
+			//----------------------------------------------------------------------------------------------
+			//生成线数据
+			private function buildBarChartData(caption:String, params:Object, records:Array):Object
+			{
+				var valueFields:Array=params.valueFields;
+				var chartElements:Array=[];
+				var minValue:int=minAndMaxValues != null ? minAndMaxValues[0] : 0;
+				var maxValue:int=minAndMaxValues != null ? minAndMaxValues[1] : 0;
+				var lables:Array=[];
+				for (var i:int=0; i < valueFields.length; i++)
+				{
+					var valueField:Object=valueFields[i];
+					var chartElement:Object={"type": "bar_glass", "animate": true, "text": valueField.label, colour: FlexGlobals.topLevelApplication.randomColor(), values: []};
+					for (var j:int=0; j < records.length; j++)
+					{
+						if (i == 0)
+						{
+							var labelText:String=records[j][params.groupFieldName];
+							if (StringUtils.isEmpty(labelText))
+								labelText=" ";
+							lables.push({"text": labelText, "colour": "#000000", "size": 10.5});
+						}
+						var v:Number=Convert.str2Number(records[j][valueField.field], 0);
+						minValue=Math.min(v, minValue);
+						maxValue=Math.max(v, maxValue);
+						chartElement.values.push(v);
+					}
+					maxValue++;
+					chartElements.push(chartElement);
+				}
+				var result:Object={"title": {"text": caption, "style": "font-size: 16px;font-weight:bold;text-align: center;"}, "elements": chartElements};
+				var step:int=int((maxValue - Math.min(0, minValue)) / 15);
+				result.x_axis={labels: {labels: lables}, tick_height: 5};
+				result.y_axis={"min": Math.min(0, minValue - step), "max": maxValue + step, "steps": step, tick_height: 5};
+				result.legend={"visible": true, "bg_colour": "#fefefe", "position": "top", "border": true, "shadow": true};
+				//(JSON.stringify(result));
+				return result;
+			}
+
+			//----------------------------------------------------------------------------------------------
+			//生成线数据
+			private function buildLineChartData(caption:String, params:Object, records:Array):Object
+			{
+				var valueFields:Array=params.valueFields;
+				var chartElements:Array=[];
+				var minValue:int=minAndMaxValues != null ? minAndMaxValues[0] : 0;
+				var maxValue:int=minAndMaxValues != null ? minAndMaxValues[1] : 0;
+				var isFirst:Boolean=true;
+				var lables:Array=[];
+				for (var i:int=0; i < valueFields.length; i++)
+				{
+					var valueField:Object=valueFields[i];
+					var chartElement:Object={"type": "line", "animate": true, "text": valueField.label, colour: FlexGlobals.topLevelApplication.randomColor(), values: []};
+					for (var j:int=0; j < records.length; j++)
+					{
+						if (i == 0)
+							lables.push({"text": records[j][params.groupFieldName], "colour": "#000000", "size": 10.5});
+						var v:Number=Convert.str2Number(records[j][valueField.field], 0);
+						minValue=Math.min(v, minValue);
+						maxValue=Math.max(v, maxValue);
+						chartElement.values.push(v);
+					}
+					chartElements.push(chartElement);
+				}
+				maxValue++;
+				var result:Object={"title": {"text": caption, "style": "font-size: 16px;font-weight:bold;text-align: center;"}, "elements": chartElements};
+				var step:int=int((maxValue - Math.min(0, minValue)) / 15);
+				result.x_axis={labels: {labels: lables}, tick_height: 5};
+				result.y_axis={"min": Math.min(minValue - step, 0), "max": maxValue + step, "steps": step};
+				result.legend={"visible": true, "bg_colour": "#fefefe", "position": "top", "border": true, "shadow": true};
+				return result;
+			}
+
+			//----------------------------------------------------------------------------------------------
+			//生成饼图数据
+			private function buildPieChartData(caption:String, params:Object, records:Array):Object
+			{
+
+				var valueFields:Array=params.valueFields;
+				var chartElements:Array=[];
+				for (var i:int=0; i < valueFields.length; i++)
+				{
+					var valueField:Object=valueFields[i];
+					var chartElement:Object={"type": "pie", "tip": "#label# #val#<br>#percent#", "animate": true, "gradient-fill": false, alpha: 1, values: [], colours: []};
+					for (var j:int=0; j < records.length; j++)
+					{
+						chartElement.values.push({value: Convert.str2Number(records[j][valueField.field], 0), text: records[j][params.groupFieldName], label: records[j][params.groupFieldName]});
+						chartElement.colours.push(FlexGlobals.topLevelApplication.randomColor());
+					}
+					chartElements.push(chartElement);
+				}
+				var result:Object={"title": {"text": caption, "style": "font-size: 24px;font-weight:bold;text-align: center;"}, "elements": chartElements};
+				result.legend={"visible": true, "bg_colour": "#fefefe", "position": "right", "border": true, "shadow": true};
+				return result;
+			}
+			//----------------------------------------------------------------------
+			public function eventChartResize(event:ResizeEvent):void
+			{
+				if (this.chart)
+				{
+					this.chart.width=this.width;
+					this.chart.height=this.height - 1;
+					if (chartData && chart.stage != null)
+						this.chart.chartData=chartData;
+				}
+			}
+
+			protected function bordercontainer1_initializeHandler(event:FlexEvent):void
+			{
+
+			}
+
+			protected function eventChartAddToStage(event:Event):void
+			{
+				if (chartData && chart.stage)
+					chart.chartData=chartData;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<s:Line width="100%" height="0" left="0" top="0">
+		<s:stroke>
+			<s:SolidColorStroke color="0x606976" weight="1" caps="square"/>
+		</s:stroke>
+	</s:Line>
+
+
+
+	<!--
+	<ns:Ofc2Chart left="0" top="1" id="chart">
+
+	</ns:Ofc2Chart>
+	-->
+	<teethgrinder:Chart left="0" top="1" id="chart">
+
+	</teethgrinder:Chart>
+
+</s:BorderContainer>

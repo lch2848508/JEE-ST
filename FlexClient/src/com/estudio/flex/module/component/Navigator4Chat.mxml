@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:NavigatorContent xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.events.ItemClickEvent;
+
+			import flashx.textLayout.conversion.TextConverter;
+
+			protected function Toolbar_itemClickHandler(event:ItemClickEvent):void
+			{
+				var item:Object=event.item;
+				if (StringUtils.equal(item.cmd, "sendMessage"))
+				{
+					rpcObject.sendMessage(ReciverUserIds, StringUtils.trim(content.text), loginUserId);
+				}
+			}
+
+			[Embed(source="assets/common/idea.png")] //审批意见
+			[Bindable]
+			public var imgIdea:Class;
+
+			[Embed(source="assets/common/folder.png")] //审批意见
+			[Bindable]
+			public var imgFile:Class;
+
+			public var loginUserId:String="";
+			public var ReciverUserIds:Array=null;
+			public var ReciverNames:Array=null;
+			public var rpcObject:Object=null;
+			public var groupIds:Array=null;
+			private var htmlContent:String="";
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//接收消息
+			public function appendContent(sendDateTime:String, sendUserId:String, sendUserName:String, content:String):void
+			{
+				var isMe:Boolean=StringUtils.equal(loginUserId, sendUserId);
+				htmlContent+="<p><span lineHeight='25'><font color='" + (isMe ? "#368064" : "#0000FF") + "' face='YaHei Consolas Hybrid,微软雅黑'>" + sendUserName + " " + sendDateTime + "</font></span></p>";
+				htmlContent+="<p paddingLeft='4'><span lineHeight='25'><textformat leftmargin='8'>" + StringUtils.str2HTML(content) + "</textformat></span></p>";
+				messageList.htmlText=htmlContent;
+				messageList.callLater(function():void
+				{
+					messageList.verticalScrollPosition=messageList.maxVerticalScrollPosition + 20;
+				});
+			}
+
+			protected function content_keyDownHandler(event:KeyboardEvent):void
+			{
+				if (event.keyCode == Keyboard.ENTER && event.ctrlKey && !StringUtils.isEmpty(StringUtils.trim(content.text)))
+				{
+					rpcObject.sendMessage(ReciverUserIds, StringUtils.trim(content.text), loginUserId);
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<fx:Array id="toolbarItems">
+			<fx:Object cmd="sendMessage" label="发送消息" icon="{imgIdea}"/>
+			<fx:Object cmd="sendFile" label="发送文件" icon="{imgFile}"/>
+		</fx:Array>
+	</fx:Declarations>
+	<mx:VDividedBox backgroundColor="#EBF4FF" verticalGap="4" width="100%" height="100%" paddingLeft="0" paddingTop="-1" paddingRight="-1" paddingBottom="-1">
+		<!-- 显示内容区域 -->
+		<mx:TextArea width="100%" id="messageList" verticalScrollPolicy="on" horizontalScrollPolicy="off" height="100%" editable="false" borderVisible="true" borderColor="#7B889C">
+
+		</mx:TextArea>
+
+		<!-- 聊天区域 -->
+		<s:BorderContainer width="100%" height="150" borderVisible="true" borderColor="#7B889C">
+			<s:layout>
+				<s:VerticalLayout gap="0">
+				</s:VerticalLayout>
+			</s:layout>
+			<!-- 发送工具条 -->
+			<s:BorderContainer borderVisible="false" backgroundColor="#DFEDFE" width="100%" height="28">
+				<mx:LinkBar id="Toolbar" paddingTop="0" paddingBottom="0" itemClick="Toolbar_itemClickHandler(event)" width="100%" left="0" top="0" toolTipField="hint" dataProvider="{toolbarItems}" backgroundColor="0xDCEBFE" contentBackgroundAlpha=".1">
+				</mx:LinkBar>
+				<s:Line width="100%" height="0" bottom="0">
+					<s:stroke>
+						<s:SolidColorStroke color="#7B889C"/>
+					</s:stroke>
+				</s:Line>
+			</s:BorderContainer>
+			<s:TextArea width="100%" height="100%" borderVisible="false" id="content" keyDown="content_keyDownHandler(event)">
+			</s:TextArea>
+		</s:BorderContainer>
+
+	</mx:VDividedBox>
+</s:NavigatorContent>

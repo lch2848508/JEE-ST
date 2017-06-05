@@ -1,0 +1,713 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module visible="false" creationComplete="module1_creationCompleteHandler(event)" implements="com.webgis.intf.MapWidgetIntf,com.webgis.intf.MapControlStatisticIntf" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" backgroundColor="0xF5F5F5" xmlns:component="com.webgis.component.*"
+		  xmlns:ns="http://www.esri.com/2008/ags" xmlns:statistic="com.webgis.module.statistic.*">
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.events.MapMouseEvent;
+			import com.esri.ags.events.ZoomEvent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.SimpleFillSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.component.StatisticDataGrid;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+
+			private var mapInstance:Map=null;
+			private var mapAppInstance:Object=null;
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+			private var mapServiceClientInstance:MapServiceClient=null;
+			private var isLayerInMap:Boolean=false;
+			private var layerIdAndScale2Feature:Object={};
+			private var chartFeatureKeys:String="";
+			private var statisticInfoContent:StatisticInfoContent=new StatisticInfoContent();
+			private var colors:Array=[0x74cc00, 0x4da0e9, 0xf2a600, 0xa37cb9, 0xf15e5e, 0x004ACE2B, 0x00029DF0, 0x00FD9E0C, 0x9C9900, 0x367517, 0x006241, 0x00676B, 0x103667, 0x211551, 0x38044B, 0x64004B, 0x00A6AD];
+			private var allStatisticRecords:Array=[];
+			private var visibleStatisticRecords:Array=[];
+			public var maxAndMinValues:Array=[];
+			private var fillFeatureColors:Array=[0x1d801f, 0x21a621, 0x33cc33, 0x52ff52, 0xa9ffa7];
+
+
+			public function get map():Object //获取地图
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void //设置地图
+			{
+				mapInstance=value as Map;
+			}
+
+			public function setProperty(obj:Object):void //设置属性
+			{
+
+			}
+
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+
+			}
+
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+				widgetContainInstance.statistic=this;
+			}
+
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			//第一次加载数据时执行
+			private var isFirstRuning:Boolean=true;
+
+			public function getStatisticTree():void
+			{
+				if (!isFirstRuning)
+					return;
+				mapServiceClient.getStatisticTree(function(json:Object):void
+				{
+					tree.dataProvider=json.items;
+					tree.callLater(function():void
+					{
+						tree.expandChildrenOf(json.items, true);
+					});
+				});
+				isFirstRuning=false;
+				var mapContain:UIComponent=UIComponent((map as Map).owner);
+				mapContain["addElement"](statisticLegend);
+				mapContain["addElement"](statisticDataGrid);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function active():void
+			{
+				(map as MapControl).activePanMode();
+				getStatisticTree();
+
+				if (!isLayerInMap)
+				{
+					(map as Map).addLayer(featureLayer);
+					(map as Map).addEventListener(ZoomEvent.ZOOM_END, mapZoomEvent);
+					mapZoomEvent(null);
+					isLayerInMap=true;
+				}
+				statisticDataGrid.visible=true;
+				statisticLegend.visible=datagrid && datagrid.selectedItem && datagrid.selectedItem.showType == 1;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function inactive():void
+			{
+				if (isLayerInMap)
+				{
+					(map as Map).removeLayer(featureLayer);
+					(map as Map).removeEventListener(ZoomEvent.ZOOM_END, mapZoomEvent);
+					isLayerInMap=false;
+				}
+				statisticDataGrid.visible=false;
+				statisticLegend.visible=false;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			//加入到界面中
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				widgetContainInstance.getStatisticContain()["addElement"](this.owner);
+				(map as Map).addEventListener(MapMouseEvent.MAP_CLICK, eventStaticticLayerClick);
+				this.visible=true;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+
+			private function mapZoomEvent(event:ZoomEvent):void
+			{
+				var item:Object=datagrid.selectedItem;
+				var chartColumns:Array=[];
+				if (!item)
+				{
+					statisticLegend.visible=false;
+					return;
+				}
+
+				var m:Map=Map(map);
+				var level:int=m.level + 1;
+				var layers:Array=item.layers;
+				if (!layers)
+				{
+					statisticLegend.visible=false;
+					return;
+				}
+
+				for (var i:int=0; i < layers.length; i++)
+				{
+					var layerItem:Object=layers[i];
+					var startLevel:int=layerItem.startLevel;
+					var endLevel:int=layerItem.endLevel;
+					var layerId:String=layerItem.layerId;
+					if (startLevel <= level && level <= endLevel)
+					{
+						var tempKey:String=item.id + "-" + layerId;
+						if (chartFeatureKeys != tempKey)
+						{
+							loadStatisticFeature(layerItem);
+							chartFeatureKeys=tempKey;
+						}
+						break;
+					}
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			private function loadStatisticFeature(layerItem:Object):void
+			{
+				var layerId:String=layerItem.layerId;
+				var scale:Number=layerItem.scale;
+				var queryField:String=layerItem.queryField;
+				var key:String=layerId + "-" + scale;
+				if (layerIdAndScale2Feature[key])
+					addStatisticFeature2MapLayer(layerIdAndScale2Feature[key], layerItem);
+				else
+					mapServiceClient.getScaleLayerFeatures(layerId, scale, queryField, true, function(json:Object):void
+					{
+						layerIdAndScale2Feature[key]=[];
+						var records:Array=json.records;
+						if (!records)
+							records=[];
+						for (var i:int=0; i < records.length; i++)
+						{
+							if (StringUtils.isEmpty(records[i].wkt))
+								continue;
+							var caption:String=records[i].caption;
+							var geometry:Geometry=Geometry.fromJSON(records[i].wkt);
+							var graphic:Graphic=new Graphic(geometry, null, {name: caption});
+							graphic.toolTip=caption;
+
+							var point:MapPoint=new MapPoint(records[i].centerPoint[0], records[i].centerPoint[1]);
+							var pointGraphic:Graphic=new Graphic(point, null, {name: caption});
+							pointGraphic.toolTip=caption;
+							layerIdAndScale2Feature[key].push({g: graphic, p: pointGraphic});
+						}
+						addStatisticFeature2MapLayer(layerIdAndScale2Feature[key], layerItem);
+					});
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			//需要重点处理的函数
+			private function addStatisticFeature2MapLayer(features:Array, layerItem:Object):void
+			{
+				clearFeatureLayers();
+				var chartItem:Object=datagrid.selectedItem;
+				var isChartChildren:Boolean=chartItem.isChartChildren;
+				var keyFieldName:String=chartItem.keyFieldName;
+				visibleStatisticRecords=[];
+				if (chartItem.showType == 0)
+				{
+					//创建Chart渲染器
+					statisticLegend.visible=false;
+					showFillStatisticFeatures(features, chartItem.mainFieldName, chartItem.keyFieldName, layerItem.dataLevel);
+				}
+				else if (chartItem.showType == 1)
+				{
+					if (chartItem.chartType == 0)
+						showColumnStatisticFeatures(features, chartItem.keyFieldName, layerItem.dataLevel, chartItem.valueFields);
+					else
+						showPieStatisticFeatures(features, chartItem.keyFieldName, layerItem.dataLevel, chartItem.valueFields);
+					statisticLegend.visible=true;
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			//显示图表专题
+			private function showColumnStatisticFeatures(features:Array, keyFieldName:String, dataLevel:int, columns:Array):void
+			{
+				var minValue:Number=0;
+				var maxValue:Number=0;
+				var levelRecords:Array=[];
+				var name2Record:Object={};
+				for (var i:int=0; i < allStatisticRecords.length; i++)
+				{
+					if (allStatisticRecords[i].level == dataLevel)
+					{
+						for (var j:int=0; j < columns.length; j++)
+						{
+							var dataField:String=columns[j].name;
+							var v:Number=Convert.str2Number(allStatisticRecords[i][dataField], 0);
+							minValue=Math.min(minValue, v);
+							maxValue=Math.max(maxValue, v);
+						}
+						name2Record[allStatisticRecords[i][keyFieldName]]=allStatisticRecords[i];
+					}
+				}
+
+				for (var i:int=0; i < features.length; i++)
+				{
+					var name:String=features[i].p.attributes.name;
+					if (!name2Record[name])
+						continue;
+					var columns:Array=datagrid.selectedItem.valueFields;
+					var count:Number=0;
+					var fields:Array=[];
+					var symbolColors:Array=[];
+					for (var j:int=0; j < columns.length; j++)
+					{
+						count+=Convert.str2Number(name2Record[name][columns[j].name], 0);
+						fields.push(columns[j].name);
+						symbolColors.push(colors[j % colors.length]);
+						features[i].p.attributes[columns[j].name]=Convert.str2Number(name2Record[name][columns[j].name], 0);
+					}
+					if (count == 0)
+						continue;
+
+					visibleStatisticRecords.push(name2Record[name]);
+
+					var symbol:ColumnSymbol=new ColumnSymbol();
+					symbol.fields=fields;
+					symbol.colors=symbolColors;
+					symbol.maxValue=maxValue;
+					features[i].p.symbol=symbol;
+					featureLayer.add(features[i].p);
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			//画饼图
+			private function showPieStatisticFeatures(features:Array, keyFieldName:String, dataLevel:int, columns:Array):void
+			{
+				var minValue:Number=0;
+				var maxValue:Number=0;
+				var levelRecords:Array=[];
+				var name2Record:Object={};
+				for (var i:int=0; i < allStatisticRecords.length; i++)
+				{
+					if (allStatisticRecords[i].level == dataLevel)
+					{
+						var sum:Number=0;
+						for (var j:int=0; j < columns.length; j++)
+						{
+							var dataField:String=columns[j].name;
+							sum+=Convert.str2Number(allStatisticRecords[i][dataField], 0);
+						}
+						maxValue=Math.max(maxValue, sum);
+						name2Record[allStatisticRecords[i][keyFieldName]]=allStatisticRecords[i];
+					}
+				}
+				for (var i:int=0; i < features.length; i++)
+				{
+					var name:String=features[i].p.attributes.name;
+					if (!name2Record[name])
+						continue;
+					var columns:Array=datagrid.selectedItem.valueFields;
+					var count:Number=0;
+					var fields:Array=[];
+					var symbolColors:Array=[];
+					for (var j:int=0; j < columns.length; j++)
+					{
+						count+=Convert.str2Number(name2Record[name][columns[j].name], 0);
+						fields.push(columns[j].name);
+						symbolColors.push(colors[j % colors.length]);
+						features[i].p.attributes[columns[j].name]=Convert.str2Number(name2Record[name][columns[j].name], 0);
+					}
+					if (count == 0)
+						continue;
+
+					visibleStatisticRecords.push(name2Record[name]);
+					var symbol:PieSymbol=new PieSymbol();
+					symbol.fields=fields;
+					symbol.colors=symbolColors;
+					symbol.maxValue=maxValue;
+					features[i].p.symbol=symbol;
+					featureLayer.add(features[i].p);
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			private function createChartRecord(columns:Array, item:Object):Array
+			{
+				var result:Array=[];
+				for (var i:int=0; i < columns.length; i++)
+				{
+					result.push({name: columns[i].label, value: item[columns[i].name]});
+				}
+				return result;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			//显示填充方式的专题
+			private function showFillStatisticFeatures(features:Array, dataField:String, keyFieldName:String, dataLevel:int):void
+			{
+				var minValue:Number=0;
+				var maxValue:Number=0;
+				var levelRecords:Array=[];
+				var name2Record:Object={};
+				for (var i:int=0; i < allStatisticRecords.length; i++)
+				{
+					if (allStatisticRecords[i].level == dataLevel)
+					{
+						var v:Number=Convert.str2Number(allStatisticRecords[i][dataField], 0);
+						if (v == 0)
+							continue;
+						minValue=Math.min(minValue, v);
+						maxValue=Math.max(maxValue, v);
+						name2Record[allStatisticRecords[i][keyFieldName]]=allStatisticRecords[i];
+					}
+				}
+				for (var i:int=0; i < features.length; i++)
+				{
+					var name:String=features[i].g.attributes.name;
+					if (name2Record[name] && Convert.str2Number(name2Record[name][dataField]) != 0)
+					{
+						features[i].g.symbol=createFillSymbol(minValue, maxValue, name2Record[name][dataField]);
+						featureLayer.add(features[i].g);
+						features[i].g.toolTip=features[i].g.attributes.name + "\n值：" + name2Record[name][dataField];
+						visibleStatisticRecords.push(name2Record[name]);
+					}
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			private function createFillSymbol(minValue:Number, maxValue:Number, value:Number):Symbol
+			{
+				if (value == 0 || maxValue == minValue)
+					return new SimpleFillSymbol("solid", 0xFFFFFF, 0, new SimpleLineSymbol("solid", 0xFF0000, 1, 2));
+				var step:Number=(maxValue - minValue) / fillFeatureColors.length;
+				var index:Number=Math.floor((value - minValue) / step);
+				index=Math.min(fillFeatureColors.length - index, 4);
+				return new SimpleFillSymbol("solid", fillFeatureColors[index], 0.9, new SimpleLineSymbol("solid", 0xFFFFFF, 0.9, 1));
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			protected function tree_changeHandler(event:ListEvent):void
+			{
+				allStatisticRecords=[];
+				datagrid.dataProvider=[];
+				clearFeatureLayers();
+
+				chartFeatureKeys="";
+				var item:Object=tree.selectedItem;
+				if (item && item.type === 1)
+				{
+					if (!item.statisticData)
+					{
+						mapServiceClient.getStatisticData(item.id, function(json:Object):void
+						{
+							json.strRecords=json.records;
+							json.records=JSON.parse(json.records);
+							setRecordsLevel(json.records, 1);
+							datagrid.dataProvider=json.charts;
+							if (json.charts && json.charts.length != 0)
+							{
+								datagrid.callLater(function():void
+								{
+									datagrid.selectedItem=json.charts[0];
+									datagrid.selectedIndex=0;
+									datagrid_changeHandler(null);
+								});
+							}
+
+
+							item.statisticData=json;
+							statisticDataGrid.setDataGridColumnsAndRecords(json.columnsInfo, json.strRecords);
+							ArrayCollectionUtils.TreeData2List(statisticDataGrid.excelPanel.datagridRecords.source.source, allStatisticRecords, true, "level", 1);
+							statisticDataGrid.caption=item.name;
+						}, function(result:*):void
+						{
+							statisticDataGrid.setMinStatus();
+							datagrid_changeHandler(null);
+						});
+					}
+					else
+					{
+						datagrid.dataProvider=item.statisticData.charts;
+						statisticDataGrid.setDataGridColumnsAndRecords(item.statisticData.columnsInfo, item.statisticData.strRecords);
+						statisticDataGrid.caption=item.name;
+						ArrayCollectionUtils.TreeData2List(statisticDataGrid.excelPanel.datagridRecords.source.source, allStatisticRecords, true, "level", 1);
+						if (item.statisticData.charts && item.statisticData.charts.length != 0)
+						{
+							datagrid.callLater(function():void
+							{
+								datagrid.selectedItem=item.statisticData.charts[0];
+								datagrid.selectedIndex=0;
+								datagrid_changeHandler(null);
+							});
+						}
+					}
+				}
+				else
+				{
+					statisticDataGrid.setMinStatus();
+					datagrid_changeHandler(null);
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			private function setRecordsLevel(records:Array, level:int):void
+			{
+				for (var i:int=0; i < records.length; i++)
+				{
+					records[i].level=level;
+					if (records[i].children)
+						setRecordsLevel(records[i].children, level + 1);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			private function hideFeatureLayers():void
+			{
+				Map(map).infoWindow.hide();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			private function clearFeatureLayers():void
+			{
+				featureLayer.clear();
+				Map(map).infoWindow.hide();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			//DataGrid Change
+			protected function datagrid_changeHandler(event:ListEvent):void
+			{
+				var chartItem:Object=datagrid.selectedItem;
+				if (chartItem)
+				{
+					var chartColumns:Array=[];
+					if (!chartItem)
+					{
+						statisticDataGrid.focusColumns=null;
+					}
+					else
+					{
+						var focusColumns:Array=[chartItem.mainFieldName];
+						if (chartItem.valueFields)
+						{
+							for (var i:int=0; i < chartItem.valueFields.length; i++)
+							{
+								var fieldName:String=chartItem.valueFields[i].name;
+								if (!ArrayUtils.contain(focusColumns, fieldName))
+									focusColumns.push(fieldName);
+								chartColumns.push(chartItem.valueFields[i]);
+							}
+						}
+						statisticDataGrid.focusColumns=new ArrayCollection(focusColumns);
+						statisticDataGrid.excelPanel.datagrid.invalidateList();
+						if (chartItem.showType == 1)
+						{
+							statisticLegend.createLegend(chartItem.valueFields, colors);
+							statisticLegend.visible=true;
+						}
+					}
+					mapZoomEvent(null);
+				}
+				else
+				{
+					statisticLegend.visible=false;
+					clearFeatureLayers();
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			//统计数据点击
+			private function eventStaticticLayerClick(event:MapMouseEvent):void
+			{
+				var target:Object=event.originalTarget;
+				if (target is Graphic && Graphic(target).owner == featureLayer)
+				{
+					var featureName:String=target.attributes.name;
+					var keyName:String=datagrid.selectedItem.keyFieldName;
+					var index:int=-1;
+					for (var i:int=0; i < allStatisticRecords.length; i++)
+					{
+						if (allStatisticRecords[i][keyName] == featureName)
+						{
+							index=i;
+							break;
+						}
+					}
+
+					statisticDataGrid.excelPanel.datagrid.firstVisibleItem=allStatisticRecords[index];
+					statisticDataGrid.callLater(function():void
+					{
+						statisticDataGrid.excelPanel.datagrid.selectedItem=allStatisticRecords[index];
+					});
+
+					var selectedItem:Object=allStatisticRecords[index];
+					var chartItem:Object=datagrid.selectedItem;
+					var columns:Array=chartItem.valueFields;
+					if (columns && columns.length > 0)
+					{
+						var point:MapPoint=event.mapPoint;
+						Map(map).infoWindowContent=statisticInfoContent;
+						Map(map).infoWindow.label=Graphic(target).attributes.name;
+						statisticInfoContent.width=map.width * 0.5;
+						statisticInfoContent.height=map.height * 0.5;
+						Map(map).infoWindow.show(point);
+						var records:Array=null;
+						var isChartChildren:Boolean=chartItem.isChartChildren;
+						var dataLevel:int=1;
+						if (chartItem.isChartChildren && selectedItem.children)
+						{
+							statisticInfoContent.chartSeries={keyFieldName: chartItem.keyFieldName, columns: chartItem.valueFields, isChartChildren: true};
+							records=selectedItem.children;
+						}
+						else
+						{
+							statisticInfoContent.chartSeries={keyFieldName: "name", columns: [{name: "value", label: "项"}], isChartChildren: false};
+							records=createChartRecord(columns, selectedItem);
+						}
+						statisticInfoContent.minAndMaxValue=getMinAndMaxValueFromRecords(visibleStatisticRecords, isChartChildren && selectedItem.children, chartItem.valueFields);
+						statisticInfoContent.dataProvider=records;
+						statisticInfoContent.createChartContent();
+					}
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			//获取最大最小值用于显示图表
+			private function getMinAndMaxValueFromRecords(records:Array, isChildren:Boolean, columns:Array):Array
+			{
+				var result:Array=[0, 0];
+				if (isChildren)
+				{
+					for (var i:int=0; i < records.length; i++)
+					{
+						var record:Object=records[i];
+						if (record.children)
+						{
+							var tempResult:Array=getMinAndMaxValueFromRecords(record.children, false, columns);
+							result[0]=Math.min(tempResult[0], result[0]);
+							result[1]=Math.max(tempResult[1], result[1]);
+						}
+					}
+				}
+				else
+				{
+					for (var i:int=0; i < records.length; i++)
+					{
+						for (var j:int=0; j < columns.length; j++)
+						{
+							var v:Number=Convert.str2Number(records[i][columns[j].name], 0);
+							result[0]=Math.min(v, result[0]);
+							result[1]=Math.max(v, result[1]);
+						}
+					}
+				}
+				return result;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			//工具条点击事件
+			protected function toolbarItemClick(event:MouseEvent):void
+			{
+				var tag:String=event.currentTarget.tag;
+				if (tag == "show_excel_grid")
+				{
+					toolbarItem_ShowExcelGrid.selected=!toolbarItem_ShowExcelGrid.selected;
+					if (toolbarItem_ShowExcelGrid.selected)
+						statisticDataGrid.setMaxStatus();
+					else
+						statisticDataGrid.setMinStatus();
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			private function statisticDataGridResizeCallFunction(isMax:Boolean):void
+			{
+				toolbarItem_ShowExcelGrid.selected=isMax;
+			}
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			private var extParams:Object = null;
+			public function setParams(v:Object):void
+			{
+				this.extParams = v;
+			}
+
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<ns:GraphicsLayer id="featureLayer" mouseChildren="true"/>
+	</fx:Declarations>
+
+	<mx:VDividedBox width="100%" height="100%" verticalGap="4">
+		<s:BorderContainer backgroundColor="#F4F7F8" width="100%" height="100%" borderVisible="false">
+			<s:layout>
+				<s:VerticalLayout gap="0"/>
+			</s:layout>
+			<s:HGroup gap="2" height="25" verticalAlign="middle" width="100%" paddingTop="2" paddingRight="2" paddingLeft="4" paddingBottom="2">
+				<s:Label text="条件" paddingTop="2"/>
+				<s:TextInput width="100%" height="100%"/>
+				<component:ToolbarButton toolTip="过滤" width="22" height="22" tag="save_schema" icon="@Embed('/assets/common/search.png')"/>
+				<component:ToolbarButton toolTip="自定义专题" width="22" height="22" tag="data_stat" icon="@Embed('/assets/common/chart_1.png')"/>
+				<component:ToolbarButton id="toolbarItem_ShowExcelGrid" toolTip="显示数据" click="toolbarItemClick(event)" groupIndex="0" selected="false" icon="@Embed('/assets/webgis/xls.png')" tag="show_excel_grid"/>
+			</s:HGroup>
+			<s:Line width="100%" height="0">
+				<s:stroke>
+					<s:SolidColorStroke color="#7B889C"/>
+				</s:stroke>
+			</s:Line>
+			<mx:Tree contentBackgroundColor="0xFFFFFF" change="tree_changeHandler(event)" itemRenderer="com.webgis.component.StatisticTreeItemRender" labelField="name" width="100%" height="100%" borderVisible="false" id="tree">
+
+			</mx:Tree>
+			<s:Line width="100%" height="0">
+				<s:stroke>
+					<s:SolidColorStroke color="#7B889C"/>
+				</s:stroke>
+			</s:Line>
+		</s:BorderContainer>
+
+
+		<s:BorderContainer width="100%" height="100%" borderVisible="false">
+			<s:layout>
+				<s:VerticalLayout gap="0"/>
+			</s:layout>
+			<s:Line width="100%" height="0">
+				<s:stroke>
+					<s:SolidColorStroke color="#7B889C"/>
+				</s:stroke>
+			</s:Line>
+			<mx:DataGrid id="datagrid" width="100%" change="datagrid_changeHandler(event)" rowHeight="25" sortableColumns="false" alternatingItemColors="[0xFFFFFF]" height="100%" headerHeight="25" borderVisible="false">
+				<mx:columns>
+					<mx:DataGridColumn dataField="name" headerText="专题列表" itemRenderer="com.webgis.module.statistic.DataGridItemRender">
+					</mx:DataGridColumn>
+				</mx:columns>
+			</mx:DataGrid>
+		</s:BorderContainer>
+	</mx:VDividedBox>
+	<component:StatisticDataGrid visible="false" resizeCallFunction="{statisticDataGridResizeCallFunction}" id="statisticDataGrid"/>
+	<statistic:StatisticLegend right="0" bottom="25" width="130" height="140" borderVisible="true" backgroundColor="0xCCCCCC" alpha="0.8" id="statisticLegend" visible="false"/>
+</s:Module>

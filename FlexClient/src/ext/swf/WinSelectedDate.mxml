@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx title="请选择日期..."  close="titlewindowex1_closeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="451"
+						 height="360" xmlns:component1="ext.component.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+
+			//确定选择
+			protected function btnOk_clickHandler(event:MouseEvent):void
+			{
+				var days:Array=dateSelect.selectedDate;
+				if (!StringUtils.isEmpty(_funname) && !StringUtils.isEmpty(_frameID))
+					IFrameUtils.execute(_frameID, _funname, days);
+				titlewindowex1_closeHandler(null);
+			}
+
+			//关闭窗体
+			protected function btnClose_clickHandler(event:MouseEvent):void
+			{
+				titlewindowex1_closeHandler(null);
+
+			}
+
+			private var _frameID:String="";
+			private var _funname:String="";
+
+			[Bindable]
+			private var _startDate:Date=null;
+
+			[Bindable]
+			private var _enableMultiSelect:Boolean=false;
+
+			private static var _instance:WinSelectedDate=null;
+
+			public static function execute(startDate:String, enableMultiSelect:Boolean, frameid:String, funname:String):void
+			{
+				if (_instance == null)
+					_instance=new WinSelectedDate();
+				_instance._frameID=frameid;
+				_instance._funname=funname;
+				_instance._startDate=Convert.str2Date(startDate, new Date());
+				_instance._enableMultiSelect=enableMultiSelect;
+				if (_instance.dateSelect != null)
+					_instance.dateSelect.clearAllSelected();
+				PopUpManager.addPopUp(_instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(_instance);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(_instance);
+			}
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<component1:DateChooseEx startDate="{_startDate}" enableMultiSelect="{_enableMultiSelect}" left="5" top="5" right="5" bottom="45" id="dateSelect">
+	</component1:DateChooseEx>
+	<s:Button width="75" height="30" right="85" bottom="8" label="确定" id="btnOk" click="btnOk_clickHandler(event)">
+	</s:Button>
+	<s:Button id="btnClose" right="5" bottom="8" width="75" height="30" label="关闭" click="btnClose_clickHandler(event)">
+	</s:Button>
+</component:TitleWindowEx>

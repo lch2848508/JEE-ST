@@ -1,0 +1,253 @@
+@charset "utf-8";
+
+html,body
+{
+	padding:0px;
+	margin:0px;
+	width:100%;
+	height:100%;
+}
+
+/* 表单外观 */
+#div_pagecontrol_contain
+{
+	position:absolute;
+	left:5px;
+	top:5px;
+}
+
+#div_form_border
+{
+	border: 1px solid #91A7B4;
+	position:absolute;
+	left:5px;
+	top:5px;
+	background-color:#F0F8FF;
+}
+
+/* 按钮区域 */
+#div_button_contain
+{
+	position:absolute;
+	right:5px;
+	bottom:5px;
+}
+
+#div_button_contain input
+{
+	height:30px;
+	width:80px;
+	background-color: #F5F5F5;
+	border: 1px solid #91A7B4;
+	cursor:pointer;
+}
+
+#div_button_contain .focused
+{
+	background-color:#FF9;
+}
+
+#div_closewindow_prompt
+{
+	position:absolute;
+	left:5px;
+	bottom:10px;
+}
+
+/* 表单美化CSS相关 */
+.div_form_contain {
+}
+
+.div_form_contain .cal_btn
+{
+	width:16px;
+	height:16px;
+	background-image: url(../../images/ui/calendar-blue.gif);
+	background-repeat: no-repeat;
+	background-position: center center;
+	cursor:pointer;
+}
+
+.div_form_contain .combox_btn
+{
+	width:16px;
+	height:16px;
+	background-image: url(../../images/ui/combo_select.gif);
+	background-repeat: no-repeat;
+	background-position: center center;
+	cursor:pointer;
+	
+}
+
+.div_form_contain .input_btn
+{
+	width:16px;
+	height:16px;
+	background-image: url(../../images/ui/edit_btn.gif);
+	background-repeat: no-repeat;
+	background-position: center center;
+	cursor:pointer;
+}
+
+.div_form_contain input {
+	border: none;
+	width: 100%;
+	height: 100%;
+	background-color: transparent;
+}
+
+.div_form_contain textarea {
+	border: 1px solid #91A7B4;
+	width:100%;
+	height:100%;
+}
+
+
+.div_form_contain select
+{
+	display:none;
+	width:100%;
+	height:100%;
+}
+
+.table_corner
+{
+	border: 1px solid #7D93AD;
+	background-color:#FFF;
+}
+
+.table_corner table
+{
+	table-layout:fixed;
+	border-collapse:collapse;
+}
+
+.table_corner .cf,.cl
+{
+	width:2px;
+}
+
+.table_corner .ca
+{
+	width:16px;
+}
+
+/*下拉列表相关的内容*/
+.div_combobox_items
+{
+	border:solid 1px #7D93AD;
+	z-index:1px;
+	overflow:auto;
+	background-color:#F5F5F5;
+}
+
+.div_combobox_items td{
+	height:22px;
+	vertical-align:middle;
+	font-size:12px;
+	padding-left:3px;
+	cursor:default;
+}
+
+.div_combobox_items .selected
+{
+	color: #FFF;
+	background-color: #009;
+}
+
+.div_combobox_items  .normal
+{
+	
+}
+
+.valid_control{
+	border: 0px solid #00F;
+	background-image: url(../../images/ui/error.png);
+	background-repeat: no-repeat;
+	background-position: center center;
+	display:none;
+}
+
+.div_attachment_manager
+{
+	border: 0px solid #7d93ad;
+	background-color:#FFFFFF;
+	box-sizing:border-box;
+}
+
+.div_attachment_manager *
+{
+	box-sizing:border-box;
+}
+
+.div_attachment_manager .table_files_main td
+{
+	border: 1px solid #7d93ad;	
+}
+
+.div_attachment_manager .div_table_files_contain
+{
+	overflow:auto;
+	width:100%;
+}
+.div_attachment_manager .div_table_files_contain td
+{
+	padding:6px;
+	border-top-width: 0px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 0px;
+	border-top-style: dotted;
+	border-right-style: dotted;
+	border-bottom-style: dotted;
+	border-left-style: dotted;
+	border-top-color: #7d93ad;
+	border-right-color: #7d93ad;
+	border-bottom-color: #7d93ad;
+	border-left-color: #7d93ad;
+	height:28px;
+}
+
+.div_attachment_manager .div_table_files_contain .tdright
+{
+	padding:6px;
+	border-top-width: 0px;
+	border-right-width: 0px;
+	border-bottom-width: 1px;
+	border-left-width: 0px;
+	border-top-style: dotted;
+	border-right-style: dotted;
+	border-bottom-style: dotted;
+	border-left-style: dotted;
+	border-top-color: #7d93ad;
+	border-right-color: #7d93ad;
+	border-bottom-color: #7d93ad;
+	border-left-color: #7d93ad;
+}
+
+.div_attachment_manager .table_files_body_upload td
+{
+	padding:2px;
+}
+
+.div_attachment_manager .table_files_body_upload input
+{
+	width:100%;
+	height:100%;
+	line-height:22px;
+	border: 1px dotted #CCC;
+}
+
+.div_attachment_manager .table_files_body_upload .btn
+{
+	background:#FFC;
+	font-weight:bold;
+	color:#900;
+}
+
+.div_attachment_manager .div_table_files_contain  a{
+	font-style: normal;
+	font-weight: normal;
+	color: #00C;
+	text-decoration: none;
+}

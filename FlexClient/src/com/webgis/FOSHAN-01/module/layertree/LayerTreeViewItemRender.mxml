@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer creationComplete="itemrenderer1_creationCompleteHandler(event)" dataChange="itemrenderer1_dataChangeHandler(event)" implements="mx.controls.listClasses.IListItemRenderer" height="25"
+				xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" autoDrawBackground="true">
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.layers.Layer;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.events.FlexEvent;
+
+			[Embed(source="/assets/webgis/point16.png")]
+			[Bindable]
+			public var pointIcon:Class;
+
+			[Embed(source="/assets/webgis/line16.png")]
+			[Bindable]
+			public var lineIcon:Class;
+
+			[Embed(source="/assets/webgis/polygon16.png")]
+			[Bindable]
+			public var polygonIcon:Class;
+
+			[Embed(source="/assets/webgis/up.png")]
+			[Bindable]
+			public var upIcon:Class;
+
+			[Embed(source="/assets/webgis/down.png")]
+			[Bindable]
+			public var downIcon:Class;
+
+			protected function itemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				if (!data)
+					return;
+				if (!data.hasOwnProperty("layerAlpha") || !data.layerAlpha || StringUtils.isEmpty(data.layerAlpha))
+					data.layerAlpha=100;
+				if (alphaValue)
+					alphaValue.value=data.layerAlpha;
+				if (img)
+					img.source=data.maxLayerType == 0 ? pointIcon : data.maxLayerType == 1 ? lineIcon : polygonIcon;
+			}
+
+			protected function itemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				itemrenderer1_dataChangeHandler(null);
+			}
+
+			protected function alphaValue_changeHandler(event:Event):void
+			{
+				data.layerAlpha=alphaValue.value;
+				data.layers["selected"].alpha=alphaValue.value / 100;
+				((this.owner as Object).document as LayerListView).saveToServer();
+			}
+
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				((this.owner as Object).document as LayerListView).moveUp();
+			}
+
+			protected function image2_clickHandler(event:MouseEvent):void
+			{
+				((this.owner as Object).document as LayerListView).moveDown();
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup paddingLeft="2" paddingRight="2" width="100%" height="100%" verticalAlign="middle" gap="2">
+		<s:Image source="{pointIcon}" id="img"/>
+		<mx:Label text="{data.name}" width="{this.width-50-4-48-8}" toolTip="{data.name}"/>
+		<s:HSlider value="{data.layerAlpha}" change="alphaValue_changeHandler(event)" skinClass="com.webgis.module.layertree.HSliderSkinEx" maximum="100" minimum="10" snapInterval="10" width="50"
+				   id="alphaValue"/>
+		<s:Image click="image1_clickHandler(event)" source="{upIcon}" toolTip="向上移动" mouseChildren="false" buttonMode="true" useHandCursor="true"/>
+		<s:Image click="image2_clickHandler(event)" source="{downIcon}" toolTip="向下移动" mouseChildren="false" buttonMode="true" useHandCursor="true"/>
+	</s:HGroup>
+</s:ItemRenderer>

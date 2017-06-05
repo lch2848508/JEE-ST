@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application creationComplete="application1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:utils="com.estudio.flex.utils.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+
+			import spark.events.IndexChangeEvent;
+
+			protected function comboboxYear_changeHandler(event:IndexChangeEvent):void
+			{
+				yearPanel.setYear(int(comboboxYear.selectedItem));
+				editTimeSeq.text="";
+				AjaxUtils.postData("../client/calendar?o=get&year=" + String(comboboxYear.selectedItem), {}, function(text:String, token:Object):void
+				{
+					var json:Object=JSON.parse(text);
+					if (json)
+					{
+						if (json.r && json.days)
+						{
+							yearPanel.setDays(json.days);
+							editTimeSeq.text=json.times;
+						}
+						else if (json.errorCode * 1 == -65535)
+						{
+							FlexGlobals.topLevelApplication.raiseSessionMissError();
+						}
+						else if (json.msg)
+						{
+							AlertUtils.alert(json.msg);
+						}
+					}
+				});
+			}
+
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var years:Array=[];
+				comboboxYear.textInput.editable=false;
+				var year:int=new Date().fullYear;
+				years.push(year - 2);
+				years.push(year - 1);
+				years.push(year);
+				years.push(year + 1);
+				years.push(year + 2);
+				comboboxYear.dataProvider=new ArrayCollection(years);
+				comboboxYear.selectedIndex=2;
+				comboboxYear_changeHandler(null);
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				yearPanel.selectOrUnSelectDay(0);
+			}
+
+			protected function button2_clearHandler(event:MouseEvent):void
+			{
+				yearPanel.selectOrUnSelectDay(1);
+			}
+
+			protected function button3_clickHandler(event:MouseEvent):void
+			{
+				yearPanel.selectOrUnSelectDay(2);
+			}
+
+			protected function button4_clickHandler(event:MouseEvent):void
+			{
+				yearPanel.selectOrUnSelectDay(3);
+			}
+
+			//保存
+			protected function button5_clickHandler(event:MouseEvent):void
+			{
+				var days:Array=yearPanel.getDays();
+				var params:Object={year: comboboxYear.selectedItem, days: JSON.stringify(days), times: editTimeSeq.text};
+				AjaxUtils.postData("../client/calendar?o=save", params, function(text:String, token:Object):void
+				{
+					var json:Object=JSON.parse(text);
+					if (json)
+					{
+						if (json.r)
+						{
+							AlertUtils.alert("节假日设置已经保存!");
+						}
+						else if (json.errorCode * 1 == -65535)
+						{
+							FlexGlobals.topLevelApplication.raiseSessionMissError();
+						}
+						else if (json.msg)
+						{
+							AlertUtils.alert(json.msg);
+						}
+					}
+				});
+			}
+		]]>
+	</fx:Script>
+	<fx:Style source="com\estudio\flex\client\MainForm.css"/>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<s:layout>
+		<s:VerticalLayout>
+
+		</s:VerticalLayout>
+	</s:layout>
+	<s:HGroup gap="4" x="0" y="0" paddingRight="4" width="100%" height="26" verticalAlign="middle" paddingTop="5" paddingBottom="0" paddingLeft="4">
+		<s:Label text="年" fontWeight="bold">
+		</s:Label>
+		<s:ComboBox id="comboboxYear" change="comboboxYear_changeHandler(event)" width="80">
+		</s:ComboBox>
+		<s:Label text="工作时间" fontWeight="bold">
+		</s:Label>
+		<s:TextInput id="editTimeSeq" width="100%" height="{comboboxYear.height}" toolTip="工作时间设置，支持多个事件段,例如(7:30-12:30;14:30-17:30)。各个时间段用分号隔开, 务必保证格式完整正确!时间格式请采用24小时制。">
+
+		</s:TextInput>
+		<s:Button label="全选周日" height="{comboboxYear.height}" click="button1_clickHandler(event)" width="75">
+		</s:Button>
+		<s:Button label="全选周六" height="{comboboxYear.height}" click="button2_clearHandler(event)" width="75">
+		</s:Button>
+		<s:Button label="不选周日" height="{comboboxYear.height}" click="button3_clickHandler(event)" width="75">
+		</s:Button>
+		<s:Button label="不选周六" height="{comboboxYear.height}" click="button4_clickHandler(event)" width="75">
+		</s:Button>
+		<s:Button label="保存" height="{comboboxYear.height}" click="button5_clickHandler(event)" width="75">
+		</s:Button>
+	</s:HGroup>
+	<utils:YearPanel x="0" y="0" width="100%" height="100%" id="yearPanel">
+	</utils:YearPanel>
+</s:Application>

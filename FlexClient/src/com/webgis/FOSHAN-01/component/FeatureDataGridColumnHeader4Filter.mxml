@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer currentState="String" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" focusEnabled="true" height="100%" minHeight="50"
+								  xmlns:controls="com.adobe.flex.extras.controls.*">
+	<s:states>
+		<s:State name="String"/>
+		<s:State name="Number"/>
+		<s:State name="Date"/>
+	</s:states>
+	<s:Rect id="shadow" left="0" right="0" top="0" bottom="0">
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:GradientEntry color="0xFFFFFF" alpha="1"/>
+				<s:GradientEntry color="0xEBF4FF" alpha="1"/>
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			[Embed(source="assets/common/filter.png")] //新建
+			[Bindable]
+			public var filterIcon:Class;
+
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				(this.owner as Object).document.executeFilterByFieldName(listData.columnIndex);
+			}
+
+			private var _columnDataType:int=0;
+
+			public function set columnDataType(v:int):void
+			{
+				_columnDataType=v;
+				currentState=v == 0 ? "String" : v == 2 ? "Date" : "Number";
+			}
+
+			protected function comboboxCreateComplete(event:FlexEvent):void
+			{
+				(event.currentTarget as ComboBox).textInput.editable=false;
+			}
+		]]>
+	</fx:Script>
+
+	<s:VGroup width="100%" height="100%" gap="0">
+		<s:Label paddingTop="2" width="100%" height="25" textAlign="center" fontWeight="bold" verticalAlign="middle" bottom="1" text="{listData.label}"/>
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#7B889C"/>
+			</s:stroke>
+		</s:Line>
+
+		<s:HGroup gap="2" width="100%" height="100%" padding="2" includeIn="String" id="groupString" fontWeight="normal">
+			<s:ComboBox fontFamily="Courier New" creationComplete="comboboxCreateComplete(event)" id="compare1" width="95" dataProvider="{new ArrayCollection(['like','=','&lt;&gt;','is null','is not null'])}"/>
+			<s:TextInput id="textInput1" focusThickness="0" width="100%"/>
+		</s:HGroup>
+
+		<s:HGroup gap="2" width="100%" height="100%" padding="2" includeIn="Date" id="groupDate" fontWeight="normal">
+			<s:ComboBox fontFamily="Courier New" creationComplete="comboboxCreateComplete(event)" id="compare2" width="95" dataProvider="{new ArrayCollection(['&gt;','&gt;=','&lt;','&lt;=','=','&lt;&gt;','between'])}"/>
+			<controls:MaskedTextInput id="dateInput1" inputMask="####-##-##" width="100%"/>
+			<s:Label id="labelBetween2" text="-"/>
+			<controls:MaskedTextInput id="dateInput2" inputMask="####-##-##" width="100%"/>
+		</s:HGroup>
+
+		<s:HGroup gap="2" width="100%" height="100%" padding="2" includeIn="Date" id="groupNumber" fontWeight="normal">
+			<s:ComboBox fontFamily="Courier New" creationComplete="comboboxCreateComplete(event)" id="compare3" width="95" dataProvider="{new ArrayCollection(['&gt;','&gt;=','&lt;','&lt;=','=','&lt;&gt;','between'])}"/>
+			<s:TextInput id="numberInput1" width="100%"/>
+			<s:Label id="labelBetween3" text="-"/>
+			<s:TextInput id="numberInput2" width="100%"/>
+		</s:HGroup>
+
+	</s:VGroup>
+
+
+
+</s:MXAdvancedDataGridItemRenderer>

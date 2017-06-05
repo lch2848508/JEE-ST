@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx close="titlewindowex1_closeHandler(event)" title="{caption}" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark"
+						 xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="320" height="130">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			private static var instance:WinInputText=null;
+			private var callFunction:Function=null;
+			[Bindable]
+			private var caption:String="";
+			[Bindable]
+			private var text:String="";
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			public static function execute(caption:String, text:String, callFunction:Function):void
+			{
+				if (instance == null)
+					instance=new WinInputText();
+				instance.caption=caption;
+				instance.text=text;
+				if (instance.textInput)
+					instance.textInput.text=text;
+				instance.callFunction=callFunction;
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(instance);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+				if (callFunction)
+					callFunction(StringUtils.trim(textInput.text));
+			}
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<s:TextInput left="5" right="5" top="15" id="textInput" text="{text}"/>
+	<s:Line left="2" right="2" bottom="40">
+		<s:stroke>
+			<s:SolidColorStroke color="#7B889C"/>
+		</s:stroke>
+	</s:Line>
+	<s:Button label="确定" right="80" height="30" width="70" bottom="5" enabled="{!StringUtils.isEmpty(StringUtils.trim(textInput.text))}" click="button2_clickHandler(event)"/>
+	<s:Button label="关闭" right="5" height="30" width="70" bottom="5" click="button1_clickHandler(event)"/>
+</component:TitleWindowEx>

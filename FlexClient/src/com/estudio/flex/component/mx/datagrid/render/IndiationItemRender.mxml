@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer focusEnabled="true" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<s:Rect left="0" right="0" top="-2" bottom="-2">
+		<s:fill>
+			<s:SolidColor color="#F5F5F5">
+			</s:SolidColor>
+		</s:fill>
+	</s:Rect>
+	<s:Image horizontalCenter="0" verticalCenter="0" source="@Embed('/assets/common/rowindex.png')">
+	</s:Image>
+</s:MXDataGridItemRenderer>

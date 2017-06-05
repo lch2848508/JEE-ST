@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application backgroundColor="0xFFFFFF" creationComplete="application1_creationCompleteHandler(event)" implements="com.estudio.flex.common.InterfaceSWFDialog" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:map="com.webgis.map.*" xmlns:navigator="com.webgis.module.navigator.*" xmlns:component="com.webgis.component.*" xmlns:ns="http://www.esri.com/2008/ags">
+	<fx:Style source="MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.events.DrawEvent;
+			import com.esri.ags.events.MapEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.service.MapServiceClient;
+
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			private var _swfParams:Object=null;
+			private var _resultObject:String="";
+			private var _isCompleted:Boolean=false;
+			private var mapServiceClient:MapServiceClient=new MapServiceClient;
+			private var mapLayerManager:MapLayerManager=new MapLayerManager;
+			private var isInitMapParams:Boolean=false;
+			private var initFunname:String="";
+			private var mapIndex:int=0;
+
+			/////////////////////////////////////////////////////////////////////////
+			public function get params():Object
+			{
+				return _swfParams;
+			}
+
+			/////////////////////////////////////////////////////////////////////////
+			public function set params(value:Object):void
+			{
+				_swfParams=value;
+				if (_isCompleted)
+					application1_creationCompleteHandler(null);
+			}
+
+			/////////////////////////////////////////////////////////////////////////
+			public function get resultObject():Object
+			{
+				return _resultObject;
+			}
+
+			/////////////////////////////////////////////////////////////////////////
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (!_isCompleted)
+					_isCompleted=true;
+				if (_swfParams)
+				{
+					drawLayer.clear();
+					initFunname=_swfParams.initFunction;
+					var initParams:Object=_swfParams.initParams;
+					_resultObject=_swfParams.initParams;
+					if (!isInitMapParams)
+					{
+						var mapName:String=_swfParams.mapName;
+						mapServiceClient.USER_ID=_swfParams.userId * 1;
+						mapServiceClient.getAppConfigByName(mapName, mapServiceClient.USER_ID, createMapInstance);
+						isInitMapParams=true;
+					}
+					else
+						executeInitFunction();
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////
+			private function executeInitFunction():void
+			{
+				if (StringUtils.equal(initFunname, "showFeature"))
+				{
+					if (!StringUtils.isEmpty(_resultObject))
+					{
+						var g:Graphic=new Graphic(Geometry.fromJSON(JSON.parse(_resultObject)));
+						if (g.geometry is MapPoint)
+							g.symbol=ssPoint;
+						else if (g.geometry is Polyline)
+							g.symbol=ssPolyline;
+						else
+							g.symbol=ssPolygon;
+						drawLayer.add(g);
+						map.zoomTo(g.geometry);
+					}
+					//
+					editTool.activate(DrawTool.MAPPOINT);
+					(toolbarDraw.getElementAt(0) as Object).selected=false;
+					(toolbarDraw.getElementAt(1) as Object).selected=true;
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////
+			private function createMapInstance(json:Object):void
+			{
+				map.removeAllLayers();
+				mapLayerManager.init(map, json);
+				if (json.userMapExtent)
+					map.userMapExtent=new Extent(json.userMapExtent[0], json.userMapExtent[1], json.userMapExtent[2], json.userMapExtent[3]);
+				createControls();
+			}
+
+			////////////////////////////////////////////////////////////////////////////
+			protected function btnLayerTreeClick(event:MouseEvent):void
+			{
+				panelNavigator.height=map.height - 30;
+				popupPanel.displayPopUp=true;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			protected function map_loadHandler(event:MapEvent):void
+			{
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(mapLayerManager.getDynamicLayerTree(), list);
+				for (var i:int=0; i < list.length; i++)
+					list[i].selected=true;
+				mapLayerManager.switchDynamicLayerVisible(map, null, "selected");
+				map.addLayer(drawLayer);
+				executeInitFunction();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////
+			protected function toolbarBtn_clickHandler(event:MouseEvent):void
+			{
+				var barItem:ToolbarTextButton=event.currentTarget as ToolbarTextButton;
+				if (barItem.selected)
+					return;
+				for (var i:int=0; i < toolbarDraw.numElements; i++)
+				{
+					if (toolbarDraw.getElementAt(i) != barItem)
+						toolbarDraw.getElementAt(i)["selected"]=false;
+
+				}
+				barItem.selected=true;
+				var index:int=toolbarDraw.getElementIndex(barItem);
+				switch (index)
+				{
+					case 0:
+						editTool.deactivate();
+						break;
+					case 1:
+						editTool.activate(DrawTool.MAPPOINT);
+						break;
+					case 2:
+						editTool.activate(DrawTool.POLYLINE);
+						break;
+					case 3:
+						editTool.activate(DrawTool.POLYGON);
+						break;
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			protected function editTool_drawStartHandler(event:DrawEvent):void
+			{
+				drawLayer.clear();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			protected function editTool_drawEndHandler(event:DrawEvent):void
+			{
+				_resultObject=JSON.stringify(event.graphic.geometry);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			public function createControls():void
+			{
+				for (var i:int=0; i < mapLayerManager.getBaseLayers().length; i++)
+				{
+					var layerInfo:Object=mapLayerManager.getBaseLayers()[i];
+					var barItem:com.webgis.component.ToolbarTextButton=new ToolbarTextButton();
+					barItem.height = 25;
+					barItem.label=layerInfo.label;
+					toolbarBaseMap.addElement(barItem);
+					if (i == 0)
+						barItem.selected=true;
+					barItem.addEventListener(MouseEvent.CLICK, event4BaseMapToolbarClick);
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			private function event4BaseMapToolbarClick(event:MouseEvent):void
+			{
+				var barItem:ToolbarTextButton=event.currentTarget as ToolbarTextButton;
+				if (barItem.selected)
+					return;
+				for (var i:int=0; i < toolbarBaseMap.numElements; i++)
+				{
+					if (toolbarBaseMap.getElementAt(i) != barItem)
+						toolbarBaseMap.getElementAt(i)["selected"]=false;
+
+				}
+				barItem.selected=true;
+				map.changeBaseMap(toolbarBaseMap.getElementIndex(barItem));
+			}
+			///////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<ns:GraphicsLayer id="drawLayer"/>
+		<ns:PictureMarkerSymbol yoffset="16" width="19" height="32" source="../images/gis/market-32.png" id="ssPoint"/>
+		<ns:SimpleLineSymbol id="ssPolyline" width="2" color="0xFF0000"/>
+		<ns:SimpleFillSymbol id="ssPolygon" color="#FFFF00">
+			<ns:SimpleLineSymbol width="2" color="#FF0000"/>
+		</ns:SimpleFillSymbol>
+		<ns:DrawTool drawEnd="editTool_drawEndHandler(event)" markerSymbol="{ssPoint}" lineSymbol="{ssPolyline}" fillSymbol="{ssPolygon}" drawStart="editTool_drawStartHandler(event)" id="editTool" map="{map}" graphicsLayer="{drawLayer}"/>
+	</fx:Declarations>
+
+	<map:MapControl mapLayerManager="{mapLayerManager}" load="map_loadHandler(event)" visible="true" width="100%" height="100%" id="map"/>
+
+	<s:BorderContainer left="-1" right="-1" top="-1" height="33" alpha="0.9" contentBackgroundAlpha="0.5" contentBackgroundColor="0xF5F5F5">
+
+		<component:ToolbarTextPopupButton top="4" left="1" width="70" label="自定义图层" click="btnLayerTreeClick(event)"/>
+		<s:PopUpAnchor id="popupPanel" focusOut="{popupPanel.displayPopUp=false;}" left="-1" bottom="4" height="0" popUpPosition="below">
+			<s:BorderContainer id="panelNavigator" borderColor="#000000" backgroundColor="0xFFFFFF" width="300">
+				<s:layout>
+					<s:VerticalLayout gap="0">
+
+					</s:VerticalLayout>
+				</s:layout>
+				<s:BorderContainer width="100%" borderVisible="false" height="28" backgroundColor="#F8F8F8">
+					<s:Label verticalCenter="0" color="#7C7070" left="4" text="自定义图层" fontWeight="bold"/>
+					<component:ToolbarButton right="3" top="3" icon="@Embed('/assets/common/delete.png')" click="{popupPanel.displayPopUp=false;}"/>
+				</s:BorderContainer>
+				<s:Line width="100%" height="0">
+					<s:stroke>
+						<s:SolidColorStroke color="0xE6EDF1"/>
+					</s:stroke>
+				</s:Line>
+				<component:LayerTree map="{map}" mapLayerManager="{mapLayerManager}" width="100%" height="100%" borderVisible="false" id="layerTree" selectedFieldName="selected"/>
+			</s:BorderContainer>
+		</s:PopUpAnchor>
+
+		<s:HGroup gap="6" right="2" top="-1" height="33" verticalAlign="middle">
+			<s:HGroup gap="-1" id="toolbarDraw">
+				<component:ToolbarTextButton label="浏览" height="25" width="70" groupIndex="1" selected="true" click="toolbarBtn_clickHandler(event)"/>
+				<component:ToolbarTextButton label="画点" height="25" width="70" groupIndex="1" click="toolbarBtn_clickHandler(event)"/>
+				<component:ToolbarTextButton label="画线" height="25" width="70" groupIndex="1" click="toolbarBtn_clickHandler(event)"/>
+				<component:ToolbarTextButton label="画面" height="25" width="70" groupIndex="1" click="toolbarBtn_clickHandler(event)"/>
+			</s:HGroup>
+			<s:HGroup gap="-1" id="toolbarBaseMap">
+			</s:HGroup>
+		</s:HGroup>
+	</s:BorderContainer>
+
+	<s:Group right="5" top="33">
+		<navigator:Navigation map="{map}" left="0" top="0"/>
+	</s:Group>
+</s:Application>

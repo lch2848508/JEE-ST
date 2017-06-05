@@ -1,0 +1,84 @@
+@CHARSET "UTF-8";
+<style type="text/css">
+/* 带复选框的下拉框  */
+ul li{
+	 list-style: none;
+	 padding:0px;
+	 margin: 0px;
+
+}
+.input-style{
+float:left;
+} 
+.select_checkBox{
+	float:left;
+	border:0px solid red;
+	position: relative;
+	display:inline-block;
+
+		
+}	
+.chartQuota{
+	height:23px;
+	float:left;
+	display:inline-block;
+	border:0px solid black;
+	position: relative;
+		 
+}
+
+.chartOptionsFlowTrend{
+    z-index:300;
+    background-color:white;
+	border:1px solid gray;
+	display:none;
+	position: absolute;
+	left:0px;
+	top:23px;
+	
+}
+.chartOptionsFlowTrend ul{
+	float:left;
+	padding: 0px;
+	margin: 5px;
+   width:150px;
+}
+.chartOptionsFlowTrend li{
+	/* float:left; */
+	display:block;
+	position: relative;
+	left:0px;
+	margin: 0px;
+	clear:both;
+	
+}
+a:-webkit-any-link {
+color: -webkit-link;
+text-decoration: underline;
+cursor: auto;
+}
+.chartQuota p a {
+float: left;
+height: 21px;
+outline: 0 none;
+border: 1px solid #ccc;
+line-height: 22px;
+padding: 0 5px;
+overflow: hidden;
+background: #eaeaea;
+color: #313131;
+text-decoration: none;
+ 
+}	
+
+.chartQuota p {
+margin:0px;
+folat:left;
+overflow: hidden;
+height: 23px;
+line-height:24px;
+display: inline-block;
+
+}	
+
+</style>

@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:RichTextEditor contentBackgroundColor="{currentColor}" backgroundColor="{currentColor}" implements="com.estudio.flex.module.InterfaceEditableControl" creationComplete="richtexteditor1_creationCompleteHandler(event)" headerHeight="0" title="" xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="607" dropShadowVisible="false" borderVisible="false">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.module.EditableControlParams;
+			import com.estudio.flex.module.FormDataService;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+
+			[Bindable]
+			public var bgColor:uint=0xFFFFFF;
+			[Bindable]
+			private var currentColor:uint=bgColor;
+
+			protected function richtexteditor1_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.linkTextInput.visible=false;
+				this.fontFamilyArray=["宋体", "Arial", "Courier New", "Tahoma", "Times New Roman", "Verdana"];
+			}
+
+			override public function get htmlText():String
+			{
+				return "<FLEXBEGIN--" + super.htmlText + "--FLEXBEGIN>" + richTextEditorToHtml(super.htmlText);
+			}
+
+			override public function set htmlText(value:String):void
+			{
+				if (!StringUtils.isEmpty(value) && StringUtils.startWith(value, "<FLEXBEGIN--"))
+					value=StringUtils.between(value, "<FLEXBEGIN--", "--FLEXBEGIN>");
+				super.htmlText=value;
+			}
+
+
+
+			private function richTextEditorToHtml(str:String):String
+			{
+				// Create XML document
+				var xml:XML=XML("<BODY>" + str + "</BODY>");
+
+				// temporary
+				var t1:XML;
+				var t2:XML;
+
+				// Remove all TEXTFORMAT
+				for (t1=xml..TEXTFORMAT[0]; t1 != null; t1=xml..TEXTFORMAT[0])
+				{
+					if (t1.child("LI").length() != 0)
+					{
+						delete t1.@LEADING;
+						t1.setName("UL");
+					}
+					else
+					{
+						t1.parent().replace(t1.childIndex(), t1.children());
+					}
+				}
+
+				// Find all ALIGN
+				for each (t1 in xml..@ALIGN)
+				{
+					t2=t1.parent();
+					t2.@STYLE="text-align: " + t1 + "; " + t2.@STYLE;
+					delete t2.@ALIGN;
+				}
+
+				// Find all FACE
+				for each (t1 in xml..@FACE)
+				{
+					t2=t1.parent();
+					t2.@STYLE="font-family: " + t1 + "; " + t2.@STYLE;
+					delete t2.@FACE;
+				}
+
+				// Find all SIZE 
+				for each (t1 in xml..@SIZE)
+				{
+					t2=t1.parent();
+					t2.@STYLE="font-size: " + t1 + "px; " + t2.@STYLE;
+					delete t2.@SIZE;
+				}
+
+				// Find all COLOR 
+				for each (t1 in xml..@COLOR)
+				{
+					t2=t1.parent();
+					t2.@STYLE="color: " + t1 + "; " + t2.@STYLE;
+					delete t2.@COLOR;
+				}
+
+				// Find all LETTERSPACING 
+				for each (t1 in xml..@LETTERSPACING)
+				{
+					t2=t1.parent();
+					t2.@STYLE="letter-spacing: " + t1 + "px; " + t2.@STYLE;
+					delete t2.@LETTERSPACING;
+				}
+
+				// Find all KERNING
+				for each (t1 in xml..@KERNING)
+				{
+					t2=t1.parent();
+					// ? css 
+					delete t2.@KERNING;
+				}
+
+				//Group adjacent LI's together 
+				var str:String=xml.children().toXMLString();
+				var pattern:RegExp=/<\/UL>\s*<UL>/ixg;
+				str=str.replace(pattern, "");
+
+				return str;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			//实现接口 InterfceEditableControl
+			private var controlParams:EditableControlParams=new EditableControlParams();
+
+			public function get databaseName():String
+			{
+				return controlParams.databaseName;
+			}
+
+			public function set databaseName(value:String):void
+			{
+				controlParams.databaseName=value;
+			}
+
+			public function get fieldName():String
+			{
+				return controlParams.fieldName;
+			}
+
+			public function set fieldName(value:String):void
+			{
+				controlParams.fieldName=value;
+			}
+
+			public function get extFieldName():String
+			{
+				return controlParams.extFieldName;
+			}
+
+			public function set extFieldName(value:String):void
+			{
+				controlParams.extFieldName=value;
+			}
+
+			public function get controlValue():String
+			{
+				return this.text;
+			}
+
+			public function get controlExtValue():String
+			{
+				return controlValue;
+			}
+
+			public function setControlValue(value:String, extValue:String, isSettingDatabase:Boolean):void
+			{
+				this.text=value;
+			}
+
+
+			//是否只读
+			public function get readonly():Boolean
+			{
+				return controlParams.readonly;
+			}
+
+			public function set readonly(value:Boolean):void
+			{
+				if (controlParams.readonly != value)
+				{
+					controlParams.readonly=value;
+					this.enabled=!value;
+				}
+				currentColor=value ? FlexGlobals.topLevelApplication.gobalSetting.readOnlyColor : bgColor;
+			}
+
+			public function get defaultReadonly():Boolean
+			{
+				return controlParams.defaultReadOnly;
+			}
+
+			public function set defaultReadonly(value:Boolean):void
+			{
+				controlParams.defaultReadOnly=value;
+			}
+
+			public function get controlType():int
+			{
+				return EditableControlParams.CONST_RICHEDIT;
+			}
+
+			public function reset():void
+			{
+				if (this.formInstance)
+					this.readonly=this.defaultReadonly || this.formInstance.readonly;
+				//this.setControlValue("", "", false);
+			}
+
+			public function set dataservice(value:FormDataService):void
+			{
+				controlParams.dataservice=value;
+			}
+
+			public function get dataservice():FormDataService
+			{
+				return controlParams.dataservice;
+			}
+
+			public function setDataBindParams(formInstance:InterfaceFormUI, formDataService:FormDataService, databaseName:String, fieldName:String, extFieldName:String):void
+			{
+				controlParams.formInstance=formInstance;
+				controlParams.dataservice=formDataService;
+				controlParams.databaseName=databaseName;
+				controlParams.fieldName=fieldName;
+				controlParams.extFieldName=extFieldName;
+				controlParams.isBindDatasource=!(StringUtils.isEmpty(databaseName) && !StringUtils.isEmpty(fieldName));
+			}
+
+			public function get isBindDatasource():Boolean
+			{
+				return controlParams.isBindDatasource;
+			}
+
+			public function get formInstance():InterfaceFormUI
+			{
+				return controlParams.formInstance;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			private var isBindEvented:Boolean=false;
+
+			public function bindEvent():void
+			{
+				if (!isBindEvented)
+				{
+					isBindEvented=true;
+					for (var eventName:String in controlParams.eventMap)
+						this.addEventListener(eventName, controlParams.eventMap[eventName]);
+				}
+			}
+
+			public function unBindEvent():void
+			{
+				if (isBindEvented)
+				{
+					for (var eventName:String in controlParams.eventMap)
+						this.removeEventListener(eventName, controlParams.eventMap[eventName]);
+					isBindEvented=false;
+				}
+			}
+
+			public function registerEvent(eventName:String, eventFun:Function):void
+			{
+				controlParams.eventMap[eventName]=eventFun;
+			}
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+</mx:RichTextEditor>

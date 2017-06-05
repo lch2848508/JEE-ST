@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.webgis.component.*" width="100%" height="250" >
+	<s:layout>
+		<s:VerticalLayout gap="0">
+		</s:VerticalLayout>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.event.MileageData;
+			import com.webgis.map.MapControl;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import mx.charts.series.LineSeries;
+			import mx.collections.ArrayCollection;
+			import mx.controls.DataGrid;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.utils.ObjectUtil;
+			
+			import spark.events.IndexChangeEvent;
+			public var closeCallFunction:Function=null;
+			public var map:MapControl=null;
+			public var glowLayer:GraphicsLayer=null;
+			private var dgDataArr:Array = [{F0:"G107",F1:1111,F2:213,F3:"K152",F4:"K224"},
+				{F0:"G106",F1:241,F2:2113,F3:"K332",F4:"K544"},
+				{F0:"G55",F1:332,F2:8654,F3:"K832",F4:"K1024"}];
+			private var dgData:ArrayCollection = new ArrayCollection(dgDataArr);
+			private var arrHeader:Array=[{dataField:"F0" , headerText:"路线编号" },{dataField: "F1" , headerText:"国家高速"},{dataField:"F2" , headerText:"地方高速"},{dataField:"F3" , headerText:"起点桩号" },{dataField:"F4" , headerText:"终点桩号"}];
+			private var arrSeries:Array=[{yField:"F1",displayName:"国家高速"},{yField:"F2",displayName:"地方高速"}];
+			protected function toolbarbutton1_clickHandler(event:MouseEvent):void
+			{
+				if (closeCallFunction)
+					closeCallFunction();
+			}
+			private function chartsRefresh(arr1:Array,arr2:ArrayCollection):void//arr1:arrSeries arr2:dgData
+			{
+				lineChart.series=[];
+				legend_id.dataProvider=null;
+				var array:Array=[];
+				for (var i:int = 0; i < arr1.length; i++)   
+				{  
+					var lineSeries:LineSeries = new LineSeries();  
+					lineSeries.displayName = arr1[i].headertext;  
+					lineSeries.yField=arr1[i].datafield;  
+					lineSeries.setStyle("radius", "1"); 
+					lineSeries.setStyle("fill","#FF0000"); 
+					array.push( lineSeries);  
+				}   
+				
+				lineChart.dataProvider=arr2;
+				ca.dataProvider=arr2;
+				lineChart.series = array; 
+				legend_id.dataProvider=lineChart;
+				
+			}
+			public function gridRefresh():void//arr1:arrHeader arr2:dgData
+			{
+				if(MileageData.MileageGridData)
+				{
+					arrHeader=MileageData.MileageGridData.headerData;
+					dgData=ArrayCollection(MileageData.MileageGridData.recordData);
+				}
+				var columns:Array = new Array();
+				var col:DataGridColumn;
+				for ( var i:int=0;i<arrHeader.length;i++) {
+					col = new DataGridColumn();
+					col.dataField=arrHeader[i].datafield;
+					col.headerText=arrHeader[i].headertext;
+					col.headerWordWrap=true;
+					col.setStyle("textAlign","center");
+					columns.push(col);
+				}
+				if(dataGrid)
+				{
+					dataGrid.dataProvider= dgData;
+					dataGrid.columns=columns;
+				}
+			}
+			protected function dropdownlist1_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				var str:String=ddl.selectedItem as String;
+				var arr:Array=[];
+				for(var i:int=0;i<(MileageData.MileageGridData.headerData).length;i++)
+				{
+					if(str==(MileageData.MileageGridData.headerData)[i].headertext)
+					{
+						arr.push((MileageData.MileageGridData.headerData)[i]);
+					}
+				}
+				chartsRefresh(arr,MileageData.MileageGridData.recordData);
+			}
+			public  function init():void
+			{
+				ddl.selectedIndex=0;
+				dropdownlist1_changeHandler(new IndexChangeEvent("change"));
+			}
+			
+			protected function dealMileageString(qszh:String):Number{
+				var qszhnum:Number=0;
+				var haveK:Boolean=false;
+				
+				var havePlus:Boolean=false;
+				if(StringUtils.contain(qszh,"k")||StringUtils.contain(qszh,"K")){
+					qszh=StringUtils.replace(qszh, "K", "");
+					qszh=StringUtils.replace(qszh, "k", "");
+					haveK=true;
+				}
+				if(StringUtils.contain(qszh,"+")){
+					qszh=StringUtils.replace(qszh, "+", "");
+					havePlus=true;
+				}
+				var isNum:Boolean =Number(qszh);
+				if(!isNum){
+					return -1;
+				}
+				if(haveK&&!havePlus){
+					qszhnum=parseFloat(qszh)*1000;
+				}else{
+					qszhnum=parseFloat(qszh);
+				}
+				return qszhnum;
+			}
+			protected function lineSelected(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub
+				var focusObj:Object=new Object();
+				focusObj.xlbh=((MileageData.MileageGridData).recordData)[dataGrid.selectedIndex].xlbh;
+				focusObj.qszh=dealMileageString(((MileageData.MileageGridData).recordData)[dataGrid.selectedIndex].qs);
+				focusObj.jzzh=dealMileageString(((MileageData.MileageGridData).recordData)[dataGrid.selectedIndex].jz);
+				if(focusObj.xlbh!=null){
+					focusOnMileage(focusObj);
+				}
+			}
+			public function hide():void
+			{
+				this.visible=false;
+				glowLayer.clear();
+				MileageData.MileagePanelVisible=false;
+			}
+			protected function focusOnMileage(foucsMileage:Object):void
+			{
+				var geocollection:ArrayCollection= glowLayer.graphicProvider as ArrayCollection;
+				var geoattr:String=foucsMileage.xlbh+":"+foucsMileage.qszh+"-"+foucsMileage.jzzh;
+				for(var i:int=0;i<geocollection.length;i++){
+					if(geoattr==geocollection[i].attributes){
+						var geoExtent:Extent=null;
+						var geo:Geometry=geocollection[i].geometry as Geometry;
+						geoExtent=geo.extent;
+						map.zoomTo(geoExtent);
+					}
+				}
+			}
+		]]>
+	</fx:Script> 
+	<s:HGroup gap="0" width="100%">
+	<mx:TabNavigator width="100%" height="250" borderVisible="false"  >
+		<mx:Canvas label="统计图" >
+			<s:VGroup width="100%" gap="0" top="0" >
+				<s:HGroup height="28" gap="2" right="3" top="0" verticalAlign="middle" id="toolbarGroup">
+					<s:Label id="label1" text="请选择统计指标"  paddingTop="2"/>
+					<s:DropDownList id="ddl"  width="240" dataProvider="{(MileageData.MileageGridData).ddlData}"  change="dropdownlist1_changeHandler(event)"/>
+				</s:HGroup>
+				<mx:LineChart 
+							   id="lineChart"
+							   left="50"
+							   width="90%"  
+							   bottom="5" 
+							   height="160"
+							   showDataTips="true">  
+					<mx:verticalAxis>  
+						<mx:LinearAxis id="laxis"  
+									   autoAdjust="true"  
+									   baseAtZero="false"/>  
+					</mx:verticalAxis>  
+					<mx:horizontalAxis>  
+						<mx:CategoryAxis id="ca"  
+										 categoryField="xlbh"/>  
+						
+					</mx:horizontalAxis>  
+					<mx:horizontalAxisRenderers>  
+						<mx:AxisRenderer axis="{ca}"  
+										 canDropLabels="true"/>  
+					</mx:horizontalAxisRenderers>  
+					<mx:Legend  labelPlacement="right"
+								height="20"  
+								id="legend_id"/> 
+				</mx:LineChart>  
+			</s:VGroup>
+		</mx:Canvas>
+		<mx:Canvas label="统计表">
+			<mx:DataGrid id="dataGrid" itemClick="lineSelected(event)" columns="{(MileageData.MileageGridData).columnData}" dataProvider="{(MileageData.MileageGridData).recordData}" height="205"   top="0" width="100%" editable="false"  verticalCenter="middle" variableRowHeight="true"  horizontalScrollPolicy="auto" verticalScrollPolicy="auto"  lockedColumnCount="1">
+			</mx:DataGrid>
+		</mx:Canvas>
+	</mx:TabNavigator>
+	<component:ToolbarButton icon="@Embed('/assets/common/close.png')"  click="toolbarbutton1_clickHandler(event)" top="3" right="3" />
+	</s:HGroup>
+</s:Group>

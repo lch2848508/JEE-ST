@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:esri="http://www.esri.com/2008/ags"
+			   xmlns:mx="library://ns.adobe.com/flex/mx" minWidth="955" minHeight="600">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.managers.PopUpManager;  
+			
+			private function onclick(event:MouseEvent):void
+			{
+				var popWin:printForm2 = printForm2(PopUpManager.createPopUp(this,printForm2,false)); 
+				popWin.printTask.getServiceInfo();//调用 打印 GP，获取模版和格式参数
+				popWin.map = this.myMap;
+			}
+		]]>
+	</fx:Script>
+	
+	<esri:Map id="myMap">         
+		<esri:ArcGISDynamicMapServiceLayer url="http://192.168.10.3:6080/arcgis/rest/services/GDS/DT/MapServer"/>
+	</esri:Map>
+	<mx:Button id="button" x="409" y="10" label="打印" click="onclick(event)"/>
+</s:Application>

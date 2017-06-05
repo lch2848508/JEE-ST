@@ -1,0 +1,1114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module currentState="one" stateChangeComplete="module1_stateChangeCompleteHandler(event)" creationComplete="module1_creationCompleteHandler(event)" implements="com.webgis.intf.MapWidgetIntf" xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:toolbar="com.webgis.module.toolbar.*" xmlns:component="com.estudio.flex.component.*"
+		  xmlns:component1="com.webgis.component.*" xmlns:layertree="com.webgis.module.layertree.*" xmlns:ns="http://www.esri.com/2008/ags" xmlns:spatialAnaly="com.webgis.module.spatialAnaly.*" xmlns:component2="com.estudio.flex.module.component.*">
+	<fx:Style source="../../MapApp.css"/>
+	<s:states>
+		<s:State name="one"/>
+		<s:State name="two"/>
+		<s:State name="three"/>
+		<s:State name="four"/>
+		<s:State name="five"/>
+		<s:State name="template"/>
+	</s:states>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.events.DrawEvent;
+			import com.esri.ags.events.MapEvent;
+			import com.esri.ags.events.MapMouseEvent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polygon;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.tools.DrawTool;
+			import com.estudio.flex.component.InputTextForm;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.MAPCONSTS;
+			import com.webgis.MapLayerManager;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.DropdownEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.utils.ObjectUtil;
+			import mx.utils.object_proxy;
+
+			import spark.events.IndexChangeEvent;
+			[Bindable]
+			private var mapInstance:MapControl=null;
+			[Bindable]
+			private var mapAppInstance:Object=null;
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+			private var geometry:Graphic=null;
+			private var isIdentify:Boolean=false;
+			private var searchWhereGeometry:Geometry=null;
+			[Bindable]
+			private var layerTreeDataProvider:ArrayCollection=new ArrayCollection([]);
+			private var resourceId2LayerInfos:Object={};
+			private var layerId2GroupFieldInfos:Object={};
+			private var chkId2GroupFieldItem:Object={};
+			private var districtList:Array=[];
+			private var layerTreeSelectedItem:Object=null;
+			private var isSpatialAnalyResultPanelVisible:Boolean=false;
+			private var spatialStatisticCondition:Object=null;
+			[Bindable]
+			private var spatialStatisticTypes:ArrayCollection=new ArrayCollection([]);
+			private var libraryList:Array=null;
+			private var spatialResultList:ArrayCollection=null;
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as MapControl;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			//创建完成事件
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				spatialCombobox.textInput.editable=false;
+				widgetContainInstance.getSpatialAnalyContain()["addElement"](this.owner);
+				this.removeElement(panel4SpatialAnalyResult);
+				widgetContainInstance.getMapContain()["addElement"](panel4SpatialAnalyResult);
+				if (extParams.spatial.search)
+					spatialStatisticTypes.addItem({label: "空间查询", tag: 0});
+				if (extParams.spatial.buf)
+					spatialStatisticTypes.addItem({label: "缓冲区分析", tag: 1}); // 缓冲区分析
+				if (extParams.spatial.district)
+					spatialStatisticTypes.addItem({label: "行政区域分析", tag: 2}); // 行政区域分析
+				if (extParams.spatial.statistic)
+					spatialStatisticTypes.addItem({label: "分类汇总统计", tag: 3}); // 统计分析
+				if (extParams.spatial.network)
+					spatialStatisticTypes.addItem({label: "网格分析", tag: 4});
+				if (extParams.spatial.resultLibrary)
+					spatialStatisticTypes.addItem({label: "分析结果库", tag: 5});
+				libraryList=("全部," + StringUtils.nvl(extParams.spatial.libraryList, "一般分析结果")).split(",");
+				spatialStatisticTypes.refresh();
+				spatialCombobox.dataProvider=spatialStatisticTypes;
+				spatialCombobox.selectedIndex=0;
+				spatialCombobox_changeHandler(null);
+				this.visible=true;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			public function active():void
+			{
+				var list:Array=[];
+				generateLayerTreeData(mapAppInstance.getMapLayerManager().getDynamicLayerTree()[0], list);
+				layerTreeDataProvider=new ArrayCollection(list);
+				layerTreeDataProvider.refresh();
+
+				var layerId:String=layerTreeSelectedItem ? layerTreeSelectedItem.layerId : int.MIN_VALUE + "";
+				layerTreeSelectedItem=null;
+				var newList:Array=[];
+				ArrayCollectionUtils.TreeData2List(list, newList);
+				var firstItem:Object=null;
+				for (var i:int=0; i < newList.length; i++)
+				{
+					var item:Object=newList[i];
+					if (layerId == item.layerId)
+					{
+						layerTreeSelectedItem=item;
+						break;
+					}
+					if (!item.children && !firstItem)
+						firstItem=item;
+				}
+				if (!layerTreeSelectedItem)
+					layerTreeSelectedItem=firstItem;
+
+				spatialCombobox_changeHandler(null);
+				mapInstance.addEventListener(MapMouseEvent.MAP_CLICK, evet4MapClick);
+
+				if (layerTree)
+				{
+					layerTree.dataProvider=layerTreeDataProvider;
+					layerTree.invalidateList();
+					layerTree_changeHandler(null);
+				}
+
+				if (isSpatialAnalyResultPanelVisible)
+					panel4SpatialAnalyResult.show();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function inactive():void
+			{
+				(mapInstance as MapControl).activePanMode();
+				(mapInstance as MapControl).clear();
+				drawTool.deactivate();
+				isIdentify=false;
+				mapInstance.removeEventListener(MapMouseEvent.MAP_CLICK, evet4MapClick);
+				var oldIndex:int=spatialCombobox.selectedItem ? spatialCombobox.selectedItem.tag : 0;
+				if (oldIndex <= 2)
+				{
+					mapInstance.removeLayer(graphicLayer);
+				}
+				isSpatialAnalyResultPanelVisible=panel4SpatialAnalyResult.visible;
+				panel4SpatialAnalyResult.hide();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function spatialCombobox_changeHandler(event:IndexChangeEvent):void
+			{
+				mapInstance.activePanMode();
+				drawTool.deactivate();
+				isIdentify=false;
+				var oldIndex:int=event == null ? -1 : spatialStatisticTypes.getItemAt(event.oldIndex).tag;
+				if (oldIndex <= 2)
+					mapInstance.removeLayer(graphicLayer);
+
+				var index:int=spatialStatisticTypes.getItemAt(event == null ? spatialCombobox.selectedIndex : event.newIndex).tag;
+				if (index <= 2)
+				{
+					mapInstance.addLayer(graphicLayer);
+					for (var i:int=0; i < drawToolbar.numElements; i++)
+						if (drawToolbar.getElementAt(i)["selected"])
+							event4ToolbarItemClick(drawToolbar.getElementAt(i) as ToolbarButton);
+				}
+				else
+				{
+					graphicLayer.clear();
+				}
+				currentState=this.states[index].name;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function toolbarItemClick(event:MouseEvent):void
+			{
+				var barItem:ToolbarButton=event.currentTarget as ToolbarButton;
+				event4ToolbarItemClick(barItem);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4ToolbarItemClick(barItem:com.webgis.component.ToolbarButton):void
+			{
+				mapInstance.activePanMode();
+				drawTool.deactivate();
+				isIdentify=false;
+				var type:String=barItem.tag;
+				if (type == "point")
+					drawTool.activate(DrawTool.MAPPOINT);
+				else if (type == "line")
+					drawTool.activate(DrawTool.POLYLINE);
+				else if (type == "polygon")
+					drawTool.activate(DrawTool.POLYGON);
+				else if (type == "circle")
+					drawTool.activate(DrawTool.CIRCLE);
+				else if (type == "rectangle")
+					drawTool.activate(DrawTool.EXTENT);
+				else if (type == "identify")
+					isIdentify=true;
+				else if (type == "clear")
+				{
+					graphicLayer.clear();
+					event4ToolbarItemClick(toolbarItemPan);
+				}
+
+				var groupIndex:int=barItem.groupIndex;
+				if (groupIndex != 0) //分组
+				{
+					for (var i:int=0; i < drawToolbar.numElements; i++)
+					{
+						var item:Object=drawToolbar.getElementAt(i);
+						if (item is ToolbarButton && item != barItem && item.groupIndex == barItem.groupIndex)
+							item.selected=false;
+					}
+					barItem.selected=true;
+				}
+				else if (barItem.toggle)
+				{
+					barItem.selected=!barItem.selected;
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function drawTool_drawEndHandler(event:DrawEvent):void
+			{
+				graphicLayer.clear();
+				graphicLayer.add(event.graphic);
+				event4ToolbarItemClick(toolbarItemPan);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			private function evet4MapClick(event:MapMouseEvent):void
+			{
+				if (!isIdentify)
+					return;
+				var resolution:Number=map.extent.width / map.width;
+				var layerAndServerIds:Array=mapInstance.mapLayerManager.getIdentifyLayerIds(map, "selected");
+				mapServiceClientInstance.identify(event.mapPoint, layerAndServerIds, resolution, function(json:Object):void
+				{
+					if (json.records && json.records.length != 0)
+					{
+						var record:Object=json.records[0];
+						var feature:Graphic=new Graphic();
+						feature.geometry=Geometry.fromJSON(record.wkt);
+						feature.symbol=feature.geometry is MapPoint ? pointSymbol : feature.geometry is Polyline ? lineSymbol : fillSymbol;
+						feature.toolTip=record.caption;
+						graphicLayer.clear();
+						graphicLayer.add(feature);
+						graphicLayer.refresh();
+					}
+				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function spatialGroupStatistic():void
+			{
+				var spatialAnalyIndex:int=spatialStatisticTypes.getItemAt(spatialCombobox.selectedIndex).tag;
+				var analyParams:Object={};
+				var groupInfos:Array=getAnalyGroupFields();
+				analyParams.layerId=comboboxLayer.selectedItem.layerId;
+				analyParams.groupFields=groupInfos[0];
+				analyParams.groupFieldLables=groupInfos[1];
+				var tempObject:Object=getAnalyStatisticFunctons();
+				analyParams.statisticFunctions=tempObject.funs;
+				analyParams.fun2Label=tempObject.fun2Label;
+				//var result:Object={funs: [], fun2label: {}};
+				analyParams.layerType=comboboxLayer.selectedItem.layerType;
+				analyParams.o=spatialAnalyIndex == 2 ? "districtAnaly" : "groupAnaly";
+				analyParams.filterStr=StringUtils.trim(inputCaptionFilter.text);
+
+				if (analyParams.statisticFunctions.length == 0)
+				{
+					AlertUtils.alert("请至少选择一项统计分析类型!");
+					return;
+				}
+
+				if (spatialAnalyIndex == 2) //区域汇总分析
+				{
+					analyParams.cityCodes=getDistrictCodes();
+					if (analyParams.cityCodes.length == 0)
+					{
+						AlertUtils.alert("请至少选择一个行政区域!");
+						return;
+					}
+				}
+
+
+				//
+				var spatialGeometry:Geometry=graphicLayer.numGraphics == 0 ? null : graphicLayer.graphicProvider.getItemAt(0).geometry;
+				if (spatialGeometry != null)
+				{
+					var bufNum:Number=Convert.str2int(bufferEdit.text, 0);
+					bufferEdit.text="" + bufNum;
+					if (bufferUnitCombobox.selectedIndex == 1)
+						bufNum*=1000;
+
+					var g:Graphic=graphicLayer.graphicProvider.getItemAt(0) as Graphic;
+					graphicLayer.clear();
+					graphicLayer.add(g);
+					graphicLayer.refresh();
+
+					if (spatialGeometry is MapPoint && bufNum == 0)
+					{
+						var r:Number=(mapInstance.extent.width / mapInstance.width) * 3;
+						var p:MapPoint=spatialGeometry as MapPoint;
+						spatialGeometry=new Polygon([[new MapPoint(p.x - r, p.y - r), new MapPoint(p.x - r, p.y + r), new MapPoint(p.x + r, p.y + r), new MapPoint(p.x + r, p.y - r), new MapPoint(p.x - r, p.y - r)]]);
+					}
+					spatialGeometry.spatialReference=map.spatialReference;
+					mapServiceClient.buffer(spatialGeometry, bufNum, function(bufGeometry:Geometry):void
+					{
+						searchWhereGeometry=bufGeometry;
+						if (bufNum != 0)
+						{
+							var g:Graphic=new Graphic(bufGeometry, fillSymbol);
+							graphicLayer.add(g);
+						}
+						analyParams.geometry=bufGeometry.toJSON();
+						analyParams.geometryType=bufGeometry.type;
+						spatialStatisticCondition=analyParams;
+						mapServiceClient.spatialAnaly(analyParams, spatialAnalyResultCallFunction);
+					});
+				}
+				else
+				{
+					spatialStatisticCondition=analyParams;
+					mapServiceClient.spatialAnaly(analyParams, spatialAnalyResultCallFunction);
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			//空间查询
+			private function spatialBufSearchOrStatistic(serverIds:Array, layerIds:Array):void
+			{
+				var spatialGeometry:Geometry=graphicLayer.numGraphics == 0 ? null : graphicLayer.graphicProvider.getItemAt(0).geometry;
+				if (spatialGeometry == null)
+				{
+					AlertUtils.alert("请首先在地图上定义一个空间范围！");
+					return;
+				}
+				var analyParams:Object=null;
+				var filterStr:String=StringUtils.trim(inputCaptionFilter.text);
+				if (spatialStatisticTypes.getItemAt(spatialCombobox.selectedIndex).tag == 1)
+				{
+					analyParams={};
+					var groupInfos:Array=getAnalyGroupFields();
+					analyParams.layerId=comboboxLayer.selectedItem.layerId;
+					analyParams.groupFields=groupInfos[0];
+					analyParams.groupFieldLables=groupInfos[1];
+					var tempObject:Object=getAnalyStatisticFunctons();
+					analyParams.statisticFunctions=tempObject.funs;
+					analyParams.fun2Label=tempObject.fun2Label;
+					analyParams.layerType=comboboxLayer.selectedItem.layerType;
+					analyParams.filterStr=filterStr;
+					if (analyParams.statisticFunctions.length == 0)
+					{
+						AlertUtils.alert("请至少选择一项统计分析类型!");
+						return;
+					}
+				}
+
+				var bufNum:Number=Convert.str2int(bufferEdit.text, 0);
+				bufferEdit.text="" + bufNum;
+				if (bufferUnitCombobox.selectedIndex == 1)
+					bufNum*=1000;
+
+				if (graphicLayer.numGraphics > 1)
+				{
+					var g:Graphic=graphicLayer.graphicProvider.getItemAt(0) as Graphic;
+					graphicLayer.clear();
+					graphicLayer.add(g);
+					graphicLayer.refresh();
+				}
+				if (spatialGeometry is MapPoint && bufNum == 0)
+				{
+					var r:Number=(mapInstance.extent.width / mapInstance.width) * 3;
+					var p:MapPoint=spatialGeometry as MapPoint;
+					spatialGeometry=new Polygon([[new MapPoint(p.x - r, p.y - r), new MapPoint(p.x - r, p.y + r), new MapPoint(p.x + r, p.y + r), new MapPoint(p.x + r, p.y - r), new MapPoint(p.x - r, p.y - r)]]);
+				}
+				spatialGeometry.spatialReference=map.spatialReference;
+				mapServiceClient.buffer(spatialGeometry, bufNum, function(bufGeometry:Geometry):void
+				{
+					searchWhereGeometry=bufGeometry;
+					if (spatialStatisticTypes.getItemAt(spatialCombobox.selectedIndex).tag == 0)
+						mapServiceClient.spatialSearch(filterStr, bufGeometry, layerIds, serverIds, spatialBufSearchCallFunction);
+					else
+					{
+						if (bufNum != 0)
+						{
+							var g:Graphic=new Graphic(bufGeometry, fillSymbol);
+							graphicLayer.add(g);
+						}
+						analyParams.geometry=bufGeometry.toJSON();
+						analyParams.geometryType=bufGeometry.type;
+						analyParams.o="bufAnaly";
+						spatialStatisticCondition=analyParams;
+						mapServiceClient.spatialAnaly(analyParams, spatialAnalyResultCallFunction);
+					}
+				});
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//空间缓冲区分析回调函数
+			private function spatialAnalyResultCallFunction(result:Object):void
+			{
+				result.type=spatialStatisticTypes.getItemAt(spatialCombobox.selectedIndex).tag;
+				panel4SpatialAnalyResult.setSpatialAnalyResult([spatialStatisticCondition, result]);
+				panel4SpatialAnalyResult.show();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function spatialBufSearchCallFunction(result:Object):void
+			{
+				if (widgetContainInstance.searchContain)
+				{
+					widgetContainInstance.searchContain.registerSearchContent(result, searchWhereGeometry);
+					widgetContainInstance.focusSearchContain();
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function executeButton_clickHandler(event:MouseEvent):void
+			{
+				var spatialAnalyIndex:int=spatialStatisticTypes.getItemAt(spatialCombobox.selectedIndex).tag;
+				//首先找出需要查询分析的图层或服务
+				var layerAndServerIds:Array=mapInstance.mapLayerManager.getQueryLayerIds(mapInstance, "selected");
+				var layerIds:Array=layerAndServerIds[0];
+				var serverIds:Array=layerAndServerIds[1];
+				if (layerIds.length + serverIds.length == 0)
+				{
+					AlertUtils.confirm("执行空间分析功能，需要首先在一张图勾选需要查询分析的图层，是否现在勾选？", function():void
+					{
+						widgetContainInstance.focusLayerTree();
+					});
+					return;
+				}
+
+				if (spatialAnalyIndex >= 1 && spatialAnalyIndex <= 3 && (!layerTreeSelectedItem || !comboboxLayer.selectedItem))
+				{
+					AlertUtils.alert("请首选选定一个需要分析的图层!");
+					return;
+				}
+
+				if (layerIds.length == 0)
+					layerIds.push(-1);
+				if (serverIds.length == 0)
+					serverIds.push(-1);
+
+
+
+				if (spatialAnalyIndex == 0 || spatialAnalyIndex == 1)
+					spatialBufSearchOrStatistic(serverIds, layerIds);
+				else if (spatialAnalyIndex == 2 || spatialAnalyIndex == 3)
+					spatialGroupStatistic();
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			//状态变化
+			protected function module1_stateChangeCompleteHandler(event:FlexEvent):void
+			{
+				if (group4Operation)
+				{
+					group4Operation.callLater(function():void
+					{
+						var index:int=1;
+						for (var i:int=0; i < group4Operation.numElements; i++)
+						{
+							var c:Object=group4Operation.getElementAt(i);
+							if (groupLabelContain == c)
+								c=groupLabelContain.getElementAt(0);
+							else if (cityLabelContain == c)
+								c=cityLabelContain.getElementAt(0);
+							if (c is Label)
+							{
+								var l:String=c.text;
+								if (l.indexOf(".") == -1)
+									l="" + (index++) + "." + l;
+								else
+									l="" + (index++) + "." + StringUtils.after(l, ".");
+								c.text=l;
+							}
+						}
+					});
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////
+			private function generateLayerTreeData(data:Object, list:Array):void
+			{
+				if (data.children)
+				{
+					var newData:Object=ObjectUtil.copy(data);
+					newData.children=[];
+					for (var i:int=0; i < data.children.length; i++)
+						generateLayerTreeData(data.children[i], newData.children);
+					if (newData.children.length != 0)
+						list.push(newData);
+				}
+				else if (data.selected)
+					list.push(data);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function layerTree_changeHandler(event:ListEvent):void
+			{
+				var selectedItem:Object=event != null ? layerTree.selectedItem : layerTreeSelectedItem;
+				if (selectedItem && !selectedItem.children)
+				{
+					layerTreeSelectedItem=selectedItem;
+					btnPopupLayerTree.label=selectedItem.label;
+					var abstractContent:Object=selectedItem.abstractContent;
+					if (abstractContent)
+					{
+						initComboboxLayers(abstractContent);
+					}
+					else
+					{
+						mapServiceClient.getLayerTreeItemAbstractContent(selectedItem.id, function(json:Object):void
+						{
+							abstractContent=json;
+							selectedItem.abstractContent=abstractContent;
+							initComboboxLayers(abstractContent);
+						});
+					}
+				}
+				else
+				{
+					layerTreeSelectedItem=null;
+					btnPopupLayerTree.label="请选择...";
+					comboboxLayer.dataProvider=new ArrayCollection([]);
+					comboboxLayer.selectedItem=null;
+					comboboxLayer.selectedIndex=-1;
+					comboboxLayer.textInput.text="";
+					comboboxLayer.validateNow();
+					comboboxLayer_changeHandler(null);
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			private function initComboboxLayers(abstractContent:Object):void
+			{
+				var list:Array=abstractContent.layers;
+				if (!list)
+					list=[];
+				comboboxLayer.dataProvider=new ArrayCollection(list);
+				if (list.length != 0)
+				{
+					comboboxLayer.selectedItem=list[0];
+					comboboxLayer.selectedIndex=0;
+					comboboxLayer.textInput.text=list[0].layerName;
+					comboboxLayer.validateNow();
+					comboboxLayer_changeHandler(null);
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function layerTree_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (layerTreeDataProvider.length)
+					layerTree.expandChildrenOf(layerTreeDataProvider.getItemAt(0), true);
+				layerTree_changeHandler(null);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function comboboxCreateComplete(event:FlexEvent):void
+			{
+				(event.currentTarget as ComboBox).textInput.editable=false;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+
+			protected function comboboxLayer_changeHandler(event:IndexChangeEvent):void
+			{
+				group4GroupField.removeAllElements();
+				var index:int=event != null ? event.newIndex : comboboxLayer.selectedIndex;
+				var isFound:Boolean=false;
+				var fieldList:Array=null;
+				if (index >= 0)
+				{
+					var abstractContent:Object=layerTreeSelectedItem.abstractContent;
+					var list:Array=abstractContent.statistic;
+					if (!list)
+						list=[];
+					var layerName:String=comboboxLayer.selectedItem.layerName;
+					var layerId:String=comboboxLayer.selectedItem.layerId;
+					fieldList=layerId2GroupFieldInfos[layerId];
+					if (!fieldList)
+					{
+						for (var i:int=0; i < list.length; i++)
+						{
+							var item:Object=list[i];
+							if (item.layerName == layerName)
+							{
+								fieldList=item.children as Array;
+								layerId2GroupFieldInfos[layerId]=fieldList;
+								break;
+							}
+						}
+					}
+					var layerType:int=comboboxLayer.selectedItem.layerType;
+					if (layerType == 0)
+					{
+						chkMax.enabled=false;
+						chkMax.selected=false;
+						chkMin.enabled=false;
+						chkMin.selected=false;
+						chkSum.enabled=false;
+						chkSum.selected=false;
+					}
+					else 
+					{
+						chkMax.enabled=true;
+						chkMax.selected=false;
+						chkMin.enabled=true;
+						chkMin.selected=false;
+						chkSum.enabled=true;
+						chkSum.selected=false;
+					}
+				}
+				if (fieldList)
+				{
+					for (var i:int=0; i < fieldList.length; i++)
+					{
+						var chkBox:CheckBox=new CheckBox();
+						chkBox.label=fieldList[i].fieldTitle;
+						chkBox.selected=false;
+						chkId2GroupFieldItem[chkBox.uid]=fieldList[i];
+						group4GroupField.addElement(chkBox);
+					}
+				}
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			protected function group4District_creationCompleteHandler(event:FlexEvent):void
+			{
+				var cityList:Array=mapApp.getNavigatorAreaContent() as Array;
+				if (!cityList)
+					return;
+				if (cityList.length == 1 && cityList[0].children)
+					cityList=cityList[0].children;
+				for (var i:int=0; i < cityList.length; i++)
+				{
+					var cityInfo:Object=cityList[i];
+					var chk:CheckBox=new CheckBox();
+					chk.label=cityInfo.name;
+					chk.selected=true;
+					group4District.addElement(chk);
+					districtList.push({name: cityInfo.name, code: cityInfo.code});
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			protected function btnPopupLayerTree_creationCompleteHandler(event:FlexEvent):void
+			{
+				layerTree_changeHandler(null);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function btnPopupLayerTree_openHandler(event:DropdownEvent):void
+			{
+				if (layerTree.dataProvider.length)
+				{
+					layerTree.expandChildrenOf(layerTree.dataProvider.getItemAt(0), true);
+					layerTree.invalidateList();
+					layerTree.validateNow();
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////
+			private function getAnalyGroupFields():Array
+			{
+				var result:Array=[[], []];
+				var abstractContent:Object=layerTreeSelectedItem.abstractContent;
+				var list:Array=abstractContent.statistic;
+				var layerName:String=comboboxLayer.selectedItem.layerName;
+				var layerId:String=comboboxLayer.selectedItem.layerId;
+				var fieldList:Array=layerId2GroupFieldInfos[layerId];
+				for (var i=0; i < list.length; i++)
+				{
+					var item:Object=list[i];
+					if (item.layerName == layerName)
+					{
+						fieldList=item.children as Array;
+						break;
+					}
+				}
+				for (var i:int=0; i < group4GroupField.numElements; i++)
+				{
+					var chk:CheckBox=group4GroupField.getElementAt(i) as CheckBox;
+					if (chk.selected)
+					{
+						result[0].push(chkId2GroupFieldItem[chk.uid].fieldName);
+						result[1].push(chkId2GroupFieldItem[chk.uid].fieldTitle);
+					}
+				}
+				return result;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////
+			private function getAnalyStatisticFunctons():Object
+			{
+				var result:Object={funs: [], fun2Label: {}};
+				if (chkCount.selected)
+					result.funs.push("count");
+				if (chkSum.selected)
+					result.funs.push("sum");
+				if (chkMin.selected)
+					result.funs.push("min");
+				if (chkMax.selected)
+					result.funs.push("max");
+				if (chkCustomer.selected)
+				{
+					var customFuns:Array=spatialFunctionPanel.getFormulas();
+					for (var i:int=0; i < customFuns.length; i++)
+					{
+						result.funs.push(customFuns[i][0]);
+						result.fun2Label[customFuns[i][1]]=customFuns[i][2];
+					}
+				}
+				return result;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////
+			private function getDistrictCodes():Array
+			{
+				var result:Array=[];
+				for (var i:int=0; i < group4District.numElements; i++)
+				{
+					var chk:CheckBox=group4District.getElementAt(i) as CheckBox;
+					if (chk.selected)
+					{
+						result.push(districtList[i].code);
+					}
+				}
+				return result;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////
+			//调整分组字段顺序
+			protected function label1_clickHandler(event:MouseEvent):void
+			{
+				var isPanel4SpatialAnalyResultVisible:Boolean=panel4SpatialAnalyResult.visible;
+				panel4SpatialAnalyResult.hide();
+				WinChangePosition.execute(group4GroupField, function():void
+				{
+					var layerId:String=comboboxLayer.selectedItem.layerId;
+					var fieldList:Array=layerId2GroupFieldInfos[layerId];
+					for (var i:int=0; i < group4GroupField.numElements; i++)
+					{
+						var chk:CheckBox=group4GroupField.getElementAt(i) as CheckBox;
+						fieldList[i]=chkId2GroupFieldItem[chk.uid];
+					}
+					if (isPanel4SpatialAnalyResultVisible)
+						executeButton_clickHandler(null);
+				});
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function label2_clickHandler(event:MouseEvent):void
+			{
+				var s:Boolean=event.currentTarget == labelSelectAll;
+				for (var i:int=0; i < group4District.numElements; i++)
+				{
+					var chk:CheckBox=group4District.getElementAt(i) as CheckBox;
+					chk.selected=s;
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			protected function chkCustomer_changeHandler(event:Event):void
+			{
+				if (chkCustomer.selected)
+				{
+					if (spatialFunctionPanel.parent == null)
+					{
+						spatialFunctionPanelContain.addElement(spatialFunctionPanel);
+						if (spatialFunctionPanel.numElements == 1)
+							spatialFunctionPanel.addItem();
+					}
+				}
+				else
+				{
+					spatialFunctionPanelContain.removeAllElements();
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			private function designFunction(fun:String, cap:String, callFunction:Function):void
+			{
+				var fieldList:Array=comboboxLayer.selectedItem ? comboboxLayer.selectedItem.children : [];
+				WinFormulaEditor.execute(mapServiceClient, fieldList, fun, cap, callFunction);
+			}
+
+			protected function toolbarItemShowResult_clickHandler(event:MouseEvent):void
+			{
+				if (spatialStatisticCondition != null)
+					panel4SpatialAnalyResult.show();
+
+			}
+
+			protected function toolbarbutton1_clickHandler(event:MouseEvent):void
+			{
+				if (panel4SpatialAnalyResult.spatialAnalyCondition == null || panel4SpatialAnalyResult.spatialAnalyResult == null)
+				{
+					AlertUtils.alert("尚未执行空间分析，不能执行保存操作。");
+					return;
+				}
+
+				WinInputLibraryName.execute(libraryList, function(name:String, type:String, isShare:Boolean):void
+				{
+					var params:Object={saveType: type, saveName: name, isShare: isShare ? 1 : 0};
+					params.layerId=panel4SpatialAnalyResult.spatialAnalyCondition.layerId;
+					params.analyType=panel4SpatialAnalyResult.spatialAnalyCondition.o;
+					params.analyParams=panel4SpatialAnalyResult.spatialAnalyCondition;
+					params.analyResult=panel4SpatialAnalyResult.spatialAnalyResult;
+					mapServiceClientInstance.executeMethod("saveSpatialResult", params, function(json:Object):void
+					{
+						if (spatialResultList != null)
+						{
+							var item:Object={userId: mapServiceClient.USER_ID, id: json.id, type: type, name: name, analyParams: params.analyParams, analyResult: params.analyResult};
+							spatialResultList.addItem(item);
+							typeCombobox.selectedIndex=ArrayUtils.indexOf(libraryList, type);
+							typeCombobox.callLater(function():void
+							{
+								typeCombobox_changeHandler(null);
+								listSpatialResult.callLater(function():void
+								{
+									listSpatialResult.selectedItem=item;
+								});
+							});
+						}
+					});
+
+				});
+			}
+
+			private var extParams:Object=null;
+
+			public function setParams(v:Object):void
+			{
+				this.extParams=v;
+			}
+
+			//从数据库中读取模板
+			protected function treeLibrary_creationCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+
+			}
+
+			protected function typeCombobox_changeHandler(event:IndexChangeEvent):void
+			{
+				if (spatialResultList)
+				{
+					spatialResultList.refresh();
+					listSpatialResult.invalidateDisplayList();
+				}
+			}
+
+			//分析结果
+			protected function group5_creationCompleteHandler(event:FlexEvent):void
+			{
+				mapServiceClientInstance.executeMethod("getSpatialResultList", {}, function(json:Object):void
+				{
+					spatialResultList=new ArrayCollection(json.records);
+					spatialResultList.filterFunction=function(item:Object):Boolean
+					{
+						return StringUtils.equal(item.type, typeCombobox.selectedItem) || StringUtils.equal("全部", typeCombobox.selectedItem);
+					}
+					spatialResultList.refresh();
+					listSpatialResult.dataProvider=spatialResultList;
+				});
+			}
+
+			protected function listSpatialResult_doubleClickHandler(event:MouseEvent):void
+			{
+				var item:Object=listSpatialResult.selectedItem;
+				if (item.analyParams)
+				{
+					panel4SpatialAnalyResult.setSpatialAnalyResult([item.analyParams, item.analyResult]);
+					panel4SpatialAnalyResult.show();
+				}
+				else
+					mapServiceClient.executeMethod("getSpatialResultContent", {id: item.id}, function(json:Object):void
+					{
+						item.analyParams=json.analyParams;
+						item.analyResult=json.analyResult;
+						panel4SpatialAnalyResult.setSpatialAnalyResult([item.analyParams, item.analyResult]);
+						panel4SpatialAnalyResult.show();
+					});
+			}
+
+			//删除当前结果模板
+			protected function toolbarbutton2_clickHandler(event:MouseEvent):void
+			{
+				var item:Object=listSpatialResult.selectedItem;
+				if (item && (item.userId == mapServiceClient.USER_ID || mapServiceClient.USER_ID == -1))
+				{
+					AlertUtils.confirm("确定要删除选定的分析结果？", function():void
+					{
+						mapServiceClient.executeMethod("deleteSpatialAnalyResult", {id: item.id}, function(json:Object):void
+						{
+							spatialResultList.removeItem(item);
+							spatialResultList.refresh();
+							listSpatialResult.invalidateDisplayList();
+						});
+					});
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<ns:SimpleMarkerSymbol id="pointSymbol" style="circle" color="0xFF0000" size="20"/>
+		<ns:SimpleFillSymbol id="fillSymbol" color="#FFFF00">
+			<ns:SimpleLineSymbol width="5" style="dash" color="#FF0000"/>
+		</ns:SimpleFillSymbol>
+		<ns:SimpleLineSymbol width="10" id="lineSymbol" style="dash" color="#FF0000"/>
+		<ns:GraphicsLayer id="graphicLayer"/>
+		<ns:DrawTool drawEnd="drawTool_drawEndHandler(event)" id="drawTool" map="{mapInstance}" graphicsLayer="{graphicLayer}" lineSymbol="{lineSymbol}" fillSymbol="{fillSymbol}" markerSymbol="{pointSymbol}"/>
+	</fx:Declarations>
+
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+
+	<s:BorderContainer width="100%" height="27" borderVisible="false" backgroundColor="#F4F7F8">
+		<s:HGroup gap="2" height="25" verticalAlign="middle" width="100%" paddingTop="2" paddingRight="2" paddingLeft="2" paddingBottom="2">
+			<s:Label text="分析类型" paddingTop="2"/>
+			<s:ComboBox dataProvider="{spatialStatisticTypes}" selectedIndex="0" change="spatialCombobox_changeHandler(event)" skinClass="com.webgis.module.toolbar.SearchComboBoxSkin" width="100%" minHeight="22" height="22" id="spatialCombobox"/>
+			<component1:ToolbarButton excludeFrom="template" click="executeButton_clickHandler(event)" toolTip="点击开始分析" width="22" height="22" icon="@Embed('/assets/webgis/tick_octagon.png')"/>
+			<component1:ToolbarButton click="toolbarItemShowResult_clickHandler(event)" id="toolbarItemShowResult" toolTip="显示分析结果" width="22" height="22" tag="data_grid" icon="@Embed('/assets/webgis/TableStandalone16.png')"/>
+			<component1:ToolbarButton excludeFrom="template" toolTip="保存分析结果到模板库" click="toolbarbutton1_clickHandler(event)" icon="@Embed('/assets/common/save.png')"/>
+		</s:HGroup>
+		<s:Line width="100%" bottom="0" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#DDE1E5"/>
+			</s:stroke>
+		</s:Line>
+	</s:BorderContainer>
+
+	<!-- 分析结果列表 -->
+	<s:BorderContainer includeIn="template" creationComplete="group5_creationCompleteHandler(event)" width="100%" height="100%" borderVisible="false" backgroundColor="#F4F7F8">
+		<s:layout>
+			<s:VerticalLayout gap="0"/>
+		</s:layout>
+		<s:HGroup gap="2" paddingLeft="2" paddingRight="2" height="28" width="100%" verticalAlign="middle">
+			<s:Label text="类别"/>
+			<s:ComboBox dataProvider="{new ArrayCollection(libraryList)}" change="typeCombobox_changeHandler(event)" creationComplete="comboboxCreateComplete(event)" width="100%" selectedIndex="0" id="typeCombobox"/>
+			<component1:ToolbarButton width="22" height="22" click="toolbarbutton2_clickHandler(event)" icon="@Embed('/assets/common/delete.png')" toolTip="删除当前结果" groupIndex="0" selected="false"/>
+		</s:HGroup>
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#DDE1E5"/>
+			</s:stroke>
+		</s:Line>
+		<s:List doubleClickEnabled="true" doubleClick="listSpatialResult_doubleClickHandler(event)" width="100%" height="100%" labelField="name" id="listSpatialResult">
+		</s:List>
+	</s:BorderContainer>
+
+
+	<s:Scroller width="100%" height="100%" excludeFrom="template">
+		<s:VGroup width="100%" gap="8" id="group4Operation" paddingTop="8">
+
+			<s:Label text="自定义过滤条件(全文检索 可选)" fontWeight="bold" includeIn="one,two,three,four" paddingLeft="4"/>
+			<s:HGroup gap="2" includeIn="one,two,three,four" paddingLeft="16" width="100%" paddingRight="4">
+				<s:TextInput width="100%" height="100%" id="inputCaptionFilter"/>
+			</s:HGroup>
+
+			<s:Label text="在地图上绘制需要分析的区域" fontWeight="bold" includeIn="one,two,three" paddingLeft="4"/>
+			<s:HGroup gap="2" id="drawToolbar" includeIn="one,two,three" paddingLeft="16">
+				<component1:ToolbarButton selected="true" id="toolbarItemPan" click="toolbarItemClick(event)" height="24" width="24" icon="@Embed('/assets/webgis/pan.png')" toolTip="拖动模式" groupIndex="1" tag="pan"/>
+				<component1:ToolbarButton click="toolbarItemClick(event)" height="24" width="24" icon="@Embed('/assets/webgis/edit_point.png')" toolTip="点" groupIndex="1" selected="false" tag="point"/>
+				<component1:ToolbarButton click="toolbarItemClick(event)" height="24" width="24" icon="@Embed('/assets/webgis/edit_line.png')" toolTip="线" groupIndex="1" selected="false" tag="line"/>
+				<component1:ToolbarButton click="toolbarItemClick(event)" height="24" width="24" icon="@Embed('/assets/webgis/edit_polygon.png')" toolTip="面" groupIndex="1" selected="false" tag="polygon"/>
+				<component1:ToolbarButton click="toolbarItemClick(event)" height="24" width="24" icon="@Embed('/assets/webgis/edit_circle.png')" toolTip="圆形" groupIndex="1" selected="false" tag="circle"/>
+				<component1:ToolbarButton click="toolbarItemClick(event)" height="24" width="24" icon="@Embed('/assets/webgis/edit_rectangle.png')" toolTip="矩形" groupIndex="1" selected="false" tag="rectangle"/>
+				<component1:ToolbarButton click="toolbarItemClick(event)" icon="@Embed('/assets/webgis/IdentifyTool16.png')" toolTip="点选选择地图上的实体" groupIndex="1" selected="false" tag="identify"/>
+				<component1:ToolbarButton click="toolbarItemClick(event)" icon="@Embed('/assets/common/delete.png')" toolTip="清除选择的实体" groupIndex="0" selected="false" tag="clear"/>
+			</s:HGroup>
+
+			<s:Label text="定义缓冲区范围" fontWeight="bold" includeIn="one,two,three" paddingLeft="4"/>
+			<s:HGroup gap="4" paddingLeft="16" verticalAlign="middle" width="100%" includeIn="one,two,three" paddingRight="4">
+				<s:Label text="缓冲范围:"/>
+				<s:TextInput text="0" id="bufferEdit" width="100%"/>
+				<s:Label text="单位:"/>
+				<s:ComboBox id="bufferUnitCombobox" creationComplete="comboboxCreateComplete(event)" dataProvider="{new ArrayCollection(['米','公里'])}" selectedIndex="0" width="100%"/>
+			</s:HGroup>
+
+			<s:Label text="选择需要分析的图层(必选)" fontWeight="bold" includeIn="two,three,four" paddingLeft="4"/>
+			<s:HGroup gap="4" verticalAlign="middle" width="100%" paddingLeft="16" paddingRight="4" includeIn="two,three,four">
+				<s:Label text="地图服务"/>
+				<mx:PopUpButton open="btnPopupLayerTree_openHandler(event)" creationComplete="btnPopupLayerTree_creationCompleteHandler(event)" width="100%" label="请选择..." textAlign="left" id="btnPopupLayerTree">
+					<mx:popUp>
+						<component1:LayerTree creationComplete="layerTree_creationCompleteHandler(event)" change="layerTree_changeHandler(event)" checkEnabled="false" dataProvider="{layerTreeDataProvider}" id="layerTree" width="350" height="400"
+											  borderVisible="true"/>
+					</mx:popUp>
+				</mx:PopUpButton>
+			</s:HGroup>
+			<s:HGroup gap="4" verticalAlign="middle" width="100%" paddingLeft="16" paddingRight="4" includeIn="two,three,four">
+				<s:Label text="选择图层"/>
+				<s:ComboBox width="100%" id="comboboxLayer" labelField="layerName" change="comboboxLayer_changeHandler(event)" creationComplete="comboboxCreateComplete(event)"/>
+			</s:HGroup>
+
+			<s:Label text="选择需要分析的类型(至少选一个)" fontWeight="bold" includeIn="two,three,four" paddingLeft="4"/>
+			<s:HGroup id="commonFunctionPanel" gap="2" verticalAlign="middle" width="100%" paddingLeft="16" paddingRight="4" includeIn="two,three,four">
+				<s:CheckBox label="数量" id="chkCount" selected="true"/>
+				<s:CheckBox label="汇总" id="chkSum"/>
+				<s:CheckBox label="最大" id="chkMax"/>
+				<s:CheckBox label="最小" id="chkMin"/>
+				<s:CheckBox visible="false" label="自定义" id="chkCustomer" change="chkCustomer_changeHandler(event)"/>
+				<s:Label click="{spatialFunctionPanel.addItem();}" visible="{chkCustomer.selected}" id="labelAddCustomer" buttonMode="true" text="增加函数" mouseChildren="false" useHandCursor="true" color="0xFF0000" fontWeight="bold"/>
+			</s:HGroup>
+
+			<s:HGroup creationComplete="{chkCustomer_changeHandler(null);}" id="spatialFunctionPanelContain" width="100%" paddingLeft="16" paddingRight="4" includeIn="two,three,four">
+				<spatialAnaly:SpatialFunctionPanel designFunction="{designFunction}" id="spatialFunctionPanel" width="100%"/>
+			</s:HGroup>
+
+			<s:HGroup gap="4" verticalAlign="middle" id="groupLabelContain" includeIn="two,three,four">
+				<s:Label text="定义数据分组方式(可不选择)" fontWeight="bold" paddingLeft="4"/>
+				<s:Label click="label1_clickHandler(event)" buttonMode="true" text="调整顺序" mouseChildren="false" useHandCursor="true" color="0xFF0000" fontWeight="bold"/>
+			</s:HGroup>
+
+			<s:Group minHeight="0" width="100%" id="group4GroupField" includeIn="two,three,four">
+				<s:layout>
+					<s:TileLayout paddingLeft="16" paddingRight="4" verticalGap="4" horizontalGap="8" verticalAlign="middle">
+					</s:TileLayout>
+				</s:layout>
+			</s:Group>
+
+			<s:HGroup gap="4" verticalAlign="middle" id="cityLabelContain" includeIn="three">
+				<s:Label text="选择需要分析的行政区(至少选一个)" fontWeight="bold" paddingLeft="4"/>
+				<s:Label click="label2_clickHandler(event)" id="labelSelectAll" buttonMode="true" text="全选" mouseChildren="false" useHandCursor="true" color="0xFF0000" fontWeight="bold"/>
+				<s:Label click="label2_clickHandler(event)" id="labelSelectNone" buttonMode="true" text="全不选" mouseChildren="false" useHandCursor="true" color="0xFF0000" fontWeight="bold"/>
+			</s:HGroup>
+
+			<s:Group minHeight="0" width="100%" id="group4District" creationComplete="group4District_creationCompleteHandler(event)" includeIn="three">
+				<s:layout>
+					<s:TileLayout paddingLeft="16" paddingRight="4" verticalGap="4" horizontalGap="8" verticalAlign="middle">
+					</s:TileLayout>
+				</s:layout>
+			</s:Group>
+		</s:VGroup>
+	</s:Scroller>
+
+	<component1:LayerSpatialAnalyResultPanel id="panel4SpatialAnalyResult" map="{mapInstance}" left="0" bottom="0" width="100%" visible="false" height="0"/>
+
+
+</s:Module>

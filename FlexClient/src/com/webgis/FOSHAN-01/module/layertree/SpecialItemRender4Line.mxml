@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup gap="0" implements="mx.controls.listClasses.IListItemRenderer" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="55" xmlns:layertree="com.webgis.module.layertree.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.Convert;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.ColorPickerEvent;
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+			import spark.events.TextOperationEvent;
+			
+			public function get data():Object
+			{
+				return _data;
+			}
+			
+			public function set data(v:Object):void
+			{
+				_data=v;
+				layerType=this.parentDocument.currentLayerType;
+				isEnumSpecialType=this.parentDocument.isEnumSpecialType;
+				isSelected = _data?_data.checked:false;
+			}
+			
+			[Bindable]
+			private var _data:Object=null;
+			
+			private var _layerType:int=0;
+			
+			public var callFunction:Function=null;
+			
+			public var getLayerTypeCallFunction:Function=null;
+			
+			[Bindable]
+			private var isEnumSpecialType:Boolean=false;
+			
+			[Bindable]
+			private var isSelected:Boolean = true;
+			
+			
+			public function set layerType(value:int):void
+			{
+				_layerType=value;
+				this.currentState=_layerType == 0 ? "point" : _layerType == 1 ? "polyline" : "polygon";
+			}
+			
+			protected function polylineColor_changeHandler(event:ColorPickerEvent):void
+			{
+				_data.style.lineColor=event.color;
+			}
+			
+			protected function polygonFillColor_changeHandler(event:ColorPickerEvent):void
+			{
+				_data.style.fillColor=event.color;
+			}
+			
+			protected function pointMarkerTypeCombobox_changeHandler(event:IndexChangeEvent):void
+			{
+				_data.style.markerType=event.newIndex;
+				
+			}
+			
+			protected function pointColor_changeHandler(event:ColorPickerEvent):void
+			{
+				_data.style.fillColor=event.color;
+				
+			}
+			
+			protected function checkbox1_changeHandler(event:Event):void
+			{
+				_data.checked=event.currentTarget.selected;
+				if (callFunction != null)
+					callFunction();
+			}
+			
+			private function pointSizeTextBoxCallFunction(v:int):void
+			{
+				if (_data)
+					_data.style.r=v;
+			}
+			
+			private function polylineSizeTextBoxCallFunction(v:int):void
+			{
+				if (_data)
+					_data.style.width=v;
+			}
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="point"/>
+		<s:State name="polyline"/>
+		<s:State name="polygon"/>
+	</s:states>
+	<s:HGroup gap="4" height="100%" verticalAlign="middle">
+		<s:Spacer width="4"/>
+		<s:CheckBox selected="{isSelected}" change="checkbox1_changeHandler(event)"/>
+		<s:Label text="{isEnumSpecialType?(_data.value + '(总数:' + _data.count + ')'):(_data.value)}" fontWeight="bold" color="0x0000FF" fontSize="14"/>
+	</s:HGroup>
+	
+	<s:HGroup height="100%" includeIn="polyline,polygon" verticalAlign="middle">
+		<s:Spacer width="8"/>
+		<s:Label text="线宽"/>
+		<layertree:SpinEdit width="40" id="polylineSizeTextBox" minValue="1" maxValue="15" stepValue="1" callFunction="{polylineSizeTextBoxCallFunction}" value="{_data.style.width*1}"/>
+		<s:Label text="颜色"/>
+		<mx:ColorPicker width="40" id="polylineColor" selectedColor="{_data.style.lineColor}" change="polylineColor_changeHandler(event)"/>
+		<s:Label text="填充" includeIn="polygon"/>
+		<mx:ColorPicker width="40" includeIn="polygon" id="polygonFillColor" selectedColor="{_data.style.fillColor}" change="polygonFillColor_changeHandler(event)"/>
+	</s:HGroup>
+	
+	<s:HGroup height="100%" includeIn="point" verticalAlign="middle">
+		<s:Spacer width="8"/>
+		<s:Label text="符号"/>
+		<s:ComboBox width="60" creationComplete="{pointMarkerTypeCombobox.textInput.editable = false;}" dataProvider="{new ArrayCollection(['圆','菱形','方形','三角形'])}" id="pointMarkerTypeCombobox" selectedIndex="{_data.style.markerType}" change="pointMarkerTypeCombobox_changeHandler(event)"/>
+		<s:Label text="尺寸"/>
+		<layertree:SpinEdit width="40" id="pointSizeTextBox" minValue="5" maxValue="100" stepValue="5" callFunction="{pointSizeTextBoxCallFunction}" value="{_data.style.r*1}"/>
+		<s:Label text="颜色"/>
+		<mx:ColorPicker width="40" id="pointColor" selectedColor="{_data.style.fillColor}" change="pointColor_changeHandler(event)"/>
+	</s:HGroup>
+	
+	<s:Line width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#DDE1E5"/>
+		</s:stroke>
+	</s:Line>
+</s:VGroup>

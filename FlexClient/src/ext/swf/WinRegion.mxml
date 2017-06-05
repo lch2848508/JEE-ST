@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx close="titlewindowex1_closeHandler(event)" creationComplete="titlewindowex1_creationCompleteHandler(event)" title="中国行政区划选择" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:component="com.estudio.flex.component.*" width="950" height="600">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+
+			private var iframe:String="";
+			private var callFunctionName:String="";
+			/////////////////////////////////////////////////////////////////////////////////
+			private static var instance:WinRegion=null;
+
+			public static function execute(iframe:String, funname:String):void
+			{
+				if (instance == null)
+					instance=new WinRegion();
+				instance.iframe=iframe;
+				instance.callFunctionName=funname;
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(instance);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_creationCompleteHandler(event:FlexEvent):void
+			{
+				AjaxUtils.getData("../ext/tour_utils.jsp?o=getRegion", function(text:String, token:Object):void
+				{
+					regionList.dataProvider=new ArrayCollection(JSON.parse(text) as Array);
+					regionList.callLater(function():void
+					{
+						regionList.selectedIndex=0;
+						regionList.selectedItem=regionList.dataProvider.source[0];
+						regionList_changeHandler(null);
+					});
+				});
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(instance);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////
+			protected function btnClose_clickHandler(event:MouseEvent):void
+			{
+				PopUpManager.removePopUp(instance);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////			
+			protected function btnOK_clickHandler(event:MouseEvent):void
+			{
+				if (!StringUtils.isEmpty(callFunctionName))
+					IFrameUtils.execute(iframe, callFunctionName, {text: StringUtils.trim(textInput.text)});
+				btnClose_clickHandler(null);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			protected function regionArea_linkHandler(event:TextEvent):void
+			{
+				if (StringUtils.endWith(textInput.text, " "))
+					textInput.text=StringUtils.trim(textInput.text) + " " + event.text;
+				else if (StringUtils.contain(textInput.text, " "))
+					textInput.text=textInput.text.substr(0, textInput.text.lastIndexOf(" ") + 1) + event.text;
+				else
+					textInput.text=event.text;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////
+			protected function regionList_changeHandler(event:ListEvent):void
+			{
+				var item:Object=regionList.selectedItem;
+				if (!item)
+					item=regionList.dataProvider.source[0];
+				if (StringUtils.isEmpty(item.htmlText))
+					item.htmlText=generateHTMLText(item);
+				regionArea.htmlText=item.htmlText;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////
+			private function generateHTMLText(item:Object):String
+			{
+				var html:String="<textformat leftmargin=\"4\" rightmargin=\"4\" leading=\"8\"><font face=\"YaHei Consolas Hybrid,微软雅黑\">";
+				var isIncludeCity:Boolean=false;
+				for (var i:int=0; i < item.children.length; i++)
+				{
+					var city:Object=item.children[i];
+					if (city.name == "市辖区" || city.name == "县")
+					{
+						if (!isIncludeCity)
+						{
+							isIncludeCity=true;
+							html+="<font size=\"14\" color=\"#0000EE\">";
+							html+="<b><a href=\"event:" + item.name + "\">" + item.name + "</a></b>";
+							html+="</font></textformat><br>";
+						}
+					}
+					else
+					{
+						html+="<font size=\"14\" color=\"#0000EE\">";
+						html+="<b><a href=\"event:" + item.name + city.name + "\">" + city.name + "</a></b>";
+						html+="</font></textformat><br>";
+					}
+
+					if (city.children && city.children.length > 1)
+					{
+						html+="<font size=\"12\" color=\"#0000FF\">";
+						for (var j:int=0; j < city.children.length; j++)
+						{
+							if (city.children[j].name == "市辖区")
+								continue;
+							if (city.name == "市辖区" || city.name == "县")
+								html+="<a href=\"event:" + item.name + city.children[j].name + "\">" + city.children[j].name + "</a> ";
+							else
+								html+="<a href=\"event:" + item.name + city.name + city.children[j].name + "\">" + city.children[j].name + "</a> ";
+						}
+						html+="</font><br>";
+					}
+				}
+				html+="</font></textformat>";
+				delete item.children;
+				return html;
+			}
+		]]>
+	</fx:Script>
+	<s:Label text="行政区:" left="5" top="10"/>
+	<s:TextInput left="60" right="5" top="5" id="textInput"/>
+
+	<mx:List rowHeight="28" change="regionList_changeHandler(event)" left="5" width="120" bottom="40" top="32" borderVisible="true" labelField="name" id="regionList"/>
+	<mx:TextArea link="regionArea_linkHandler(event)" left="130" right="5" top="32" bottom="40" id="regionArea" borderVisible="true" editable="false" selectable="true"/>
+
+	<s:Button label="关闭" id="btnClose" right="5" bottom="5" height="30" width="70" click="btnClose_clickHandler(event)"/>
+	<s:Button label="确定" id="btnClear" right="80" bottom="5" height="30" width="70" click="btnOK_clickHandler(event)"/>
+	<s:Label text="选中一个地址后在文本输入框中输入一个空格可以继续选择其他地址" fontSize="14" left="5" bottom="12" fontWeight="bold" color="#FF0000"/>
+</component:TitleWindowEx>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer focusEnabled="true" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.component.FormGrid;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			import mx.events.CalendarLayoutChangeEvent;
+			import mx.events.FlexEvent;
+
+
+			[Binadble]
+			public var readonly:Boolean=false;
+
+			[Bindable]
+			public var cellValue:String="";
+
+			[Bindable]
+			public var formUI:InterfaceFormUI=null;
+
+			[Bindable]
+			public var frameID:String="";
+
+			[Bindable]
+			public var funName:String=null;
+
+			public var grid:FormGrid=null;
+
+
+			////////////////////////////////////////////////////////////////////////////
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if (!StringUtils.isEmpty(frameID) && !StringUtils.isEmpty(funName) && !grid.readonly)
+					IFrameUtils.execute(frameID, funName, {readonly: readonly});
+			}
+		]]>
+	</fx:Script>
+	<s:Button label="..." left="1" right="1" top="1" bottom="1" click="button1_clickHandler(event)">
+
+	</s:Button>
+
+</s:MXDataGridItemRenderer>

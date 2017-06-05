@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group creationComplete="group1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" minWidth="25" minHeight="25" height="25" buttonMode="true" mouseOut="{isFocusIn=false;}"
+		 mouseOver="{isFocusIn=true;}" useHandCursor="true">
+
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.DropdownEvent;
+			import mx.events.FlexEvent;
+
+			import spark.components.Image;
+			import spark.components.Label;
+			import spark.events.IndexChangeEvent;
+
+			[Bindable]
+			private var isFocusIn:Boolean=false;
+			[Bindable]
+			private var isPopupVisible:Boolean=false;
+			[Bindable]
+			private var _iconURL:String="";
+			[Bindable]
+			private var _label:String="";
+			[Bindable]
+			private var listWidth:int=0;
+
+			public var clickFunction:Function=null;
+
+			[Bindable]
+			private var _items:ArrayCollection=new ArrayCollection([]);
+
+			private var _params:Object=null;
+
+			public function set iconURL(v:String):void
+			{
+				_iconURL=v;
+			}
+
+			public function get iconURL():String
+			{
+				return _iconURL;
+			}
+
+			public function set label(v:String):void
+			{
+				_label=v;
+			}
+
+			public function get label():String
+			{
+				return _label;
+			}
+
+			public function set params(v:Object):void
+			{
+				_params=v;
+			}
+
+			public function get params():Object
+			{
+				return _params;
+			}
+
+			public function set items(v:Array):void
+			{
+				_items=new ArrayCollection(v);
+				this.label=_items.getItemAt(0).label as String;
+				this.toolTip=_items.getItemAt(0).title;
+				_items.getItemAt(0).selected=true;
+			}
+
+			public function get items():Array
+			{
+				return _items.source;
+			}
+
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				popupUpButton.open();
+				event.stopImmediatePropagation();
+				event.stopPropagation();
+			}
+
+			protected function popupList_creationCompleteHandler(event:FlexEvent):void
+			{
+			}
+
+			protected function popupList_clickHandler(event:MouseEvent):void
+			{
+				popupList_changeHandler(null);
+				popupUpButton.close();
+				fireClickFunction();
+			}
+
+			protected function popupList_changeHandler(event:Event):void
+			{
+				if (!popupList.selectedItem)
+					return;
+				for (var i:int=0; i < _items.length; i++)
+				{
+					_items.getItemAt(i).selected=_items.getItemAt(i) == popupList.selectedItem;
+				}
+				this.label=popupList.selectedItem.label;
+				this.toolTip=popupList.selectedItem.title;
+				popupList.invalidateList();
+			}
+
+			protected function hgroup1_clickHandler(event:MouseEvent):void
+			{
+				if (popupUpButton.isPopUp)
+					popupUpButton.close();
+				fireClickFunction();
+			}
+
+			protected function popupUpButton_openHandler(event:DropdownEvent):void
+			{
+				isPopupVisible=true;
+			}
+
+			protected function popupUpButton_closeHandler(event:DropdownEvent):void
+			{
+				isPopupVisible=false;
+			}
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+
+				for (var i:int=0; i < _items.length; i++)
+				{
+					listWidth=Math.max(this.measureText(_items.getItemAt(i).label).width, listWidth);
+				}
+				listWidth+=60;
+			}
+
+			private function fireClickFunction():void
+			{
+				var item:Object=null;
+				for (var i:int=0; i < _items.length; i++)
+				{
+					if (_items.getItemAt(i).selected)
+					{
+						item=_items.getItemAt(i);
+						break;
+					}
+				}
+				if (item != null && clickFunction != null)
+					clickFunction(this, item);
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<mx:List rowHeight="25" width="{listWidth}" labelField="label" borderColor="0xCCCCCC" change="popupList_changeHandler(event)" click="popupList_clickHandler(event)" height="{_items.length*25+2}" id="popupList" creationComplete="popupList_creationCompleteHandler(event)" dataProvider="{_items}"
+				 itemRenderer="com.estudio.flex.component.IconListButtonItemRender">
+
+		</mx:List>
+	</fx:Declarations>
+
+	<s:Rect id="fill" visible="{isFocusIn||isPopupVisible}" width="100%" height="100%">
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:GradientEntry alpha="0.85" color="0xFFFFFF"/>
+				<s:GradientEntry alpha="0.85" color="0xEFF7FE"/>
+			</s:LinearGradient>
+		</s:fill>
+		<s:stroke>
+			<s:SolidColorStroke color="0xCCCCCC"/>
+		</s:stroke>
+	</s:Rect>
+
+	<mx:PopUpButton open="popupUpButton_openHandler(event)" close="popupUpButton_closeHandler(event)" height="0" width="0" bottom="1" minWidth="0" visible="false" id="popupUpButton" popUp="{popupList}">
+	</mx:PopUpButton>
+
+	<s:HGroup height="100%" width="100%" verticalAlign="middle" gap="3" paddingLeft="4" paddingRight="4" click="hgroup1_clickHandler(event)">
+		<s:Image source="{_iconURL}" id="img"/>
+		<s:Line width="0" visible="false"/>
+		<s:Label text="{_label}" paddingTop="2"/>
+		<s:Line width="0" height="100%" visible="{isFocusIn||isPopupVisible}">
+			<s:stroke>
+				<s:SolidColorStroke color="0xCCCCCC"/>
+			</s:stroke>
+		</s:Line>
+		<s:Group height="100%" click="image1_clickHandler(event)">
+			<mx:Image verticalCenter="0" source="@Embed(source='/assets/common/dropdown.png')" buttonMode="true"/>
+		</s:Group>
+	</s:HGroup>
+
+
+</s:Group>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" focusEnabled="true">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.StringUtils;
+			[Bindable]
+			public var frameID:String="";
+
+			[Bindable]
+			public var funName:String="";
+
+			protected function linkbutton1_clickHandler(event:MouseEvent):void
+			{
+				if (!StringUtils.isEmpty(frameID) && !StringUtils.isEmpty(funName))
+				{
+					IFrameUtils.execute(frameID, funName, this.owner["selectedItem"]);
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:LinkButton color="0x0000FF" click="linkbutton1_clickHandler(event)" label="{dataGridListData.label}" paddingLeft="0" paddingRight="0">
+	</mx:LinkButton>
+</s:MXDataGridItemRenderer>

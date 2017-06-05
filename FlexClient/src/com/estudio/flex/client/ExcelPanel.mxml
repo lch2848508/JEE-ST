@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:component="com.webgis.component.*" xmlns:client="com.estudio.flex.client.*">
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.module.component.AdvDataGridColumnGroupHeaderRenderEx;
+			import com.estudio.flex.module.component.AdvDataGridColumnHeaderRenderEx;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.component.ToolbarButton;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.HierarchicalData;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumnGroup;
+			private var datagridColumnsInfo:Object={datagridColumns: [], columnIndex: 1};
+			private var datagridColumns:Array=[];
+			[Bindable]
+			public var datagridRecords:HierarchicalData=new HierarchicalData([]);
+
+			[Bindable]
+			public var dragEnabled:Boolean=true;
+
+			[Bindable]
+			public var focusColumns:ArrayCollection=null;
+
+			[Bindable]
+			public var isStatisticChartGrid:Boolean=false;
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function designColumns():void
+			{
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(datagridColumnsInfo.datagridColumns, list);
+				for (var i:int=0; i < list.length; i++)
+				{
+					var columnInfo:Object=list[i];
+					if (columnInfo.column)
+						columnInfo.columnWidth=columnInfo.column.width;
+				}
+				WinExcelColumn.execute(datagridColumnsInfo.datagridColumns, datagridColumnsInfo.columnIndex, createDataGridColumns);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function appendRecord():void
+			{
+				var item:Object={};
+				datagridRecords.source.addItem(item);
+				datagrid.invalidateList();
+				datagrid.callLater(function():void
+				{
+					datagrid.selectedItem=item;
+				});
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function deleteRecord():void
+			{
+				var selectedItems:Array=datagrid.selectedItems;
+				if (selectedItems != null)
+				{
+					for (var i:int=0; i < selectedItems.length; i++)
+					{
+						var item:Object=selectedItems[i];
+						var pItem:Object=datagrid.getParentItem(item);
+						if (pItem == null)
+						{
+							var index:int=ArrayUtils.indexOf(datagridRecords.source.source, item);
+							datagridRecords.source.removeItemAt(index);
+						}
+						else
+						{
+							var index:int=ArrayUtils.indexOf(pItem.children, item);
+							ArrayUtils.remove(pItem.children, index);
+						}
+					}
+					datagrid.invalidateList();
+				}
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function pasteFromExcel():void
+			{
+				var str:String=flash.external.ExternalInterface.call("getClipboard");
+				if (StringUtils.isEmpty(str))
+					return;
+				str=StringUtils.replace(str, "\"\"", "__K_$$$$_K__");
+				var newStr:String="";
+				var hasEnter:Boolean=false;
+				for (var i:int=0; i < str.length; i++)
+				{
+					var char:String=str.charAt(i);
+					if (char == "\"")
+						hasEnter=!hasEnter;
+					else
+						newStr+=(hasEnter && (char == "\n" || char == "\r" || char == "\t")) ? "" : char;
+				}
+				newStr=StringUtils.replace(newStr, "__K_$$$$_K__", "\"");
+				newStr=StringUtils.trim(newStr);
+				var records:Array=newStr.split("\n");
+				for (var i:int=0; i < records.length; i++)
+				{
+					records[i]=records[i].split("\t");
+					var record:Object={};
+					for (var j:int=0; j < datagridColumns.length; j++)
+					{
+						var fieldName:String=datagridColumns[j];
+						var value=records[i].length > j ? StringUtils.replace(StringUtils.trim(records[i][j]), ",", "") : "";
+						record[fieldName]=value;
+					}
+					datagridRecords.source.addItem(record);
+				}
+				datagrid.invalidateList();
+			}
+
+
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			protected function toolbarItemClick(event:MouseEvent):void
+			{
+				var tag:String=(event.currentTarget as ToolbarButton).tag;
+				if (tag == "save")
+				{
+					var datagridColumnsString:String=getDataGridColumns();
+					var datagridRecordsString:String=getDataGridRecords();
+					setDataGridColumnsAndRecords(datagridColumnsString, datagridRecordsString);
+				}
+				else if (tag == "designColumn")
+					designColumns();
+				else if (tag == "addRow")
+					appendRecord();
+				else if (tag == "deleteRow")
+					deleteRecord();
+				else if (tag == "pasteData")
+					pasteFromExcel();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			private function createDataGridColumns(designColumns:Array, columnIndex:int):void
+			{
+				datagridColumnsInfo.datagridColumns=designColumns;
+				datagridColumnsInfo.columnIndex=columnIndex;
+				this.datagridColumns=[];
+				var datagridDesignColumns:Array=[];
+				generateDataGridColumnDefines(datagridColumnsInfo.datagridColumns, datagridDesignColumns)
+				generateDataGridColumns(datagridDesignColumns);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function generateDataGridColumnDefines(columnInfos:Array, datagridColumns:Array):void
+			{
+				for (var i:int=0; i < columnInfos.length; i++)
+				{
+					var columnInfo:Object=columnInfos[i];
+					if (columnInfo.children && columnInfo.children.length != 0)
+					{
+						datagridColumns.push({columnLabel: "#B" + columnInfo.columnLabel});
+						generateDataGridColumnDefines(columnInfo.children, datagridColumns);
+						datagridColumns.push({columnLabel: "#E" + columnInfo.columnLabel});
+					}
+					else
+					{
+						datagridColumns.push(columnInfo);
+					}
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////
+			private function generateDataGridColumns(datagridColumns:Array):void
+			{
+				var columns:ArrayCollection=new ArrayCollection();
+				var column:AdvancedDataGridColumn=null;
+				var render:ClassFactory=null;
+				var groupColumns:Array=[columns];
+				var groupColumnItems:Array=[];
+				var groupDepth:int=0;
+				for (var i:int=0; i < datagridColumns.length; i++)
+				{
+					var columnInfo:Object=datagridColumns[i];
+					if (!columnInfo.columnLabel)
+						continue;
+					var columnLabel:String=StringUtils.trim(columnInfo.columnLabel);
+					if (StringUtils.startWith(columnLabel, "#")) //分组列
+					{
+						if (StringUtils.startWith(columnLabel, "#B"))
+						{
+							var groupColumn:AdvancedDataGridColumnGroup=new AdvancedDataGridColumnGroup();
+							groupColumn.headerText=StringUtils.trim(columnLabel.substring(2));
+							groupColumn.draggable=false;
+							groupColumns.push(new ArrayCollection());
+							groupColumnItems.push(groupColumn);
+							column=groupColumn;
+							groupDepth++;
+							groupColumns[groupColumns.length - 2].addItem(column);
+							groupColumn.headerRenderer=new ClassFactory(AdvDataGridColumnGroupHeaderRenderEx);
+						}
+						else if (StringUtils.startWith(columnLabel, "#E"))
+						{
+							groupColumnItems[groupColumnItems.length - 1].children=groupColumns[groupColumns.length - 1].toArray();
+							ArrayUtils.remove(groupColumnItems, groupColumnItems.length - 1);
+							ArrayUtils.remove(groupColumns, groupColumns.length - 1);
+							groupDepth--;
+						}
+					}
+					else
+					{
+						column=new AdvancedDataGridColumn();
+						column.minWidth = 0;
+						column.dataField=columnInfo.columnName;
+						column.headerText=StringUtils.trim(columnLabel); //标题
+						column.headerRenderer=new ClassFactory(AdvDataGridColumnHeaderRenderEx);
+						column.resizable=true;
+						column.showDataTips=false;
+						column.editable=true;
+						column.width=columnInfo.columnWidth;
+						columnInfo.column=column;
+						groupColumns[groupColumns.length - 1].addItem(column);
+						this.datagridColumns.push(columnInfo.columnName);
+					}
+				}
+
+				datagrid.lockedColumnCount=1;
+
+				datagrid.groupedColumns=columns.toArray();
+				datagrid.invalidateList();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function getDataGridColumns():String
+			{
+				var list:Array=[];
+				var settings:Array=[];
+				ArrayCollectionUtils.TreeData2List(datagridColumnsInfo.datagridColumns, list);
+				for (var i:int=0; i < list.length; i++)
+				{
+					var columnInfo:Object=list[i];
+					if (columnInfo.column)
+					{
+						columnInfo.columnWidth=columnInfo.column.width;
+						settings.push({obj: columnInfo, c: columnInfo.column});
+						delete columnInfo.column;
+					}
+				}
+				var result:String=JSON.stringify(datagridColumnsInfo);
+				for (var i:int=0; i < settings.length; i++)
+				{
+					settings[i].obj.column=settings[i].column;
+				}
+				return result;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function getDataGridRecords():String
+			{
+				return JSON.stringify(datagridRecords.source.source);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function setDataGridColumnsAndRecords(columns:String, records:String):void
+			{
+				datagridColumnsInfo=StringUtils.isEmpty(columns) ? {datagridColumns: [], columnIndex: 1} : JSON.parse(columns);
+				datagridColumns=[];
+				var datagridColumns:Array=[];
+				generateDataGridColumnDefines(datagridColumnsInfo.datagridColumns, datagridColumns)
+				generateDataGridColumns(datagridColumns);
+
+				if (StringUtils.isEmpty(records))
+					records="[]";
+				datagridRecords=new HierarchicalData(new ArrayCollection(JSON.parse(records) as Array));
+				datagrid.invalidateList();
+				datagrid.callLater(function():void
+				{
+					datagrid.expandAll();
+				});
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			public function setRecordAsFolder():void
+			{
+				var item:Object=datagrid.selectedItem;
+				if (item && !item.children)
+				{
+					item.children=[];
+					datagrid.expandChildrenOf(item, true);
+					datagridRecords.source.refresh();
+					var verscrollPos:int=datagrid.verticalScrollPosition;
+					datagrid.dataProvider=datagridRecords;
+					datagrid.callLater(function():void
+					{
+						datagrid.verticalScrollPosition=verscrollPos;
+					});
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			public function setRecordAsCommon():void
+			{
+				var item:Object=datagrid.selectedItem;
+				if (item && item.children)
+				{
+					var p:Object=datagrid.getParentItem(item);
+					var items:Array=p != null ? p.children : datagridRecords.source.source;
+					var index:int=ArrayUtils.indexOf(items, item) + 1;
+					for (var i:int=item.children.length - 1; i >= 0; i--)
+					{
+						var child:Object=item.children[i];
+						ArrayUtils.insert(items, child, index);
+						ArrayUtils.remove(item.children, i);
+					}
+					item.children=null;
+					datagridRecords.source.refresh();
+					var verscrollPos:int=datagrid.verticalScrollPosition;
+					datagrid.dataProvider=datagridRecords;
+					datagrid.callLater(function():void
+					{
+						datagrid.verticalScrollPosition=verscrollPos;
+					});
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			public function setRecordAsChildren():void
+			{
+				var selectedIndexs:Array=datagrid.selectedIndices;
+				if (selectedIndexs && selectedIndexs.length != 0)
+				{
+					var list:Array=[];
+					ArrayCollectionUtils.TreeData2List(datagridRecords.source.source, list);
+					var index:int=65535;
+					for (var i:int=0; i < datagrid.selectedItems.length; i++)
+						index=Math.min(ArrayUtils.indexOf(list, datagrid.selectedItems[i]));
+					var firstSelectedItem:Object=list[index];
+					var firstParentObject:Object=datagrid.getParentItem(firstSelectedItem);
+					list=firstParentObject == null ? datagridRecords.source.source : firstParentObject.children;
+					index=ArrayUtils.indexOf(list, firstSelectedItem);
+					if (index == 0)
+						return;
+
+					var parentItem:Object=list[index - 1];
+					if (!parentItem.children)
+						return;
+					var willMoveItems:Array=[];
+					for (var i:int=0; i < datagrid.selectedItems.length; i++)
+						willMoveItems.push(datagrid.selectedItems[i]);
+					for (var i:int=0; i < willMoveItems.length; i++)
+					{
+						var item:Object=willMoveItems[i];
+						var p:Object=datagrid.getParentItem(item);
+						if (p == parentItem)
+							continue;
+						var l:Array=p == null ? datagridRecords.source.source : p.children;
+						ArrayUtils.remove(l, ArrayUtils.indexOf(l, item));
+						parentItem.children.push(item);
+					}
+					datagrid.expandChildrenOf(parentItem, true);
+				}
+				datagridRecords.source.refresh();
+				var verscrollPos:int=datagrid.verticalScrollPosition;
+				datagrid.dataProvider=datagridRecords;
+				datagrid.callLater(function():void
+				{
+					datagrid.verticalScrollPosition=verscrollPos;
+				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			private function advancedDataGridStyleFunction(data:Object, column:AdvancedDataGridColumn):Object
+			{
+				var index:int=focusColumns != null ? ArrayUtils.indexOf(focusColumns.source, column.dataField) : -1;
+				if (index != -1)
+					return {color: 0x0000FF, fontWeight: "bold"};
+				else
+					return {};
+			}
+			//////////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<mx:AdvancedDataGrid selectionColor="0xFFFF00" allowMultipleSelection="true" styleFunction="{advancedDataGridStyleFunction}" visible="true" alpha="0.9" dropEnabled="{dragEnabled}" dragEnabled="{dragEnabled}" dragMoveEnabled="{dragEnabled}" editable="true" horizontalGridLines="true"
+						 horizontalScrollPolicy="on" dataProvider="{datagridRecords}" width="100%" sortableColumns="false" draggableColumns="false" alternatingItemColors="[0xFFFFFF]" sortExpertMode="true" verticalAlign="middle" headerHeight="25" rowHeight="25" height="100%" borderVisible="false"
+						 id="datagrid">
+	</mx:AdvancedDataGrid>
+</s:Group>

@@ -1,0 +1,386 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx currentState="singleSelected" xmlns:component="com.estudio.flex.component.*" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="400" minWidth="400" height="480" close="event_windowCloseBtn_clickHandler(event)" title="请选择" xmlns:component1="com.estudio.flex.module.component.*">
+	<component:states>
+		<s:State name="multiSelected"/>
+		<s:State name="singleSelected"/>
+	</component:states>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.component.mx.treeview.render.IconItemRender;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.ObjectUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.utils.ObjectUtil;
+
+			import spark.events.IndexChangeEvent;
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//私有变量声明区域
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private static var win:WinTreeDataForm=null;
+			[Bindable]
+			private var treeDatas:ArrayCollection=null;
+			[Bindable]
+			private var multiSelected:Boolean=false;
+			private var callFunName:String="";
+			private var iframeID:String="";
+			[Bindable]
+			private var treeItemRender:ClassFactory=new ClassFactory(IconItemRender);
+			private var extParams:Object=null;
+			private var key2templateObject:Object={};
+			[Bindable]
+			private var templateList:ArrayCollection=new ArrayCollection([]);
+			private var allTreeDatas:Array=null;
+			private var filterStr:String="";
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			/**
+			 * 执行树状显示Datas数据
+			 * @param datas 需要显示的数据
+			 * @param multiSelected
+			 * @param callFunName
+			 * @param iframeID
+			 * @param width
+			 * @param height
+			 *
+			 */
+			public static function execute(datas:Array, multiSelected:Boolean, callFunName:String, iframeID:String, width:int=320, height:int=480, extParams:Object=null):void
+			{
+				var isFirstRun:Boolean=false;
+				if (win == null)
+				{
+					win=new WinTreeDataForm();
+					isFirstRun=true;
+				}
+				if (extParams && extParams.selectedValues)
+					extParams.selectedValues=ObjectUtils.forceToArray(extParams.selectedValues);
+				win.extParams=extParams;
+				win.width=width;
+				win.height=height;
+				win.multiSelected=multiSelected;
+				win.currentState=multiSelected ? "multiSelected" : "singleSelected";
+				win.iframeID=iframeID;
+				win.callFunName=callFunName;
+				win.treeItemRender.properties={includeCheckBox: win.multiSelected};
+				if (win.tree)
+					win.tree.itemRenderer=win.treeItemRender;
+				win.allTreeDatas=datas;
+				win.treeDatas=new ArrayCollection(datas);
+				if (win.tree)
+				{
+					win.tree.callLater(function():void
+					{
+						win.tree.expandChildrenOf(datas[0], true);
+					});
+				}
+				FlexGlobals.topLevelApplication.showPopupWindow(win, true);
+				if (!isFirstRun)
+					win.loadUserTemplate();
+				//PopUpManager.centerPopUp(win);
+			}
+
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//关闭
+			protected function event_btnClose_clickHandler(event:MouseEvent):void
+			{
+				FlexGlobals.topLevelApplication.closePopupWindow(this);
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//确定
+			protected function event_btnOk_clickHandler(event:MouseEvent):void
+			{
+				FlexGlobals.topLevelApplication.closePopupWindow(this);
+
+
+				if (callFunName != "")
+				{
+					var records:Array=[];
+					if (multiSelected)
+					{
+						getSelectNodeItems(treeDatas.source, records);
+					}
+					else if (tree.selectedItem)
+					{
+						records.push(tree.selectedItem);
+					}
+					if (records.length != 0)
+					{
+						IFrameUtils.execute(iframeID, callFunName, records);
+					}
+				}
+			}
+
+			private function getSelectNodeItems(records:Array, result:Array, isOnlyKey:Boolean=false):void
+			{
+				for (var i:int=0; i < records.length; i++)
+				{
+					var record:Object=records[i];
+					if (record.selected)
+						result.push(isOnlyKey ? record.key : record);
+					if (record.children)
+						getSelectNodeItems(record.children, result, isOnlyKey);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//窗口右上角关闭X按钮点击事件 
+			protected function event_windowCloseBtn_clickHandler(event:CloseEvent):void
+			{
+				FlexGlobals.topLevelApplication.closePopupWindow(this);
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//目录树创建完毕事件
+			protected function tree_creationCompleteHandler(event:FlexEvent):void
+			{
+				tree.selectedItem=tree.dataProvider.getItemAt(0);
+				tree.expandChildrenOf(tree.selectedItem, true);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function tree_dataChangeHandler(event:FlexEvent):void
+			{
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function btn4SaveClick(event:MouseEvent):void
+			{
+				if (!multiSelected)
+					return;
+				var records:Array=[];
+				getSelectNodeItems(treeDatas.source, records, true);
+				if (records.length == 0)
+				{
+					AlertUtils.alert("请首先勾选需要预定义的节点，然后再执行此操作。");
+					return;
+				}
+				WinInputTemplate.execute(function(caption:String, isSelected:Boolean):void
+				{
+					AjaxUtils.postData("../client/listortreedataset?o=saveTemplate", {isShare: (isSelected ? 1 : 0), caption: caption, values: JSON.stringify(records), datasetName: extParams.datasetName, portalId: extParams.portalId}, function(text:String, token:Object):void
+					{
+						var obj:Object=JSON.parse(text);
+						var id:String=obj.id;
+						var item:Object={caption: caption, values: records, id: id, userId: FlexGlobals.topLevelApplication.loginUserId};
+						templateList.addItem(item);
+						cbTemplate.selectedItem=item;
+						cbTemplate.selectedIndex=templateList.length - 1;
+					});
+				});
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//读取模版
+			protected function group4TemplateCreationCompleteHandler(event:FlexEvent):void
+			{
+				loadUserTemplate();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function loadUserTemplate():void
+			{
+				if (!multiSelected)
+					return;
+				var templateKey:String=extParams.datasetName + "_" + extParams.portalId;
+				if (key2templateObject[templateKey])
+				{
+					templateList=key2templateObject[templateKey];
+					cbTemplate.dataProvider=templateList;
+					cbTemplate.selectedItem=templateList.getItemAt(0);
+					cbTemplate.selectedIndex=0;
+					cbTemplate.removeEventListener(IndexChangeEvent.CHANGE, cbTemplate_changeHandler);
+					selectNodeByKey(extParams.selectedValues);
+					cbTemplate.addEventListener(IndexChangeEvent.CHANGE, cbTemplate_changeHandler);
+				}
+				else
+				{
+					AjaxUtils.postData("../client/listortreedataset?o=getTemplate", {datasetName: extParams.datasetName, portalId: extParams.portalId}, function(text:String, token:Object):void
+					{
+						var records:Array=JSON.parse(text).records;
+						if (!records)
+							records=[];
+						key2templateObject[templateKey]=new ArrayCollection(records);
+						templateList=key2templateObject[templateKey];
+						templateList.addItemAt({caption: "", values: [], id: -1, userId: -1}, 0);
+						cbTemplate.dataProvider=templateList;
+						cbTemplate.selectedItem=templateList.getItemAt(0);
+						cbTemplate.selectedIndex=0;
+						cbTemplate.removeEventListener(IndexChangeEvent.CHANGE, cbTemplate_changeHandler);
+						selectNodeByKey(extParams.selectedValues);
+						cbTemplate.addEventListener(IndexChangeEvent.CHANGE, cbTemplate_changeHandler);
+					});
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function selectNodeByKey(values:Array):void
+			{
+				if (!values)
+					return;
+				var records:Array=[];
+				ArrayCollectionUtils.TreeData2List(treeDatas.source, records);
+				for (var i:int=0; i < records.length; i++)
+				{
+					var record:Object=records[i];
+					record.selected=ArrayUtils.contain(values, record.key);
+				}
+				tree.callLater(function():void
+				{
+					tree.expandChildrenOf(tree.dataProvider.getItemAt(0), true);
+					tree.invalidateList();
+				});
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function cbTemplate_changeHandler(event:IndexChangeEvent):void
+			{
+				if (event.newIndex >= 0)
+				{
+					selectNodeByKey(cbTemplate.selectedItem.values);
+				}
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function btn4DeleteTemplateClick(event:MouseEvent):void
+			{
+				if (cbTemplate.selectedIndex >= 0)
+				{
+					var item:Object=cbTemplate.selectedItem;
+					if (item.userId * 1 != FlexGlobals.topLevelApplication.loginUserId * 1)
+					{
+						AlertUtils.alert("当前模版(\"" + cbTemplate.textInput.text + "\")不是您创建的，不能被删除。");
+						return;
+					}
+					AlertUtils.confirm("确定要删除模版(\"" + cbTemplate.textInput.text + "\")?", function():void
+					{
+						AjaxUtils.getData("../client/listortreedataset?o=deleteTemplate&id=" + item.id, function(text:String, token:Object):void
+						{
+							templateList.removeItemAt(templateList.getItemIndex(cbTemplate.selectedItem));
+							cbTemplate.selectedItem=templateList.getItemAt(0);
+							cbTemplate.selectedIndex=0;
+							selectNodeByKey(templateList.getItemAt(0).values);
+						});
+					});
+				}
+				else
+				{
+					AlertUtils.alert("请首先选择一个模版，然后再执行此操作。");
+				}
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function iconbutton1_clickHandler(event:MouseEvent):void
+			{
+				var filterStr:String=StringUtils.trim(textFilter.text).toUpperCase();
+				if (filterStr != this.filterStr)
+				{
+					this.filterStr=filterStr;
+					var keys:Array=[];
+					getSelectNodeItems(treeDatas.source, keys, true);
+					if (StringUtils.isEmpty(this.filterStr))
+					{
+						treeDatas=new ArrayCollection(allTreeDatas);
+						tree.dataProvider=treeDatas;
+					}
+					else
+					{
+						var newRecords:Array=[];
+						generalTreeData(allTreeDatas[0], newRecords);
+						treeDatas=new ArrayCollection(newRecords.length == 0 ? allTreeDatas : newRecords);
+						tree.dataProvider=treeDatas;
+					}
+					tree.callLater(function():void
+					{
+						tree.expandChildrenOf(treeDatas.getItemAt(0), true);
+						tree.invalidateList();
+					});
+					selectNodeByKey(keys);
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function generalTreeData(data:Object, list:Array):void
+			{
+				if (data.children)
+				{
+					var newData:Object=ObjectUtil.copy(data);
+					newData.children=[];
+					for (var i:int=0; i < data.children.length; i++)
+						generalTreeData(data.children[i], newData.children);
+					if (newData.children.length != 0)
+						list.push(newData);
+				}
+				else
+				{
+					var text:String=data.label;
+					if (text.toUpperCase().indexOf(filterStr) != -1)
+						list.push(data);
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function filterTreeList():void
+			{
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function textFilter_enterHandler(event:FlexEvent):void
+			{
+				iconbutton1_clickHandler(null);
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:VGroup width="100%" height="100%" gap="0">
+		<component1:ToolbarGroup width="100%">
+			<s:HGroup creationComplete="group4TemplateCreationCompleteHandler(event)" verticalAlign="middle" width="100%" height="100%" paddingLeft="4" paddingRight="4" gap="2">
+				<s:Label text="条件"/>
+				<s:TextInput width="100%" height="24" id="textFilter" enter="textFilter_enterHandler(event)"/>
+				<component:IconButton click="iconbutton1_clickHandler(event)" iconURL="../images/flex/search.png" toolTip="查询" height="24" width="24"/>
+				<s:Label text="模版" includeIn="multiSelected"/>
+				<s:ComboBox change="cbTemplate_changeHandler(event)" labelField="caption" dataProvider="{templateList}" includeIn="multiSelected" creationComplete="{cbTemplate.textInput.editable = false;}" width="100%" height="24" id="cbTemplate"/>
+				<component:IconButton includeIn="multiSelected" click="btn4SaveClick(event)" iconURL="../images/flex/save.png" toolTip="保存到模版" height="24" width="24"/>
+				<component:IconButton includeIn="multiSelected" click="btn4DeleteTemplateClick(event)" iconURL="../images/flex/delete.png" toolTip="删除当前模版" height="24" width="24"/>
+			</s:HGroup>
+		</component1:ToolbarGroup>
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#7B889C"/>
+			</s:stroke>
+		</s:Line>
+		<mx:Tree width="100%" height="100%" id="tree" dataProvider="{treeDatas}" itemRenderer="{treeItemRender}" creationComplete="tree_creationCompleteHandler(event)" dataChange="tree_dataChangeHandler(event)">
+		</mx:Tree>
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="0x606976" weight="1" caps="square"/>
+			</s:stroke>
+		</s:Line>
+		<s:Group width="100%" height="40">
+			<s:Button right="85" top="5" height="30" width="75" label="确定" click="event_btnOk_clickHandler(event)"/>
+			<s:Button right="5" top="5" height="30" width="75" label="关闭" click="event_btnClose_clickHandler(event)"/>
+		</s:Group>
+	</s:VGroup>
+</component:TitleWindowEx>

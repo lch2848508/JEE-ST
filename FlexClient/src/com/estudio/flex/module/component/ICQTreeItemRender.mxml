@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXTreeItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" dataChange="mxtreeitemrenderer1_dataChangeHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.Convert;
+
+			import mx.events.FlexEvent;
+
+			protected function mxtreeitemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+			/*
+			if (imageControl)
+				imageControl.source = data.iconurl;
+			else
+				callLater (function():void
+				{
+					imageControl.source = data.iconurl ()
+				});
+			*/
+			}
+		]]>
+	</fx:Script>
+
+	<s:HGroup left="0" right="0" top="0" bottom="0" verticalAlign="middle" gap="2">
+		<s:Rect id="indentationSpacer" width="{treeListData.indent}" percentHeight="100" alpha="0">
+			<s:fill>
+				<s:SolidColor color="0xFFFFFF"/>
+			</s:fill>
+		</s:Rect>
+		<s:Group id="disclosureGroup">
+			<s:BitmapImage source="{treeListData.disclosureIcon}" visible="{treeListData.hasChildren}"/>
+		</s:Group>
+		<!--
+		<s:CheckBox id="checkbox" width="{includeCheckBox?14:0}" visible="{includeCheckBox}" selected="{Convert.object2Boolean (data[checkFieldName] , false)}" verticalCenter="0" horizontalCenter="0" doubleClickEnabled="false" click="checkBoxClick(event)"/>
+		-->
+		<s:Image id="imageControl" source="{data.iconurl}"/>
+		<s:Label id="labelControl" fontWeight="{data.root?'bold':'normal'}" paddingTop="2" verticalCenter="0" text="{data.label}"/>
+	</s:HGroup>
+</s:MXTreeItemRenderer>

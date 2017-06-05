@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer borderVisible="true" right="2" top="2" backgroundColor="#F6F6F6" backgroundAlpha="0.9" borderColor="#CCCCCC" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="28" xmlns:component="com.webgis.component.*"
+				   xmlns:ns="http://www.esri.com/2008/ags">
+	<s:layout>
+		<s:VerticalLayout gap="2" horizontalAlign="center"/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.Map;
+			import com.esri.ags.events.DrawEvent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.tools.DrawTool;
+			import com.estudio.flex.utils.Convert;
+			import com.webgis.intf.MapControlSearchContainIntf;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+
+			[Bindable]
+			private var mapInstance:MapControl=null;
+			private var layer:GraphicsLayer=null;
+			private var geometry:Graphic=null;
+			public var mapServiceClient:MapServiceClient=null;
+			public var searchResultContain:MapControlSearchContainIntf=null;
+			public var mapWidgetContain:MapWidgetContainIntf=null;
+
+			public function set map(value:Map):void
+			{
+				if (value != mapInstance)
+				{
+					mapInstance=value as MapControl;
+					if (mapInstance)
+						event4ToolbarItemClick(toolbarItemPan);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function toolbarItemClick(event:MouseEvent):void
+			{
+				var barItem:ToolbarButton=event.currentTarget as ToolbarButton;
+				event4ToolbarItemClick(barItem);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4ToolbarItemClick(barItem:com.webgis.component.ToolbarButton):void
+			{
+				var type:String=barItem.tag;
+				if (type == "pan")
+					mapInstance.activeDrawMode(null, getFeatureCallFunction);
+				else if (type == "point")
+					mapInstance.activeDrawMode(DrawTool.MAPPOINT, getFeatureCallFunction);
+				else if (type == "line")
+					mapInstance.activeDrawMode(DrawTool.POLYLINE, getFeatureCallFunction);
+				else if (type == "polygon")
+					mapInstance.activeDrawMode(DrawTool.POLYGON, getFeatureCallFunction);
+				else if (type == "circle")
+					mapInstance.activeDrawMode(DrawTool.CIRCLE, getFeatureCallFunction);
+				else if (type == "rectangle")
+					mapInstance.activeDrawMode(DrawTool.EXTENT, getFeatureCallFunction);
+
+				var groupIndex:int=barItem.groupIndex;
+				if (groupIndex != 0) //分组
+				{
+					for (var i:int=0; i < this.numElements; i++)
+					{
+						var item:Object=this.getElementAt(i);
+						if (item is ToolbarButton && item != barItem && item.groupIndex == barItem.groupIndex)
+							item.selected=false;
+					}
+					barItem.selected=true;
+				}
+				else if (barItem.toggle)
+				{
+					barItem.selected=!barItem.selected;
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			private function getFeatureCallFunction(layer:GraphicsLayer, geometry:Graphic):void
+			{
+				this.layer=layer;
+				this.geometry=geometry;
+				if (geometry && geometry.geometry is MapPoint)
+					geometry.symbol=sms;
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<s:Spacer height="2"/>
+	<component:ToolbarButton id="toolbarItemPan" click="toolbarItemClick(event)" width="22" height="22" icon="@Embed('/assets/webgis/01.png')" toolTip="点" groupIndex="1" selected="false" tag="pan"/>
+	<component:ToolbarButton click="toolbarItemClick(event)" height="22" width="22" icon="@Embed('/assets/webgis/02.png')" toolTip="点" groupIndex="1" selected="false" tag="point"/>
+	<component:ToolbarButton click="toolbarItemClick(event)" height="22" width="22" icon="@Embed('/assets/webgis/03.png')" toolTip="线" groupIndex="1" selected="false" tag="line"/>
+	<component:ToolbarButton click="toolbarItemClick(event)" height="22" width="22" icon="@Embed('/assets/webgis/04.png')" toolTip="面" groupIndex="1" selected="false" tag="polygon"/>
+	<component:ToolbarButton click="toolbarItemClick(event)" height="22" width="22" icon="@Embed('/assets/webgis/05.png')" toolTip="圆形" groupIndex="1" selected="false" tag="circle"/>
+	<component:ToolbarButton click="toolbarItemClick(event)" height="22" width="22" icon="@Embed('/assets/webgis/06.png')" toolTip="矩形" groupIndex="1" selected="false" tag="rectangle"/>
+	<s:Spacer height="2"/>
+	<fx:Declarations>
+		<ns:SimpleMarkerSymbol id="sms" style="circle" color="0xFF0000" size="4"/>
+		<ns:SimpleFillSymbol id="sfs" color="#FFFF00">
+			<ns:SimpleLineSymbol width="2" style="dash" color="#FF0000"/>
+		</ns:SimpleFillSymbol>
+	</fx:Declarations>
+
+</s:BorderContainer>
+

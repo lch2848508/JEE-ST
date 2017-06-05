@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" xmlns:flexiframe="com.google.code.flexiframe.*" xmlns:flexlib="flexlib.containers.*" minWidth="640"
+			   minHeight="400" creationComplete="eventApplicationCreateComplete(event)" creationPolicy="all" scriptRecursionLimit="256" scriptTimeLimit="60" xmlns:logging="com.adobe.ac.logging.*" xmlns:client="com.estudio.flex.client.*" xmlns:ns="http://flex.apache.org/experimental/ns">
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	<s:states>
+		<s:State id="accordionNavigatorState" name="accordionNavigatorState"/>
+		<s:State id="treeNavigatorState" name="treeNavigatorState"/>
+		<s:State id="toolbarNavigatorState" name="toolbarNavigatorState"/>
+	</s:states>
+
+	<fx:Style source="MainForm.css"/>
+	<fx:Declarations>
+		<fx:Array id="arrTopMenuItems">
+			<fx:Object label="一张图系统" type="4" ico="@Embed('/assets/common/earth.png')"/>
+
+			<fx:Object label="交通统计" type="5" ico="@Embed('/assets/common/chart.png')"/>
+			
+			<fx:Object label="即时通讯" type="0" ico="@Embed('/assets/common/icq.png')"/>
+			<fx:Object label="错误日志" type="1" ico="@Embed('/assets/common/bug.png')"/>
+			<fx:Object label="更改密码" type="2" ico="@Embed('/assets/common/changepassword.png')"/>
+			<fx:Object label="退出系统" type="3" ico="@Embed('/assets/common/logout.png')"/>
+			<fx:Object label="" type="6" ico="@Embed('/assets/common/font.png')"/>
+		</fx:Array>
+
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.component.BorderWrapContain;
+			import com.estudio.flex.component.ErrorLoggerWindow;
+			import com.estudio.flex.component.GroupBox;
+			import com.estudio.flex.component.MSNPopupWindow;
+			import com.estudio.flex.component.Pagination;
+			import com.estudio.flex.component.TextInputEx;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.DateUtils;
+			import com.utilities.IconUtility;
+
+			import flash.net.navigateToURL;
+
+			import flexlib.controls.tabBarClasses.SuperTab;
+			import flexlib.events.SuperTabEvent;
+
+			import mx.controls.DataGrid;
+			import mx.controls.DateField;
+			import mx.controls.LinkButton;
+			import mx.controls.PopUpMenuButton;
+			import mx.controls.RichTextEditor;
+			import mx.controls.Tree;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.core.FlexGlobals;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ItemClickEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.ResultEvent;
+
+			import spark.components.Button;
+			import spark.components.CheckBox;
+			import spark.components.ComboBox;
+			import spark.components.TextArea;
+			import spark.components.TextInput;
+			import spark.components.supportClasses.DisplayLayer;
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//简单测试函数
+			private function test(UI:TextInput):void
+			{
+				AlertUtils.alert(UI.text);
+			}
+
+			protected function panelNavigator_creationCompleteHandler(event:FlexEvent):void
+			{
+				panelNavigator.minWidth=panelNavigator.getMinTitleWidth(_maxNavigatorItemTitleLength);
+				panelNavigator.width=panelNavigator.minWidth + 10;
+			}
+
+			//顶端菜单 
+			protected function linkbar1_itemClickHandler(event:ItemClickEvent):void
+			{
+				switch (event.item.type)
+				{
+					case 0:
+						ExecuteICQMessage();
+						break;
+					case 2:
+						WinFormChangePassword.execute();
+						break;
+					case 3:
+						AlertUtils.confirm("确定要退出系统？", function():void
+						{
+							JSFunUtils.JSFun("logoff");
+						});
+						break;
+					case 1:
+						ErrorLoggerWindow.show();
+						break;
+					case 4:
+						goURL("../WebGIS/index.jsp", "_self");
+						break;
+					case 5:
+						var url:String="../statistic_analyze/index.jsp";
+						goURL(url, "decision");
+						break;
+					case 5:
+						FlexGlobals.topLevelApplication.stage.displayState=StageDisplayState.FULL_SCREEN;
+						break;
+					case 6:
+						JSFunUtils.JSFun("openDownloadFontDialog");
+						break;
+
+
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////
+			//导航项点击事件
+			protected function treeNavigator_itemClickHandler(event:ListEvent):void
+			{
+				var isItem:Boolean=!treeNavigator.dataDescriptor.isBranch(event.itemRenderer.data);
+				if (isItem)
+					selectAccordionItem(event.itemRenderer.data.i, event.itemRenderer.data.j);
+			}
+
+			//-------------------------------------------------------------------------------------
+			//显示农历
+			protected function richtext1_creationCompleteHandler(event:FlexEvent):void
+			{
+				label_Today.text="今天是：" + DateUtils.getTodayStr();
+			}
+
+			protected function method1_resultHandler(event:ResultEvent):void
+			{
+				var result:String=event.result.toString();
+				Alert.show(event.result.toString(), "返回结果");
+
+			}
+
+			private var randomColors:Array=["0x74cc00", "0x4da0e9", "0xf2a600", "0xa37cb9", "0xf15e5e", "0x004ACE2B", "0x00029DF0", "0x00FD9E0C", "0x9C9900", "0x367517", "0x006241", "0x00676B", "0x103667", "0x211551", "0x38044B", "0x64004B", "0x00A6AD"];
+			private var randomColorIndex:int=0;
+
+			public function initRandomColor():void
+			{
+				randomColorIndex=0;
+			}
+
+			public function randomColor():uint
+			{
+				if (randomColorIndex >= randomColors.length)
+					randomColorIndex=0;
+				return randomColors[(randomColorIndex++) % randomColors.length];
+			}
+
+			public function getRandomColors():Array
+			{
+				return randomColors;
+			}
+
+			public function measureTextWidth(str:String):int
+			{
+				return this.measureText(str).width;
+			}
+
+			public function measureTextWidthB(str:String):int
+			{
+				return label4measureBlob.measureText(str).width;
+			}
+
+			public function measureHTMLTextWidth(str:String):int
+			{
+				return this.measureHTMLText(str).width;
+			}
+		]]>
+	</fx:Script>
+	<fx:Script source="MainForm.as"/>
+	<fx:Script source="JSInterface4MainForm.as"/>
+	<fx:Script source="ExtensionSWFModule.as"/>
+	<fx:Script source="WindowUtils.as"/>
+	<fx:Script source="MessageClient.as"/>
+
+	<s:Group left="0" right="0" top="0" id="logoBorderContainer" width="100%" height="50">
+		<s:Image id="imgLogoBg" left="0" top="0" width="100%" height="100%" fillMode="clip"/>
+		<s:Image id="imgLogo" left="0" verticalCenter="0"/>
+
+		<!-- Tree Acc Navigation -->
+		<mx:LinkBar excludeFrom="toolbarNavigatorState" id="linkbarTopMenuItems" itemClick="linkbar1_itemClickHandler(event)" right="0" top="0" contentBackgroundAlpha="0.0" dataProvider="{arrTopMenuItems}" fontWeight="bold" iconField="ico"/>
+		<s:RichText excludeFrom="toolbarNavigatorState" id="label_Today" right="4" bottom="6" creationComplete="richtext1_creationCompleteHandler(event)" fontWeight="bold" color="#8B0000"/>
+		<!-- Toolbar Navigation -->
+		<s:RichText includeIn="toolbarNavigatorState" id="label_TodayEx" right="1" top="6" creationComplete="richtext1_creationCompleteHandler(event)" fontWeight="bold" color="#8B0000"/>
+		<client:MenuBarEx includeIn="toolbarNavigatorState" cornerRadius="0" id="toolbarNavigation" iconField="icon" height="28" right="1" bottom="4" itemClick="toolbarNavigationitemClickHandler(event)"/>
+	</s:Group>
+
+
+	<mx:HDividedBox width="100%" height="100%" horizontalGap="5">
+		<component:PanelEx excludeFrom="toolbarNavigatorState" creationComplete="panelNavigator_creationCompleteHandler(event)" id="panelNavigator" width="200" height="100%" horizontalScrollPolicy="off" verticalScrollPolicy="off" headerHeight="{titleHeaderHeight}"
+						   titleIcon="@Embed('/assets/common/users.png')" dropShadowVisible="false">
+			<!-- 导航区域 -->
+			<mx:Accordion includeIn="accordionNavigatorState" id="accordionNavigator" width="100%" height="100%" borderStyle="none" headerHeight="{titleHeaderHeight-1}"/>
+			<mx:Tree includeIn="treeNavigatorState" id="treeNavigator" left="0" top="0" right="-1" bottom="0" borderStyle="none" doubleClickEnabled="false" itemClick="treeNavigator_itemClickHandler(event)" itemRenderer="com.estudio.flex.component.mx.treeview.render.IconItemRender"/>
+		</component:PanelEx>
+
+		<flexlib:SuperTabNavigator tabClose="eventMainPageControlClose(event)" dragEnabled="false" closePolicy="{SuperTab.CLOSE_SELECTED}" id="pagecontrolMain" width="100%" height="100%" change="pagecontrolMain_changeHandler(event)" tabHeight="30">
+		</flexlib:SuperTabNavigator>
+	</mx:HDividedBox>
+
+	<s:Group width="100%" height="18" minHeight="20">
+		<s:RadioButton visible="false"/>
+		<mx:RadioButton visible="false"/>
+		<s:Label verticalCenter="0" horizontalCenter="0" id="labelCopyright">
+		</s:Label>
+		<s:Image toolTip="显示或关闭即时消息窗体" id="imgMsnWindowStatus" click="imgMsnWindowStatus_clickHandler(event)" source="../images/flex/message.png" verticalCenter="0" right="0" mouseChildren="false" buttonMode="true">
+		</s:Image>
+		<s:Label left="-500" top="0" id="label4measureBlob"/>
+	</s:Group>
+
+	
+</s:Application>

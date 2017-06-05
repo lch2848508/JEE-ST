@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer dataChange="mxadvanceddatagriditemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" selected="true" focusEnabled="true">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.ArrayUtils;
+
+			import mx.events.FlexEvent;
+			import mx.events.ItemClickEvent;
+
+			import spark.components.Label;
+			import spark.primitives.Line;
+			public var fieldName:String="";
+			public var controlName:String="";
+			public var portalInstance:Object=null;
+			public var textAlign:String="left";
+			private var labels:Array=[];
+
+			private function event4LabelClick(event:Event):void
+			{
+				var index:int=ArrayUtils.indexOf(labels, event.currentTarget);
+				var item:Object=data[fieldName][index];
+				portalInstance.executeToolbarItemClickFunction({controlName: item.control, id: item.fun, index: -1});
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+			}
+
+			protected function mxadvanceddatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				for (var i:int=0; i < labels.length; i++)
+					(labels[i] as Label).removeEventListener(MouseEvent.CLICK, event4LabelClick);
+				labels=[];
+				hgroup.removeAllElements();
+				if (!data[fieldName])
+					return;
+				for (var i:int=0; i < data[fieldName].length; i++)
+				{
+					var label:Label=new Label();
+					label.text=data[fieldName][i].label;
+					label.mouseChildren=false;
+					label.useHandCursor=true;
+					label.buttonMode=true;
+					label.addEventListener(MouseEvent.CLICK, event4LabelClick);
+					hgroup.addElement(label);
+					labels.push(label);
+					if (i != data[fieldName].length - 1)
+						hgroup.addElement(new Line4ColumnHrefSplit);
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:Canvas width="100%" height="23" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+		<s:HGroup buttonMode="true" gap="3" color="0x0000FF" width="100%" height="100%" id="hgroup" verticalAlign="middle" horizontalAlign="{textAlign}" paddingTop="3" paddingLeft="4" paddingRight="4">
+
+		</s:HGroup>
+	</mx:Canvas>
+
+</s:MXAdvancedDataGridItemRenderer>

@@ -1,0 +1,550 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx currentState="normalStatus" creationPolicy="all" title="请选择数据..." close="titlewindow1_closeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="{dialogWidth}"
+						 height="{dialogHeight}" xmlns:component="com.estudio.flex.component.*" borderColor="0x000000" xmlns:component1="com.estudio.flex.module.component.*">
+	<component:states>
+		<s:State name="normalStatus"/>
+		<s:State name="pageStatus"/>
+	</component:states>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.component.IconButton;
+			import com.estudio.flex.component.mx.datagrid.render.CheckBoxItemRender;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.JSFunUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.estudio.flex.utils.UIUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.DateField;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.core.Application;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.utils.ObjectUtil;
+
+			import spark.components.ComboBox;
+			import spark.events.IndexChangeEvent;
+
+			private var _gridIsCreated:Boolean=false;
+			private var _datasetName:String="";
+			private var _portalID:String="";
+			private var _iframeID:String="";
+			private var _callbackupFunName:String="";
+			private var _dynamicCreateControls:Array=[];
+			private var _dynamicParamList:Array=[];
+
+			[Bindable]
+			private var _multiSelected:Boolean=false;
+			[Bindable]
+			private var _pageable:Boolean=false;
+			[Bindable]
+			private var dialogWidth:int=800;
+			[Bindable]
+			private var dialogHeight:int=600;
+
+			private var comboboxList:Array=[];
+			private var refParentComboboxList:Array=[];
+			private var combobox2ParentCombobox:Array=[];
+
+			//参数定义
+			private var _params:Object=null;
+			private var _currentPage:int=1;
+			private var _datagridParam2Control:Object={};
+
+			private function set params(value:Object):void
+			{
+				_params=value;
+				if (!StringUtils.equal(_datasetName, _params.dataset) || !StringUtils.equal(_portalID, _params.portalID))
+				{
+					_gridIsCreated=false;
+					_portalID=_params.portalID;
+					_datasetName=_params.dataset;
+					if (datagrid)
+						createDataGrid();
+				}
+				else
+				{
+					_currentPage=1;
+					loadDataGrid();
+				}
+
+				_pageable=_params.pageable;
+				_multiSelected=_params.multiselect;
+				_callbackupFunName=_params.callbackfunname;
+				_iframeID=_params.iframeid;
+				this.currentState=_pageable ? "pageStatus" : "normalStatus";
+				callLater(fillFilterValue2Control);
+			}
+
+			private static var _instanceMap:Object={};
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			/**
+			 * 执行
+			 * @param params
+			 *
+			 */
+			public static function execute(params:Object):void
+			{
+				var keyInstance:String=params.portalID + "_" + params.dataset;
+
+				var _instance:WinGridDataForm=_instanceMap[keyInstance] as WinGridDataForm;
+				if (!_instance)
+				{
+					_instance=new WinGridDataForm();
+					_instanceMap[keyInstance]=_instance;
+					_instance.dialogWidth=params.width;
+					_instance.dialogHeight=params.height;
+				}
+
+				_instance.params=params;
+				FlexGlobals.topLevelApplication.showPopupWindow(_instance, true);
+
+				//PopUpManager.centerPopUp(_instance);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//关闭窗口
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+				FlexGlobals.topLevelApplication.closePopupWindow(this);
+
+			}
+
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//确定
+			protected function btnOK_clickHandler(event:MouseEvent):void
+			{
+				titlewindow1_closeHandler(null);
+				var records:Array=getSelectedItems();
+				if (!StringUtils.isEmpty(_callbackupFunName))
+					IFrameUtils.execute(_iframeID, _callbackupFunName, records);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//关闭
+			protected function btnCancel_clickHandler(event:MouseEvent):void
+			{
+				titlewindow1_closeHandler(null);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//创建完成
+			protected function titlewindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				datagrid.setStyle("alternatingItemColors", [0xFFFFFF, 0xF5F5F5]);
+				createDataGrid();
+				this.currentState=_pageable ? "pageStatus" : "normalStatus";
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function createDataGrid():void
+			{
+				var c:UIComponent=null;
+				for (var k:String in _datagridParam2Control)
+				{
+					c=_datagridParam2Control[k];
+					if (c is TextInput)
+						c.removeEventListener(KeyboardEvent.KEY_DOWN, filterInputOnKeyPress);
+				}
+
+				for (var i2:int=_dynamicCreateControls.length - 1; i2 >= 0; i2--)
+				{
+					c=_dynamicCreateControls[i2];
+					groupFilter.removeElement(c);
+					delete _dynamicCreateControls[i2];
+				}
+
+				_dynamicCreateControls=[];
+
+
+				var gridColumns:Array=[];
+
+
+				var define:Object=JSFunUtils.JSFun("getDataSetGridDefine", [_portalID, _datasetName, _pageable, _params]);
+
+				var gridDefine:Object=define.define;
+
+				if (define != null)
+				{
+					_datagridParam2Control={};
+					var _havaFilterControl:Boolean=false;
+					var params:Array=gridDefine.Params;
+					var groupPanelVisible:Array=[false, false, false, false, false, false];
+					if (params && params.length != 0)
+					{
+						for (var j:int=0; j < params.length; j++)
+						{
+							var param:Object=params[j];
+							var controlPos:int=param["controlPos"] ? param["controlPos"] : 1;
+							var controlWidth=param["controlWidth"] ? param["controlWidth"] * 1 : 120;
+							groupPanelVisible[controlPos]=true;
+							var groupFilter:HGroup=filterPanelParent.getFilterPanel(controlPos - 1);
+							if (param["label"] != "")
+							{
+								var label:Label=new Label();
+								label.text=param["Label"];
+								UIUtils.padding(label, 0, 3, 0, 0);
+								groupFilter.addElement(label);
+								_dynamicCreateControls.push(label);
+							}
+
+							//暂时只支持简单文本过滤功能
+							//todo:xxx
+							if (param["Control"] == "TextBox")
+							{
+								var input:TextInput=new TextInput();
+								input.width=controlWidth;
+								input.height=24;
+								groupFilter.addElement(input);
+								_datagridParam2Control[param["Name"]]=input;
+								input.addEventListener(KeyboardEvent.KEY_DOWN, filterInputOnKeyPress);
+								_dynamicCreateControls.push(input);
+								_havaFilterControl=true;
+								_dynamicParamList.push(param["Name"]);
+							}
+							else if (param["Control"] == "ComboBox")
+							{
+								var combobox:ComboBox=new ComboBox();
+								combobox.width=controlWidth;
+								groupFilter.addElement(combobox);
+								_datagridParam2Control[param["Name"]]=combobox;
+								//input.addEventListener(KeyboardEvent.KEY_DOWN, filterInputOnKeyPress);
+								_dynamicCreateControls.push(combobox);
+								combobox.labelField="LABEL";
+								if (param.items)
+									combobox.dataProvider=new ArrayCollection(param.items);
+								else
+								{
+									refParentComboboxList.push(combobox);
+									combobox2ParentCombobox.push({p: comboboxList[comboboxList.length - 1], c: combobox, paramName: param["Name"]});
+								}
+								comboboxList.push(combobox);
+								combobox.addEventListener(IndexChangeEvent.CHANGE, event4ComboBoxFilterChange);
+								combobox.textInput.editable=false;
+								_havaFilterControl=true;
+								_dynamicParamList.push(param["Name"]);
+							}
+							else if (param["Control"] == "Date")
+							{
+								var datefield:DateField=new DateField();
+								datefield.editable=true;
+								datefield.formatString="YYYY-MM-DD";
+								datefield.yearNavigationEnabled=true;
+								groupFilter.addElement(datefield);
+								_datagridParam2Control[param["Name"]]=datefield;
+								datefield.addEventListener(mx.events.FlexEvent.DATA_CHANGE, function(event:FlexEvent):void
+								{
+									filterInputOnKeyPress(null);
+								});
+								_dynamicCreateControls.push(datefield);
+								_havaFilterControl=true;
+								_dynamicParamList.push(param["Name"]);
+							}
+
+						} //end for
+
+						if (_havaFilterControl)
+						{
+							for (var i:int=1; i <= 5; i++)
+								if (groupPanelVisible[i])
+									groupFilter=filterPanelParent.getFilterPanel(i - 1);
+							var btn:IconButton=new IconButton();
+							btn.toolTip="过滤数据";
+							btn.addEventListener(MouseEvent.CLICK, function():void
+							{
+								filterInputOnKeyPress(null);
+							});
+							btn.iconURL="../images/18x18/search.png";
+							groupFilter.addElement(btn);
+							_dynamicCreateControls.push(btn);
+						}
+
+					}
+					filterPanelParent.setPanelVisible(groupPanelVisible);
+
+
+					var columns:Array=gridDefine.Columns;
+					var gridColumn:DataGridColumn=null;
+					if (_multiSelected)
+					{
+						gridColumn=new DataGridColumn();
+						gridColumn.dataField="__chk__";
+						gridColumn.width=25;
+						gridColumn.headerText="";
+						gridColumn.itemRenderer=new ClassFactory(CheckBoxItemRender);
+						gridColumn.resizable=false;
+						gridColumn.setStyle("textAlign", "center");
+						gridColumns.push(gridColumn);
+					}
+
+					for (var i:int=0; i < columns.length; i++)
+					{
+						var column:Object=columns[i];
+						gridColumn=new DataGridColumn();
+						gridColumn.dataField=column.Field;
+						gridColumn.headerText=column.Caption;
+						if (int(_portalID) == -1)
+						{
+							if (!isNaN(column.Width))
+								gridColumn.width=column.Width;
+							if (column.Width == 0)
+								gridColumn.visible=false;
+						}
+						gridColumns.push(gridColumn);
+					}
+					datagrid.columns=gridColumns;
+					datagrid.lockedColumnCount=gridColumns.length <= 3 ? 0 : (_multiSelected ? 2 : 1);
+					fillRecordsToDataGrid(define, true);
+
+				}
+
+			}
+
+
+			private function fillFilterValue2Control():void
+			{
+				for (var i:int=0; i < _dynamicParamList.length; i++)
+				{
+					var k:String=_dynamicParamList[k];
+					var control:UIComponent=_datagridParam2Control[k];
+					if (!control)
+						continue;
+					var value:String=_params[k];
+					if (control is TextInput)
+						TextInput(control).text=value;
+					//else if (control is ComboBox)
+					//	value=ComboBox(control).selectedItem ? ComboBox(control).selectedItem.ID : "";
+					else if (control is DateField)
+						DateField(control).selectedDate=Convert.str2Date(value);
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4ComboBoxFilterChange(event:IndexChangeEvent):void
+			{
+				var combobox:ComboBox=event.currentTarget as ComboBox;
+				loadChildComboboxItems(combobox);
+			}
+
+			private function loadChildComboboxItems(combobox:ComboBox):void
+			{
+				for (var i:int=0; i < combobox2ParentCombobox.length; i++)
+				{
+					var item:Object=combobox2ParentCombobox[i];
+					if (item.p == combobox)
+					{
+						var PARENT_COMBOBOX_VALUE:String=combobox.selectedItem ? combobox.selectedItem.ID : "";
+						var httpParams:Object=ObjectUtil.clone(this._params);
+						httpParams.PARENT_COMBOBOX=PARENT_COMBOBOX_VALUE;
+						httpParams.parent_combobox=PARENT_COMBOBOX_VALUE;
+						httpParams.paramName=item.paramName;
+						httpParams.portalId=httpParams.portalID;
+						if (combobox.selectedItem && combobox.selectedItem.items)
+						{
+							item.c.dataProvider=new ArrayCollection(combobox.selectedItem.items);
+							item.c.selectedItem=null;
+							item.c.selectedIndex=-1;
+							item.c.validateDisplayList();
+							item.c.validateNow();
+							loadChildComboboxItems(item.c as ComboBox);
+						}
+						else
+						{
+							AjaxUtils.postData("../client/listortreedataset?o=getComboboxItems", httpParams, function(text:String, token:Object):void
+							{
+								var json:Object=JSON.parse(text);
+								if (!json.items)
+									json.items=[];
+								item.c.dataProvider=new ArrayCollection(json.items);
+								item.c.selectedItem=null;
+								item.c.selectedIndex=-1;
+								item.c.validateDisplayList();
+								item.c.validateNow();
+								if (combobox.selectedItem)
+									combobox.selectedItem.items=json.items;
+								loadChildComboboxItems(item.c as ComboBox);
+							});
+						}
+						break;
+					}
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//填充数据
+			private function fillRecordsToDataGrid(define:Object, isFirst:Boolean):void
+			{
+				_currentPage=define.records.cp;
+				if (currentState == "pageStatus")
+				{
+					edit_currentPage.text=String(_currentPage);
+					label_totalPage.text="共" + define.records.tp + "页";
+					label_recordRange.text="总记录:" + define.records.tr + " 当前范围:" + ((_currentPage - 1) * 200 + 1) + "-" + (define.records.tp == _currentPage ? define.records.tr : _currentPage * 200);
+				}
+				datagrid.dataProvider=new ArrayCollection(define.records.rows);
+				datagrid.callLater(function():void
+				{
+					adjustPortalGridWidth(isFirst);
+				});
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function btn_first_clickHandler(event:MouseEvent):void
+			{
+				if (event.currentTarget == btn_first)
+					_currentPage=1;
+				else if (event.currentTarget == btn_prev)
+					_currentPage-=1;
+				else if (event.currentTarget == btn_next)
+					_currentPage+=1;
+				else if (event.currentTarget == btn_last)
+					_currentPage=65535;
+				if (_currentPage < 1)
+					_currentPage=1;
+
+				loadDataGrid();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//回车翻页支持
+			protected function edit_currentPage_keyDownHandler(event:KeyboardEvent):void
+			{
+				if (event.keyCode == 13)
+				{
+					var page:int=Convert.str2int(edit_currentPage.text, 1);
+					if (_currentPage != page)
+					{
+						_currentPage=page;
+						loadDataGrid();
+					}
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function loadDataGrid():void
+			{
+				var k:String="";
+				var extParams:Object={};
+				for (k in _params)
+					extParams[k]=_params[k];
+				for (k in _datagridParam2Control)
+				{
+					var control:UIComponent=_datagridParam2Control[k];
+					var value:String="";
+					if (control is TextInput)
+						value=StringUtils.trim(TextInput(control).text);
+					else if (control is ComboBox)
+						value=ComboBox(control).selectedItem ? ComboBox(control).selectedItem.ID : "";
+					else if (control is DateField)
+						value=Convert.dateTime2Str(DateField(control).selectedDate, "YYYY-MM-DD");
+					extParams[k]=value;
+				}
+				var define:Object=JSFunUtils.JSFun("getDataSetGridDatas", [_portalID, _datasetName, _pageable, _currentPage, extParams]);
+				if (define != null)
+					fillRecordsToDataGrid(define, false);
+			}
+
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//过滤器文本输入框回车事件 过滤数据
+			private function filterInputOnKeyPress(event:KeyboardEvent):void
+			{
+				if (event == null || event.keyCode == 13)
+				{
+					loadDataGrid();
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function datagrid_doubleClickHandler(event:MouseEvent):void
+			{
+				btnOK_clickHandler(null);
+			}
+
+			private function getSelectedItems():Array
+			{
+				var result:Array=[];
+				if (_multiSelected)
+				{
+					var gridDatas:Array=ArrayCollection(datagrid.dataProvider).source;
+					for (var i:int=0; i < gridDatas.length; i++)
+					{
+						var record:Object=gridDatas[i];
+						if (Convert.object2Boolean(record["__chk__"]))
+							result.push(record);
+					}
+				}
+				else
+				{
+					var item:Object=datagrid.selectedItem;
+					if (item)
+						result.push(item);
+				}
+				return result;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			//自动调整宽度
+			private function adjustPortalGridWidth(isFirst:Boolean):void
+			{
+				var goodWidth:int=_multiSelected ? 40 : 10;
+				var records:Array=ArrayCollection(datagrid.dataProvider).source;
+				for (var i:int=_multiSelected ? 1 : 0; i < datagrid.columns.length; i++)
+				{
+					var colWidth:int=FlexGlobals.topLevelApplication.measureTextWidth(datagrid.columns[i].headerText);
+					for (var j:int=0; j < records.length; j++)
+					{
+						var str:String=records[j][datagrid.columns[i].dataField];
+						colWidth=Math.max(colWidth, FlexGlobals.topLevelApplication.measureTextWidth(str));
+					}
+					datagrid.columns[i].width=colWidth + 20;
+					goodWidth+=datagrid.columns[i].width;
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%" height="100%" gap="0">
+		<!--
+		<s:BorderContainer id="panelHeader" width="100%" height="28" backgroundColor="0xDCEBFE" borderColor="0xEFEFEF" borderWeight="1">
+
+		</s:BorderContainer>
+		-->
+		<component:FilterPanel width="100%" id="filterPanelParent"/>
+
+		<s:VGroup id="groupGrid" width="100%" height="100%" paddingLeft="-1" paddingRight="-1" paddingTop="-1">
+			<mx:DataGrid borderColor="0x000000" horizontalScrollPolicy="auto" creationComplete="titlewindow1_creationCompleteHandler(event)" doubleClickEnabled="true" doubleClick="datagrid_doubleClickHandler(event)" id="datagrid" width="100%" height="100%" paddingLeft="2" paddingRight="2"
+						 headerHeight="28" rowHeight="25" sortableColumns="false">
+			</mx:DataGrid>
+		</s:VGroup>
+		<s:HGroup width="100%" height="38" verticalAlign="middle" paddingRight="2" paddingLeft="2">
+			<s:HGroup id="groupPagination" includeIn="pageStatus" verticalAlign="middle">
+				<s:Button id="btn_first" width="24" height="24" icon="@Embed('/assets/common/pagination_first.png')" click="btn_first_clickHandler(event)"/>
+				<s:Button id="btn_prev" width="24" height="24" icon="@Embed('/assets/common/pagination_prev.png')" click="btn_first_clickHandler(event)"/>
+				<s:Label height="24" verticalAlign="middle" verticalCenter="10" text="页码:"/>
+				<s:TextInput id="edit_currentPage" width="40" height="24" keyDown="edit_currentPage_keyDownHandler(event)"/>
+				<s:Label id="label_totalPage" height="24" verticalAlign="middle" text="共X页"/>
+				<s:Button id="btn_next" width="24" height="24" icon="@Embed('/assets/common/pagination_next.png')" click="btn_first_clickHandler(event)"/>
+				<s:Button id="btn_last" width="24" height="24" icon="@Embed('/assets/common/pagination_last.png')" click="btn_first_clickHandler(event)"/>
+				<component:ToolbarVertline/>
+				<s:Label id="label_recordRange" height="24" fontWeight="bold" paddingRight="3" paddingTop="3" verticalAlign="middle" text=""/>
+			</s:HGroup>
+			<s:Spacer width="100%"/>
+			<s:Button width="75" height="30" label="确定" click="btnOK_clickHandler(event)" fontWeight="bold">
+			</s:Button>
+			<s:Button width="75" height="30" label="关闭" click="btnCancel_clickHandler(event)" fontWeight="bold">
+			</s:Button>
+		</s:HGroup>
+	</s:VGroup>
+</component:TitleWindowEx>

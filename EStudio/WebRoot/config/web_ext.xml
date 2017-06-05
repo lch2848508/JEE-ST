@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config>
+	<category type="YSHTORA">
+		<server>192.168.225.178</server>
+		<port>1521</port>
+		<sid>szlh</sid>
+		<user>GJS_YSHT</user>
+		<password>GJS_YSHT</password>
+	</category>
+</config>

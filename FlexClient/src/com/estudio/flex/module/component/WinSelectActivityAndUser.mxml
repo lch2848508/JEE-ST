@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx width="580" height="380" borderColor="0x080808"  creationComplete="titlewindowex1_creationCompleteHandler(event)" title="工作流发送" close="event4CloseWindow(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark"
+						 xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.JSFunUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+			import spark.events.IndexChangeEvent;
+
+			import flashx.textLayout.conversion.TextConverter;
+
+			//--------------------------------------------------------------------------------------
+			private var acitivtyParams:Array=null;
+
+			private var processInfos:Object=null;
+
+			private var totalGroupNumber:int=0;
+
+			private var currentGroupNumber:int=0;
+
+			private var currentGroup:Object=null;
+
+			private var callFunction:Function=null;
+
+			private var batchSendResult:Object=null;
+
+			//--------------------------------------------------------------------------------------
+			protected function event4CloseWindow(event:Event):void
+			{
+				cbActivity.dataProvider=null;
+				datagridUsers.dataProvider=null;
+				listProcess.dataProvider=null;
+				PopUpManager.removePopUp(_instance);
+				if (event == null && callFunction != null)
+					callFunction(batchSendResult);
+			}
+
+			//--------------------------------------------------------------------------------------
+			protected function cbActivity_creationCompleteHandler(event:FlexEvent):void
+			{
+				cbActivity.textInput.editable=false;
+			}
+
+			//---------------------------------------------------------------------------------------
+			private function initUI():void
+			{
+				currentGroupNumber=0;
+				totalGroupNumber=acitivtyParams.length;
+				initGroupDatas();
+			}
+
+			private function initGroupDatas():void
+			{
+				currentGroup=acitivtyParams[currentGroupNumber];
+
+				var html:String=" 选定的业务已被智能分为 <b><font color='#FF0000'>" + totalGroupNumber + "</font></b> 组，请选择第 <b><font color='#FF0000'>" + (currentGroupNumber + 1) + "</font></b> 组的收件人。";
+				labelProgress.textFlow=TextConverter.importToFlow(html, TextConverter.TEXT_FIELD_HTML_FORMAT);
+				labelProgress.validateNow();
+
+				html=" <font color='#FF0000'>第" + (currentGroupNumber + 1) + "组: </font>" + currentGroup.processName;
+				//labelProcess.text=html;
+				labelProcess.textFlow=TextConverter.importToFlow(html, TextConverter.TEXT_FIELD_HTML_FORMAT);
+				labelProcess.validateNow();
+
+				listProcess.dataProvider=currentGroup.processIds;
+
+				var selectedIndex:int=Convert.str2int(currentGroup.selectedActivityIndex);
+				cbActivity.dataProvider=new ArrayCollection(currentGroup.activitys);
+				cbActivity.selectedIndex=selectedIndex;
+				cbActivity.selectedItem=cbActivity.dataProvider.getItemAt(selectedIndex);
+				fullUserListToDataGrid(cbActivity.selectedItem);
+
+				btnNext.enabled=currentGroupNumber < totalGroupNumber - 1;
+				btnPreview.enabled=currentGroupNumber > 0;
+			}
+
+			//---------------------------------------------------------------------------------------
+			//创建完成事件
+			protected function titlewindowex1_creationCompleteHandler(event:FlexEvent):void
+			{
+				initUI();
+			}
+
+			//---------------------------------------------------------------------------------------
+			protected function btnNextOrPrevClick(event:MouseEvent):void
+			{
+				var step:int=event.currentTarget == btnNext ? 1 : -1;
+				currentGroupNumber+=step;
+				saveSelectedActivityStatus();
+				initGroupDatas();
+			}
+
+			//---------------------------------------------------------------------------------------
+			protected function cbActivity_changeHandler(event:IndexChangeEvent):void
+			{
+				saveSelectedUserStatus(event.oldIndex);
+				var selectedItem:Object=cbActivity.selectedItem;
+				fullUserListToDataGrid(selectedItem);
+			}
+
+			//----------------------------------------------------------------------------------------
+			private function fullUserListToDataGrid(selectedItem:Object):void
+			{
+				datagridUsers.dataProvider=new ArrayCollection(selectedItem.users);
+				var selectedUserIndex:int=Convert.str2int(selectedItem.selectedUserIndex, 0);
+				if (selectedUserIndex < 0)
+					selectedUserIndex=0;
+				datagridUsers.selectedIndex=selectedUserIndex;
+				datagridUsers.selectedItem=datagridUsers.dataProvider.getItemAt(selectedUserIndex);
+				columnUserChecked.visible=selectedItem.multiReciver;
+			}
+
+			//----------------------------------------------------------------------------------------
+			private function saveSelectedActivityStatus():void
+			{
+				if (currentGroup)
+				{
+					var fixIndex:int=Math.max(0, cbActivity.selectedIndex);
+					saveSelectedUserStatus(fixIndex);
+					currentGroup.selectedActivityIndex=fixIndex;
+				}
+			}
+
+			//----------------------------------------------------------------------------------------
+			private function saveSelectedUserStatus(index:int):void
+			{
+				if (index > -1)
+				{
+					var item:Object=cbActivity.dataProvider.getItemAt(index);
+					item.selectedUserIndex=Math.max(0, datagridUsers.selectedIndex);
+				}
+			}
+
+			//-----------------------------------------------------------------------------------------
+			//点击发送
+			protected function btnOK_clickHandler(event:MouseEvent):void
+			{
+				saveSelectedActivityStatus();
+				var noSettingGroup:Array=[];
+				var datas:Array=[];
+				for (var i:int=0; i < acitivtyParams.length; i++)
+				{
+					var item:Object=acitivtyParams[i];
+					if (Convert.str2int(item.selectedActivityIndex, -1) == -1)
+					{
+						noSettingGroup.push(i + 1);
+						continue;
+					}
+					var data:Object={};
+					data.process=item.processIds;
+					data.toActivitys=[];
+					{
+						var activity:Object=item.activitys[item.selectedActivityIndex];
+						var toActivity:Object={name: activity.name};
+						if (activity.multiReciver)
+						{
+							var toUsers:Array=[];
+							for (var j:int=0; j < activity.users; j++)
+							{
+								var user:Object=activity.users[j];
+								if (user.selected)
+									toUsers.push(user);
+							}
+							toActivity.toUsers=toUsers;
+						}
+						else
+						{
+							toActivity.toUsers=[activity.users[activity.selectedUserIndex]];
+						}
+						data.toActivitys.push(toActivity);
+					}
+					datas.push(data);
+				}
+				if (noSettingGroup.length != 0)
+				{
+					AlertUtils.confirm("第" + noSettingGroup.join(",") + "组尚未设置收件人(将忽略发送)，是否继续设置？", function():void
+					{
+						batchSendProcess(datas);
+					});
+				}
+				else
+				{
+					batchSendProcess(datas);
+				}
+			}
+
+			//------------------------------------------------------------------------------------------
+			private function batchSendProcess(datas:Object):void
+			{
+				batchSendResult=JSFunUtils.JSFun("WORKFLOW_BATCH_SEND", JSON.stringify(datas));
+				event4CloseWindow(null);
+			}
+			//------------------------------------------------------------------------------------------
+		]]>
+	</fx:Script>
+	<component:layout>
+		<s:VerticalLayout gap="0"/>
+	</component:layout>
+	<fx:Declarations>
+	</fx:Declarations>
+	<s:HGroup width="100%" height="100%" paddingLeft="-1" paddingRight="-1" gap="4">
+		<!-- 业务列表 -->
+		<s:Group width="100%" height="100%">
+			<s:BorderContainer width="100%" height="32" left="0" top="-1" borderColor="0x080808">
+				<s:RichText id="labelProcess" width="100%" height="32" color="0x0000FF" fontWeight="bold" verticalAlign="middle"/>
+			</s:BorderContainer>
+
+			<mx:List id="listProcess" left="0" right="0" top="30" bottom="0" borderColor="0x080808" labelField="process_id" selectable="false" rowHeight="28">
+			</mx:List>
+
+		</s:Group>
+		<!-- 选择节点及用户 -->
+		<s:VGroup width="100%" height="100%" gap="0">
+			<!-- 选择环节 -->
+			<s:HGroup width="100%" height="30" paddingRight="2" verticalAlign="middle" gap="1">
+				<s:Line width="0" height="100%">
+					<s:stroke>
+						<s:SolidColorStroke color="#080808"/>
+					</s:stroke>
+				</s:Line>
+				<s:Label text=" 环节:"/>
+				<s:ComboBox id="cbActivity" width="100%" labelField="caption" change="cbActivity_changeHandler(event)" creationComplete="cbActivity_creationCompleteHandler(event)"/>
+			</s:HGroup>
+			<!-- 选择用户 -->
+			<mx:DataGrid id="datagridUsers" width="100%" height="100%" borderColor="0x080808" alternatingItemColors="[0xFEFEFE]" horizontalGridLines="true" verticalGridLines="true" headerHeight="28" rowHeight="28">
+				<mx:columns>
+					<mx:DataGridColumn id="columnUserChecked" width="25" dataField="selected" sortable="false" resizable="false" headerText="">
+						<mx:itemRenderer>
+							<fx:Component>
+								<mx:Canvas>
+
+									<fx:Script>
+										<![CDATA[
+											protected function checkbox1_clickHandler(event:MouseEvent):void
+											{
+												data.selected=checkbox.selected;
+											}
+										]]>
+									</fx:Script>
+
+									<mx:CheckBox id="checkbox" horizontalCenter="0" verticalCenter="0" selected="{data.selected}" click="checkbox1_clickHandler(event)">
+									</mx:CheckBox>
+								</mx:Canvas>
+							</fx:Component>
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+					<mx:DataGridColumn headerText="可收件人员列表(点击选择)" dataField="name" sortable="false">
+					</mx:DataGridColumn>
+				</mx:columns>
+			</mx:DataGrid>
+		</s:VGroup>
+
+	</s:HGroup>
+
+	<s:Group width="100%" height="38">
+		<s:RichText id="labelProgress" width="100%" verticalCenter="0">
+
+		</s:RichText>
+		<s:Button id="btnOK" width="60" height="28" right="5" verticalCenter="0" label="发送" click="btnOK_clickHandler(event)"/>
+		<s:Button id="btnPreview" width="60" height="28" right="135" verticalCenter="0" label="上一组" click="btnNextOrPrevClick(event)"/>
+		<s:Button id="btnNext" width="60" height="28" right="70" verticalCenter="0" label="下一组" click="btnNextOrPrevClick(event)"/>
+	</s:Group>
+	<fx:Script>
+		<![CDATA[
+			import mx.core.FlexGlobals;
+
+			private static var _instance:WinSelectActivityAndUser=null;
+
+			public static function execute(params:Array, processInfos:Object, callFunction:Function):void
+			{
+				var isFirstRun:Boolean=false;
+				if (!_instance)
+				{
+					_instance=new WinSelectActivityAndUser();
+					isFirstRun=true;
+				}
+				_instance.acitivtyParams=params;
+				_instance.callFunction=callFunction;
+				_instance.processInfos=processInfos;
+				_instance.batchSendResult=null;
+				if (!isFirstRun)
+					_instance.initUI();
+
+				PopUpManager.addPopUp(_instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(_instance);
+			}
+		]]>
+	</fx:Script>
+</component:TitleWindowEx>

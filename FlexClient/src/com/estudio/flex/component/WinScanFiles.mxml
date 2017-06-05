@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="840" height="405" title="扫描文件(一次最多扫描20页)" close="event4WindowClose(event)"
+						 creationComplete="titlewindowex1_creationCompleteHandler(event)" xmlns:astion="astion.*">
+	<component:layout>
+		<s:VerticalLayout gap="0"/>
+	</component:layout>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.ImageUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+			import spark.events.IndexChangeEvent;
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			private var cameraSizes:Array=[{label: "低", h: 565, w: 800}, {label: "中", h: 724, w: 1024}, {label: "高", h: 1130, w: 1600}];
+			private var currentCamera:Camera=null;
+			private var url:String="";
+			private var callFunction:Function=null;
+			private var fileIndex:int=1;
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function event4WindowClose(event:Event):void
+			{
+				clearResource();
+				PopUpManager.removePopUp(_instance);
+				if (callFunction != null)
+					callFunction();
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			private function clearResource():void
+			{
+				fileIndex=1;
+				currentCamera=null;
+				Video.attachCamera(currentCamera);
+				scanPictures=[];
+				datagridFiles.dataProvider=new ArrayCollection(scanPictures);
+				lockControlStatus(true);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////
+			//选择摄像头
+			protected function CB_Camera_changeHandler(event:IndexChangeEvent):void
+			{
+				attachmentCamera();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////
+			//连接摄像头
+			public function attachmentCamera():void
+			{
+				if (currentCamera != null)
+					Video.attachCamera(null);
+				if (CB_Camera.selectedIndex >= 0)
+				{
+					currentCamera=Camera.getCamera(String(CB_Camera.selectedIndex));
+					if (currentCamera != null)
+					{
+						var w:int=CB_Size.selectedItem.w;
+						var h:int=CB_Size.selectedItem.h;
+						currentCamera.setMode(w, h, 1);
+						//currentCamera.setQuality(0, 100);
+						Video.attachCamera(currentCamera);
+					}
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_creationCompleteHandler(event:FlexEvent):void
+			{
+				CB_Camera.textInput.editable=false;
+				CB_Size.textInput.editable=false;
+				CB_Rotate.textInput.editable=false;
+				if (CB_Camera.dataProvider.length != 0)
+					CB_Camera.selectedIndex=0;
+				attachmentCamera();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function getScanBitmap(w:int, h:int):Bitmap
+			{
+				var vx:int=Video.x;
+				var vy:int=Video.y;
+				var vw:int=Video.width;
+				var vh:int=Video.height;
+				//大图片
+				var scaleW:Number=w / Video.width;
+				var scaleH:Number=h / Video.height;
+
+				if (Scale_Box.x < vx)
+					Scale_Box.x=vx;
+				if (Scale_Box.x > vx + vw)
+					Scale_Box.x=vx + vw;
+				if (Scale_Box.x + Scale_Box.boxWidth > vx + vw)
+					Scale_Box.boxWidth=vx + vw - Scale_Box.x;
+
+				if (Scale_Box.y < vy)
+					Scale_Box.y=vy;
+				if (Scale_Box.y > vy + vh)
+					Scale_Box.y=vy + vh;
+				if (Scale_Box.y + Scale_Box.boxHeight > vy + vh)
+					Scale_Box.boxHeight=vy + vh - Scale_Box.y;
+
+				var offsetX:int=Scale_Box.x * scaleW;
+				var offsetY:int=Scale_Box.y * scaleH;
+				var scaleWidth:int=Scale_Box.boxWidth * scaleW;
+				var scaleHeight:int=Scale_Box.boxHeight * scaleH;
+				if (scaleWidth > 0 && scaleHeight > 0)
+				{ //尺寸要满足条件
+					var bd:BitmapData=new BitmapData(w, h);
+					var matrix:Matrix=new Matrix();
+					matrix.scale(scaleW, scaleH);
+					bd.draw(Video, matrix);
+					var scaleBD:BitmapData=new BitmapData(scaleWidth, scaleHeight);
+					scaleBD.copyPixels(bd, new Rectangle(offsetX, offsetY, scaleWidth, scaleHeight), new Point(0, 0));
+					bd.dispose();
+
+					if (CB_Rotate.selectedIndex == 1)
+						scaleBD=ImageUtils.rotat90(scaleBD);
+					else if (CB_Rotate.selectedIndex == 2)
+						scaleBD=ImageUtils.rotat180(scaleBD);
+					else if (CB_Rotate.selectedIndex == 3)
+						scaleBD=ImageUtils.rotat270(scaleBD);
+					return new Bitmap(scaleBD);
+				}
+				return null;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//扫描文件
+			protected function eventScanFile(event:MouseEvent):void
+			{
+				var w:int=CB_Size.selectedItem.w;
+				var h:int=CB_Size.selectedItem.h;
+				var bitmap:Bitmap=getScanBitmap(w, h);
+				var smallIcon:Bitmap=getScanBitmap(24, 18);
+				if (bitmap != null && smallIcon != null)
+				{
+					scanPictures.push({bitmap: bitmap, icon: smallIcon, selected: false, status: "", filename: (fileIndex++), descript: ""});
+					var pos:int=datagridFiles.verticalScrollPosition;
+					datagridFiles.dataProvider=new ArrayCollection(scanPictures);
+					datagridFiles.verticalScrollPosition=pos;
+				}
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private var scanPictures:Array=[];
+
+
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function selectFile(isSelected:Boolean):void
+			{
+				var item:Object=datagridFiles.selectedItem;
+				item.selected=isSelected;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//删除选定的文件
+			protected function event4DeleteFile(event:MouseEvent):void
+			{
+				for (var i:int=scanPictures.length - 1; i >= 0; i--)
+				{
+					var item:Object=scanPictures[i];
+					if (item.selected)
+					{
+						ArrayUtils.remove(scanPictures, i);
+					}
+				}
+				var pos:int=datagridFiles.verticalScrollPosition;
+				datagridFiles.dataProvider=new ArrayCollection(scanPictures);
+				datagridFiles.verticalScrollPosition=pos;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function lockControlStatus(isEditable:Boolean):void
+			{
+				btnClose.enabled=isEditable;
+				btnSave.enabled=isEditable;
+				btnScan.enabled=isEditable;
+				btnDelete.enabled=isEditable;
+				columnStatus.visible=!isEditable;
+				columnSelected.visible=isEditable;
+				datagridFiles.editable=isEditable;
+				CB_Camera.enabled=isEditable;
+				CB_Size.enabled=isEditable;
+				CB_Rotate.enabled=isEditable;
+			}
+
+			private var currentIndex:int=0;
+			private var currentItem:Object=null;
+
+			protected function eventSaveFile(event:MouseEvent):void
+			{
+				lockControlStatus(false);
+				currentIndex=0;
+				if (scanPictures.length == 0)
+				{
+					event4WindowClose(null);
+					return;
+				}
+				startUploadFiles();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			//开始上传文件
+			private function startUploadFiles():void
+			{
+				currentItem=scanPictures[currentIndex];
+				if (StringUtils.isEmpty(currentItem.filename))
+					currentItem.filename=(fileIndex++);
+				currentItem.filename=currentItem.filename + ".jpg";
+				updateProgressStatus("编码数据...");
+
+				var url:String=this.url + "&descript=" + encodeURI(currentItem.descript);
+				var bytes:ByteArray=ImageUtils.bitmap2Jpeg(currentItem.bitmap.bitmapData); //new JPEGEncoder().encode(currentItem.bitmap.bitmapData);
+				AjaxUtils.uploadFile(url, "FileUpload", currentItem.filename, bytes, function(data:String):void
+				{
+
+					var json:Object=JSON.parse(data);
+					if (json && json.errorCode * 1 == -65535)
+					{
+						FlexGlobals.topLevelApplication.raiseSessionMissError();
+						return;
+					}
+
+					updateProgressStatus("上传完成");
+					currentIndex++;
+					if (currentIndex < scanPictures.length)
+						startUploadFiles();
+					else
+						event4WindowClose(null);
+				}, function(w:int, t:int):void
+				{
+					var p:int=w * 100 / t;
+					updateProgressStatus("上传进度:" + p + "%");
+					//progressBar.text="上传进度:" + p + "%";
+					//progressBar.invalidateDisplayList();
+				}, function(event:Event):void
+				{
+					updateProgressStatus("上传失败");
+					currentIndex++;
+					if (currentIndex < scanPictures.length)
+						startUploadFiles();
+					else
+						event4WindowClose(null);
+					//AlertUtils.alert("上传文件失败！！！", AlertUtils.ALERT_WARNING);
+					//setProgressStatus(false);
+					//this.invalidateDisplayList();
+					//editFileName.text="";
+					//_isUploading=false
+				});
+			}
+
+			////////////////////////////////////////////////////////////////////////
+			private function updateProgressStatus(str:String):void
+			{
+				currentItem.status=str;
+				var pos:int=datagridFiles.verticalScrollPosition;
+				datagridFiles.dataProvider=new ArrayCollection(scanPictures);
+				datagridFiles.verticalScrollPosition=pos;
+			}
+			/////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<!-- 工具条区域 -->
+	<s:HGroup paddingLeft="2" height="28" verticalAlign="middle">
+		<s:Label text="设备:">
+		</s:Label>
+		<s:ComboBox id="CB_Camera" width="250" change="CB_Camera_changeHandler(event)" dataProvider="{new ArrayCollection(Camera.names)}">
+		</s:ComboBox>
+		<s:Label text="分辨率:">
+		</s:Label>
+		<s:ComboBox width="70" selectedIndex="0" id="CB_Size" change="CB_Camera_changeHandler(event)" dataProvider="{new ArrayCollection(cameraSizes)}">
+		</s:ComboBox>
+		<s:Label text="旋转:">
+		</s:Label>
+		<s:ComboBox width="50" selectedIndex="0" id="CB_Rotate" dataProvider="{new ArrayCollection([0,90,180,270])}">
+		</s:ComboBox>
+	</s:HGroup>
+	<s:Line width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#808080"/>
+		</s:stroke>
+	</s:Line>
+	<!-- 主工作区域 -->
+	<s:HGroup width="100%" height="100%" gap="1">
+		<s:BorderContainer width="402" height="100%" backgroundColor="0xF5F5F5" borderVisible="false">
+			<s:Group width="100%" height="300" verticalCenter="0">
+				<mx:VideoDisplay id="Video" x="1" y="1" borderStyle="none" width="400" height="300">
+				</mx:VideoDisplay>
+				<astion:ScaleBox x="2" y="2" boxWidth="398" boxHeight="298" id="Scale_Box">
+				</astion:ScaleBox>
+			</s:Group>
+		</s:BorderContainer>
+		<s:Line width="0" height="100%">
+			<s:stroke>
+				<s:SolidColorStroke color="#808080"/>
+			</s:stroke>
+		</s:Line>
+		<mx:DataGrid id="datagridFiles" editable="true" width="100%" height="100%" borderStyle="none" headerHeight="28" rowHeight="25" horizontalGridLineColor="0xCCCCCC" verticalGridLineColor="0xCCCCCC" horizontalGridLines="true" verticalGridLines="true" verticalScrollPolicy="auto"
+					 alternatingItemColors="{[0xFFFFFF, 0xFFFFFF]}">
+			<mx:columns>
+				<mx:DataGridColumn id="columnSelected" editable="false" width="28" dataField="icon" headerText="" resizable="false">
+					<mx:itemRenderer>
+						<fx:Component>
+							<mx:Canvas>
+
+								<fx:Script>
+									<![CDATA[
+										protected function checkbox1_clickHandler(event:MouseEvent):void
+										{
+											owner["owner"]["owner"].selectFile(checkbox.selected);
+										}
+									]]>
+								</fx:Script>
+
+								<mx:CheckBox verticalCenter="0" selected="{data.selected}" id="checkbox" horizontalCenter="0" click="checkbox1_clickHandler(event)">
+								</mx:CheckBox>
+							</mx:Canvas>
+						</fx:Component>
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+
+				<mx:DataGridColumn editable="false" width="54" dataField="icon" headerText="预览" resizable="false">
+					<mx:itemRenderer>
+						<fx:Component>
+							<mx:Canvas>
+								<s:Image source="{data.icon}" verticalCenter="0" horizontalCenter="0">
+								</s:Image>
+							</mx:Canvas>
+						</fx:Component>
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+
+				<mx:DataGridColumn editable="true" width="120" dataField="filename" headerText="文件名" textAlign="left" resizable="true">
+				</mx:DataGridColumn>
+				<mx:DataGridColumn editable="true" width="360" dataField="descript" headerText="描述信息" textAlign="left" resizable="true">
+				</mx:DataGridColumn>
+				<mx:DataGridColumn width="80" dataField="status" id="columnStatus" visible="false" editable="false" headerText="状态" textAlign="left" resizable="false"/>
+			</mx:columns>
+		</mx:DataGrid>
+	</s:HGroup>
+
+	<s:Line width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#808080"/>
+		</s:stroke>
+	</s:Line>
+	<!-- 按钮区域 -->
+	<s:Group width="100%" height="38">
+		<s:Button width="60" height="28" top="5" right="5" label="关闭" click="event4WindowClose(event)" id="btnClose">
+		</s:Button>
+		<s:Button width="60" height="28" top="5" right="70" label="保存" id="btnSave" click="eventSaveFile(event)">
+		</s:Button>
+		<s:Button width="60" height="28" top="5" left="5" label="扫描" click="eventScanFile(event)" id="btnScan">
+		</s:Button>
+		<s:Button width="60" height="28" top="5" left="70" label="删除" click="event4DeleteFile(event)" id="btnDelete">
+		</s:Button>
+	</s:Group>
+
+	<fx:Script>
+		<![CDATA[
+			private static var _instance:WinScanFiles=null;
+
+			public static function execute(url:String, callFunction:Function, w:int=840, h:int=405, closeImmediately:Boolean=true):void
+			{
+				var isFirstRun:Boolean=false;
+				if (_instance == null)
+				{
+					_instance=new WinScanFiles();
+					isFirstRun=true;
+				}
+				_instance.url=url;
+				_instance.callFunction=callFunction;
+				_instance.width=w;
+				_instance.height=h;
+				PopUpManager.addPopUp(_instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(_instance);
+				if (!isFirstRun)
+				{
+					_instance.clearResource();
+					_instance.attachmentCamera();
+				}
+			}
+		]]>
+	</fx:Script>
+</component:TitleWindowEx>

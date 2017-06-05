@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer verticalCenter="0" focusEnabled="true" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<s:Rect id="shadow" left="0" right="0" top="0" bottom="0">
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:GradientEntry color="0xFFFFFF" alpha="0.2"/>
+				<s:GradientEntry color="#E2EDF5" alpha="0.8"/>
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+	<fx:Script>
+		<![CDATA[
+			
+		]]>
+	</fx:Script>
+	<s:Label left="1" right="1" top="1" bottom="1" paddingLeft="3" paddingRight="3" styleName="GridHeadeerItemLabel" text="{dataGridListData.label}">
+	</s:Label>
+</s:MXDataGridItemRenderer>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Grid width="100%" borderVisible="true" borderColor="#656E7B" borderStyle="solid" backgroundColor="0xCCCCCC" verticalAlign="middle" horizontalGap="1" verticalGap="1" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:spatialAnaly="com.webgis.module.spatialAnaly.*">
+	<fx:Script>
+		<![CDATA[
+			public var designFunction:Function=null;
+
+			public function addItem():void
+			{
+				var item:SpatialFunctionItem=new SpatialFunctionItem();
+				item.designFunction=this.designFunction;
+				this.addElement(item);
+			}
+			
+			public function getFormulas():Array
+			{
+				var result:Array = [];
+				for(var i:int=1;i<this.numElements;i++)
+				{
+					var item:SpatialFunctionItem = this.getElementAt(i) as SpatialFunctionItem;
+					var obj:Array = item.getFunctionAndLabel();
+					if(obj!=null)result.push(obj);
+				}
+				return result;
+			}
+		]]>
+	</fx:Script>
+	<mx:GridRow height="28" width="100%" fontWeight="bold">
+		<mx:GridItem width="100%" verticalAlign="middle" backgroundColor="0xF5F5F5" textAlign="center">
+			<s:Label text="公式" textAlign="center" width="100%" paddingTop="2"/>
+		</mx:GridItem>
+		<mx:GridItem width="80" verticalAlign="middle" backgroundColor="0xF5F5F5" textAlign="center">
+			<s:Label text="标题" textAlign="center" width="100%" paddingTop="2"/>
+		</mx:GridItem>
+		<mx:GridItem width="55" verticalAlign="middle" backgroundColor="0xF5F5F5" textAlign="center">
+			<s:Label text="操作" textAlign="center" width="100%" paddingTop="2"/>
+		</mx:GridItem>
+	</mx:GridRow>
+</mx:Grid>

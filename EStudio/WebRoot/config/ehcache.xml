@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="ehcache.xsd" updateCheck="true"
+	monitoring="autodetect" dynamicConfig="true">
+	<diskStore path="java.io.tmpdir" />
+
+	<!-- 表单数据使用 -->
+	<cache name="FormDataSetRecordCache" maxEntriesLocalDisk="256000"
+		overflowToDisk="true" eternal="false" maxBytesLocalHeap="64M"
+		timeToIdleSeconds="14400" timeToLiveSeconds="14400">
+	</cache>
+
+	<!-- 同栏目 用户相关的WebClient使用 -->
+	<cache name="WebClient" maxEntriesLocalHeap="1024" eternal="false"
+		overflowToDisk="false" timeToIdleSeconds="14400" timeToLiveSeconds="14400">
+	</cache>
+
+
+	<!-- 表单 工作流 打印模版 查询模版 工作流界面模版使用 -->
+	<cache name="DesignService" maxEntriesLocalHeap="0"
+		overflowToDisk="false" eternal="true">
+	</cache>
+
+	<!-- GIS部分 -->
+	<cache name="webgiscache" eternal="true" maxBytesLocalHeap="512M"
+		overflowToDisk="true">
+	</cache>
+
+</ehcache>

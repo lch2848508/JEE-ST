@@ -1,0 +1,461 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx currentState="one" title="请输入桩号坐标" xmlns:fx="http://ns.adobe.com/mxml/2009"
+						 close="titlewindowex1_closeHandler(event)" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:s="library://ns.adobe.com/flex/spark"
+						 xmlns:component="com.estudio.flex.component.*" width="800" height="350" creationComplete="titlewindowex1_initializeHandler(event)" initialize="titlewindowex1_initializeHandler(event)">
+	<fx:Style source="../MapApp.css"/>
+	
+	<component:states>
+		<s:State name="one"/>
+		<s:State name="two"/>
+	</component:states>
+		
+	<fx:Script>
+		<![CDATA[
+			import com.as3xls.xls.ExcelFile;
+			import com.as3xls.xls.Sheet;
+			import com.esri.ags.Map;
+			import com.estudio.flex.component.DataGridEx;
+			import com.estudio.flex.component.FormGrid;
+			import com.estudio.flex.module.FormDataService;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.MapApp;
+			import com.webgis.event.MileageData;
+			import com.webgis.map.WebGISUtils;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ItemClickEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.utils.ObjectUtil;
+			import mx.utils.SecurityUtil;
+			private static var instance:WinMileageLocation=null;
+			private var callFunction:Function=null;
+			private var foucsOnMileage:Function=null;
+			
+			private var file:FileReference;
+			private var xls:ExcelFile;
+			var dp:ArrayCollection = new ArrayCollection;
+			
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+			public static function execute(callFunction:Function,foucsOnMileage:Function):void
+			{
+				if (instance == null)
+					instance=new WinMileageLocation();
+				instance.callFunction=callFunction;
+				instance.foucsOnMileage=foucsOnMileage;
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject);
+				PopUpManager.centerPopUp(instance);
+				
+			}
+			
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(instance);
+			}
+			
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+			
+			protected function dealMileageString(qszh:String):Number{
+				var qszhnum:Number=0;
+				var haveK:Boolean=false;
+				
+				var havePlus:Boolean=false;
+				if(StringUtils.contain(qszh,"k")||StringUtils.contain(qszh,"K")){
+					qszh=StringUtils.replace(qszh, "K", "");
+					qszh=StringUtils.replace(qszh, "k", "");
+					haveK=true;
+				}
+				if(StringUtils.contain(qszh,"+")){
+					qszh=StringUtils.replace(qszh, "+", "");
+					havePlus=true;
+				}
+				var isNum:Boolean =Number(qszh);
+				if(!isNum){
+					return -1;
+				}
+				if(haveK&&!havePlus){
+					qszhnum=parseFloat(qszh)*1000;
+				}else{
+					qszhnum=parseFloat(qszh);
+				}
+				return qszhnum;
+			}
+			
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				this.currentState="one";
+				PopUpManager.removePopUp(instance);
+			}
+			
+			protected function titlewindowex1_initializeHandler(event:FlexEvent):void
+			{
+				//this.currentState="one";
+				// TODO Auto-generated method stub
+			}
+			
+			
+			[Bindable]  
+			public var dataArr2:ArrayCollection =new ArrayCollection(
+				[{id:1,xlbh:"S10440204",qs:"10679",jz:"13579"},{id:2,xlbh:"S10440204",qs:"14679",jz:"17579"}]
+			);
+//			[Bindable]  
+//			public var dataArr2:ArrayCollection =new ArrayCollection(
+//				[{id:1,xlbh:"S10440204",qs:"10679",jz:"13579"}]
+//			);
+			//定位
+			[Bindable]
+			private var mapInstance:Map=null;
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+			
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(this.currentState=="one"){
+					location_one(dataArr2);
+				}else if(this.currentState="two"){
+					location_one(dp);
+				}
+			}
+			
+			public function location_one(datagird:ArrayCollection):void{
+				var mileArr:ArrayCollection=new ArrayCollection();
+				for each(var a:Object in datagird){
+					var xlbh:String=a.xlbh;
+					var qszh:String=a.qs;
+					var jzzh:String=a.jz;
+					if(xlbh==null||qszh==null||jzzh==null){
+						continue;
+					}
+					while (xlbh.indexOf(" ") != -1)
+						xlbh=StringUtils.replace(xlbh, " ", "");
+					while (qszh.indexOf(" ") != -1)
+						qszh=StringUtils.replace(qszh, " ", "");
+					while (jzzh.indexOf(" ") != -1)
+						jzzh=StringUtils.replace(jzzh, " ", "");
+					if(xlbh==""){
+						continue;
+					}
+					var qs:Number=dealMileageString(qszh);
+					var jz:Number=0;
+					if(jzzh==null||jzzh==""){
+						jz=qs+100;
+					}else{
+						jz=dealMileageString(jzzh);
+					}
+					
+					var b:Object=new Object();
+					b.xlbh=xlbh;
+					b.qs=qs;
+					b.jz=jz;
+					mileArr.addItem(b);	
+				}  
+				if(mileArr.length!=0){
+					callFunction(mileArr,this.currentState);
+					if(this.currentState=="one"){
+						grid.selectedIndex=0;
+					}else if(this.currentState=="two"){
+						dg.selectedIndex=0;
+					}
+					//				    PopUpManager.removePopUp(instance);	
+				}else{
+					callFunction(mileArr,this.currentState);
+					AlertUtils.alert("输入的坐标有误！");
+				}
+			}
+			//工具条
+			[Bindable]
+			public var btnbarArray:Array=[{label: "上传", tag: "upload"},{label: "增加", tag: "add"},{label: "删除", tag: "delete"},{label: "上一个", tag: "previous"},{label: "下一个", tag: "next"}]
+//			[Bindable]
+//			public var btnbarArray:Array=[{label: "增加", tag: "add"},{label: "删除", tag: "delete"},{label: "上一个", tag: "previous"},{label: "下一个", tag: "next"}]
+			protected function eventButtonItemClick(event:ItemClickEvent):void
+			{
+				var item:Object=event.item;
+				switch (item.tag)
+				{
+					case "upload": //增加
+						upload();
+						break;
+					case "add": //增加
+						appendGrid();
+						break;
+					case "delete": //编辑
+						deleteGrid();
+						break;
+					case "previous":
+						previousGrid();
+						break;
+					case "next":
+						nextGrid();
+						break;
+					default:
+						break;
+				}
+			}
+			
+			private function upload():void{
+				file=new FileReference();
+				file.addEventListener(Event.SELECT,file_select);
+				file.addEventListener(Event.COMPLETE,file_complete);
+				//file.addEventListener(ProgressEvent.PROGRESS,file_progress);
+				file.browse();
+			}
+			
+			private function file_select(e:Event):void{
+				if(file.size>0&&(file.type==".xls"||file.type==".xlsx")){
+					file.load();
+				}else{
+					trace("请选择Excel文件！");
+				}
+			}
+			private function file_complete(e:Event):void{
+			    this.currentState="two";
+				xls=new ExcelFile();
+				try{
+					xls.loadFromByteArray(e.target.data);
+				}catch(eofe:EOFError){
+					trace(eofe);
+				}
+				var sheet:Sheet=xls.sheets[0];
+				MileageData.MileageGridData=excelToArrayCollection(sheet.values);
+				MileageData.MileagePanelVisible=true;
+				location_one((MileageData.MileageGridData).recordData);
+				PopUpManager.removePopUp(instance);
+			}
+			
+			private function excelToArrayCollection(excelArray:ArrayCollection):Object{
+				var headerData:Array=new Array();
+				var recordData:Array=new Array();
+				var dataGridData:Object=new Object();
+				for(var i:int=0;i<excelArray.length;i++){
+					var line:Object=excelArray[i];
+					var linedata:Object=new Object();
+					if(i==0)
+					{
+						for(var j:int=0;j<line.length;j++)
+						{
+							var str:String="";
+							if(j==0)
+							{
+								var column:Object=line[j];
+								var obj:Object=new Object();
+								obj.headertext=column.value;
+								obj.datafield="xlbh";
+								headerData.push(obj);
+							}
+							if(j==1)
+							{
+								var column:Object=line[j];
+								var obj:Object=new Object();
+								obj.headertext=column.value;
+								obj.datafield="qs";
+								headerData.push(obj);
+							}
+							if(j==2)
+							{
+								var column:Object=line[j];
+								var obj:Object=new Object();
+								obj.headertext=column.value;
+								obj.datafield="jz";
+								headerData.push(obj);
+							}
+							if(j>2)
+							{
+								var column:Object=line[j];
+								var obj:Object=new Object();
+								str="F"+(j-2);
+								obj.datafield=str;
+								obj.headertext=column.value;
+								headerData.push(obj);
+							}
+							
+						}
+					}
+					else{
+						for(var j:int=0;j<line.length;j++){
+							var column:Object=line[j];
+							var str:String="";
+							if(j==0){						
+								linedata.xlbh=column.value;
+							}
+							if(j==1){
+								linedata.qs=column.value;							
+							}
+							if(j==2){
+								linedata.jz=column.value;	
+							}
+							if(j>2)
+							{
+								str="F"+(j-2);
+								linedata[str]=column.value;
+							}
+						}
+					}
+					if(linedata.xlbh&&linedata.xlbh!="")
+					{
+						recordData.push(linedata);
+					}
+					
+				}
+				var columns:Array = new Array();
+				var col:DataGridColumn;
+				for ( var i:int=0;i<headerData.length;i++) {
+					col = new DataGridColumn();
+					col.dataField=headerData[i].datafield;
+					col.headerText=headerData[i].headertext;
+					col.headerWordWrap=true;
+					col.setStyle("textAlign","center");
+					columns.push(col);
+				}
+				dataGridData.headerData=headerData;
+				dataGridData.columnData=columns;
+				dataGridData.recordData=new ArrayCollection(recordData);
+				var arr1:Array=new Array();
+				var ddlItemArr:Array=new Array();
+				for(var i:int=0;i<headerData.length;i++)
+				{
+					if((headerData[i].headertext).indexOf("桩号")==-1&&(headerData[i].headertext).indexOf("编号")==-1)
+					{
+						var tmp:Object={"datafield":headerData[i].datafield,"headertext":headerData[i].headertext};		
+						ddlItemArr.push(tmp);
+						arr1.push(headerData[i].headertext);
+					}
+				}   
+				dataGridData.ddlData=new ArrayCollection(arr1);
+				return dataGridData;
+			}
+			
+//			private function file_progress(e:ProgressEvent):void{
+//				progressBar.label=Math.round(100* e.bytesLoaded/e.bytesTotal)+"%";
+//				progressBar.setProgress(Math.round(100*e.bytesLoaded/e.bytesTotal),100);
+//			}
+			
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//追加数据记录
+			private function appendGrid():void
+			{
+				var length:int=dataArr2.length+1;
+				dataArr2.addItem({id:length});
+				grid.selectedIndex=length;
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//删除数据
+			public function deleteGrid(isForce:Boolean=false):void
+			{
+				if(dataArr2.length!=0){
+					var index:int=grid.selectedIndex;
+					if(index==-1){
+						index=dataArr2.length-1;
+					}
+					dataArr2.removeItemAt(index);
+					grid.selectedIndex=index-1;
+				}
+			}
+			private function previousGrid():void{
+				var datagrid:DataGrid=this.currentState=="one"?grid:dg;
+				var dataArr:ArrayCollection=this.currentState=="one"?dataArr2:dp;
+				var index:int= datagrid.selectedIndex;
+				if(dataArr.length==0){
+					return;
+				}
+				if(index==-1){
+					datagrid.selectedIndex=0;
+				}else if(index==0){
+					datagrid.selectedIndex=dataArr.length-1;
+				}else{
+					datagrid.selectedIndex=index-1;
+				}
+				var focusObj:Object=new Object();
+				focusObj.xlbh=dataArr[datagrid.selectedIndex].xlbh;
+				focusObj.qszh=dealMileageString(dataArr[datagrid.selectedIndex].qs);
+				focusObj.jzzh=dealMileageString(dataArr[datagrid.selectedIndex].jz);
+				if(focusObj.xlbh!=null){
+					foucsOnMileage(focusObj,this.currentState);
+				}
+			}
+			private function nextGrid():void{
+				var datagrid:DataGrid=this.currentState=="one"?grid:dg;
+				var dataArr:ArrayCollection=this.currentState=="one"?dataArr2:dp;
+				var index:int= datagrid.selectedIndex;
+				if(dataArr.length==0){
+					return;
+				}
+				if(index==-1||index==dataArr.length-1){
+					datagrid.selectedIndex=0;
+				}else{
+					datagrid.selectedIndex=index+1;
+				}
+				var focusObj:Object=new Object();
+				focusObj.xlbh=dataArr[datagrid.selectedIndex].xlbh;
+				focusObj.qszh=dealMileageString(dataArr[datagrid.selectedIndex].qs);
+				focusObj.jzzh=dealMileageString(dataArr[datagrid.selectedIndex].jz);
+				if(focusObj.xlbh!=null){
+					foucsOnMileage(focusObj,this.currentState);
+				}
+			}
+			
+			protected function grid_itemClickHandler(event:ListEvent):void
+			{
+				// TODO Auto-generated method stub itemClick="grid_itemClickHandler(event)" 
+				var focusObj:Object=new Object();
+				focusObj.xlbh=dataArr2[grid.selectedIndex].xlbh;
+				focusObj.qszh=dataArr2[grid.selectedIndex].qszh;
+				focusObj.jzzh=dataArr2[grid.selectedIndex].jzzh;
+				if(focusObj.xlbh!=null){
+					foucsOnMileage(focusObj,this.currentState);
+				}
+			}
+			
+		]]>
+	</fx:Script>
+
+	<s:Label text="请分别输入线路编号（G15）,起始桩号(2861816),截止桩号(2903074),单位（米）" left="10" top="8"/>
+	<s:Line width="100%" height="0" left="1" right="1" top="25">
+		<s:stroke>
+			<s:SolidColorStroke color="0xCCCCCC" weight="1" caps="square"/>
+		</s:stroke>
+	</s:Line>
+	<mx:DataGrid id="grid" headerHeight="25" editable="true" dataProvider="{dataArr2}" width="98%" height="85%" top="28" horizontalCenter="0" verticalScrollPolicy="auto" rowHeight="20" itemClick="grid_itemClickHandler(event)" includeIn="one">     
+		<mx:columns>     
+			<mx:DataGridColumn headerText="序号" id="dg4" dataField="id" textAlign="center" visible="false"/> 
+			<mx:DataGridColumn headerText="线路编号" id="dg1" dataField="xlbh" textAlign="center"/>     
+			<mx:DataGridColumn headerText="起始桩号" id="dg2" dataField="qs" textAlign="center"/>    
+			<mx:DataGridColumn headerText="截止桩号" id="dg3" dataField="jz" textAlign="center"/> 
+		</mx:columns>     
+	</mx:DataGrid>  
+	<mx:DataGrid id="dg" headerHeight="25" editable="true" dataProvider="{dataArr2}" width="98%" height="85%" top="28" horizontalCenter="0" verticalScrollPolicy="auto" rowHeight="20" itemClick="grid_itemClickHandler(event)" includeIn="two">     
+		<mx:columns>     
+			<mx:DataGridColumn headerText="序号" id="dg41" dataField="id" textAlign="center" visible="false"/> 
+			<mx:DataGridColumn headerText="线路编号" id="dg11" dataField="xlbh" textAlign="center"/>     
+			<mx:DataGridColumn headerText="起始桩号" id="dg21" dataField="qs" textAlign="center"/>    
+			<mx:DataGridColumn headerText="截止桩号" id="dg31" dataField="jz" textAlign="center"/> 
+		</mx:columns>     
+	</mx:DataGrid>  
+	<s:Line width="100%" height="0" left="1" right="1" bottom="30">
+		<s:stroke>
+			<s:SolidColorStroke color="0xCCCCCC" weight="1" caps="square"/>
+		</s:stroke>
+	</s:Line>
+	<s:Group width="100%" height="30" bottom="0" right="0">
+		<mx:ButtonBar id="buttonBar" left="5" height="23" verticalCenter="0" dataProvider="{btnbarArray}" color="#000000" itemClick="eventButtonItemClick(event)">
+		</mx:ButtonBar>
+		<s:Button width="60" height="23" right="75" verticalCenter="0" label="定位" click="button1_clickHandler(event)">
+		</s:Button>
+		<s:Button width="60" height="23" right="5" verticalCenter="0" label="关闭" click="button2_clickHandler(event)">
+		</s:Button>
+	</s:Group>
+</component:TitleWindowEx>

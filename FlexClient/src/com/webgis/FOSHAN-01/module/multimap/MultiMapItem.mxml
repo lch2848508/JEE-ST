@@ -1,0 +1,343 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group creationComplete="group1_creationCompleteHandler(event)" focusEnabled="true" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:map="com.webgis.map.*"
+		 xmlns:navigator="com.webgis.module.navigator.*" xmlns:toolbar="com.webgis.module.toolbar.*" xmlns:component="com.webgis.component.*">
+	<fx:Script>
+
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.ags.events.ExtentEvent;
+			import com.esri.ags.events.LayerEvent;
+			import com.esri.ags.events.MapEvent;
+			import com.esri.ags.events.PanEvent;
+			import com.esri.ags.events.ZoomEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.layers.Layer;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.webgis.MapLayerManager;
+			import com.webgis.component.LayerTreeItemRender;
+			import com.webgis.component.ToolbarTextButton;
+			import com.webgis.event.MapModeEvent;
+			import com.webgis.service.MapServiceClient;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+
+			[Bindable]
+			public var mapLayerManager:MapLayerManager=null;
+			public var mapServiceClient:MapServiceClient=null;
+
+			[Bindable]
+			public var selectedFieldName:String="";
+			public var extentChangeCallFunction:Function=null;
+			public var mapIndex:int=0;
+			public var mapApp:Object=null;
+			private var isFirstLoad:Boolean=true;
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			public function createControls():void
+			{
+				for (var i:int=0; i < mapLayerManager.getBaseLayers().length; i++)
+				{
+					var layerInfo:Object=mapLayerManager.getBaseLayers()[i];
+					var barItem:com.webgis.component.ToolbarTextButton=new ToolbarTextButton();
+					barItem.label=layerInfo.label;
+					toolbarBaseMap.addElement(barItem);
+					if (mapIndex == 0)
+					{
+						if (mapApp.map.baseMapIndex == i)
+						{
+							barItem.selected=true;
+							map.addLayer(map.createLayer(layerInfo.type, layerInfo.url, layerInfo));
+						}
+					}
+					else
+					{
+						if (i == 0)
+						{
+							barItem.selected=true;
+							map.addLayer(map.createLayer(layerInfo.type, layerInfo.url, layerInfo));
+						}
+					}
+
+					barItem.addEventListener(MouseEvent.CLICK, event4BaseMapToolbarClick);
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			private function event4BaseMapToolbarClick(event:MouseEvent):void
+			{
+				var barItem:ToolbarTextButton=event.currentTarget as ToolbarTextButton;
+				if (barItem.selected)
+					return;
+				for (var i:int=0; i < toolbarBaseMap.numElements; i++)
+				{
+					if (toolbarBaseMap.getElementAt(i) != barItem)
+						toolbarBaseMap.getElementAt(i)["selected"]=false;
+
+				}
+				barItem.selected=true;
+				map.changeBaseMap(toolbarBaseMap.getElementIndex(barItem));
+			}
+
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private var mapPositionInfo:Object=null;
+
+			public function setMapCenter(p:MapPoint, level:int):void
+			{
+				mapPositionInfo={level: level, p: p};
+				settingMapPosition();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function settingMapPosition():void
+			{
+				if (mapPositionInfo != null)
+				{
+					if (map && map.loaded)
+					{
+						if (map.level != mapPositionInfo.level || map.center.x != mapPositionInfo.p.x || map.center.y != mapPositionInfo.p.y)
+						{
+							map.level=mapPositionInfo.level;
+							map.centerAt(mapPositionInfo.p);
+						}
+						mapPositionInfo=null;
+					}
+					else
+					{
+						callLater(settingMapPosition);
+					}
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function map_extentChangeHandler(event:ExtentEvent):void
+			{
+				trace("mapIndex:" + mapIndex + " map.isFocused:" + map.isFocused);
+				if (map.isFocused && extentChangeCallFunction)
+					extentChangeCallFunction(this, map.center, map.level);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function mouseInMap():Boolean
+			{
+				var x:int=map.mouseX;
+				var y:int=map.mouseY;
+				return x >= 0 && y >= 0 && x <= map.width && y <= map.height;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function map_focusInHandler(event:FocusEvent):void
+			{
+				map.isFocused=true;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function map_focusOutHandler(event:FocusEvent):void
+			{
+				trace("map_focusOutHandler");
+				map.isFocused=false;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//识别实体
+			public function identifyFunction(geometry:Geometry, map:MapControl):void
+			{
+				var resolution:Number=map.extent.width / map.width;
+				var layerAndServerIds:Array=mapLayerManager.getIdentifyLayerIds(map, selectedFieldName);
+				mapServiceClient.identify(geometry, layerAndServerIds, resolution, function(json:Object):void
+				{
+					if (json.records && json.records.length != 0)
+					{
+						featureProperty.visible=true;
+						featureProperty.clear();
+						featureProperty.registerFeatures(json);
+						map.infoWindowContent=featureProperty;
+						map.infoWindow.label="点选图斑详细信息";
+						map.infoWindow.show(geometry as MapPoint);
+					}
+				});
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function tree_creationCompleteHandler(event:FlexEvent):void
+			{
+				tree.selectedFieldName=selectedFieldName;
+				tree.mapLayerManager=mapLayerManager;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				featureProperty.mapServiceClient = mapServiceClient;
+				navigatorContain.addControl(toolbar);
+				FlexGlobals.topLevelApplication.addEventListener(MapModeEvent.SWITCHLAYER, function(event:MapModeEvent):void
+				{
+					if (event.map == map && panelLegend.visible)
+					{
+						legend.layers=mapLayerManager.getLegendLayers(selectedFieldName);
+					}
+				});
+
+				FlexGlobals.topLevelApplication.addEventListener(MouseEvent.MOUSE_DOWN, appMouseDownEvent, false);
+				FlexGlobals.topLevelApplication.addEventListener(MouseEvent.MOUSE_DOWN, appMouseDownEvent, true);
+				FlexGlobals.topLevelApplication.addEventListener(MapModeEvent.CHANGEBASELAYER, function(event:MapModeEvent):void
+				{
+					if (map == event.map)
+					{
+						for (var i:int=0; i < toolbarBaseMap.numElements; i++)
+						{
+							(toolbarBaseMap.getElementAt(i) as ToolbarTextButton).selected=map.baseMapIndex == i;
+						}
+					}
+				});
+
+				var contextMenu:ContextMenu=new ContextMenu();
+				contextMenu.hideBuiltInItems();
+				var menuItems:Array=["叠加图层", "显示图例", "切换到主地图"];
+				for (var i:int=0; i < menuItems.length; i++)
+				{
+					var menuItem:ContextMenuItem=new ContextMenuItem(menuItems[i]);
+					menuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4ContextMenuItem);
+					contextMenu.customItems.push(menuItem);
+				}
+				map.contextMenu=contextMenu;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4ContextMenuItem(event:ContextMenuEvent):void
+			{
+				var menuItem:ContextMenuItem=event.currentTarget as ContextMenuItem;
+				var list:Array=[];
+				if (menuItem.caption == "叠加图层")
+				{
+					popupPanel.displayPopUp=true;
+				}
+				else if (menuItem.caption == "显示图例")
+				{
+					toolbarbutton2_clickHandler(null);
+				}
+				else if (menuItem.caption == "切换到主地图")
+				{
+					toolbarbutton1_clickHandler(null);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function appMouseDownEvent(event:MouseEvent):void
+			{
+				if (popupPanel.displayPopUp == true)
+				{
+					if (popupPanel.mouseX < 0 || popupPanel.mouseX > panelTree.width || popupPanel.mouseY > panelTree.height)
+						popupPanel.displayPopUp=false;
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			//显示在主地图中
+			protected function toolbarbutton1_clickHandler(event:MouseEvent):void
+			{
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(mapLayerManager.getDynamicLayerTree(), list);
+				for (var i:int=0; i < list.length; i++)
+				{
+					var item:Object=list[i];
+					item.selected=item[selectedFieldName];
+				}
+				mapApp.hideMultiMap();
+				mapLayerManager.switchDynamicLayerVisible(mapApp.map, null, "selected");
+				mapApp.map.level=map.level;
+				mapApp.map.centerAt(map.center);
+				mapApp.map.changeBaseMap(map.baseMapIndex);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function toolbarbutton2_clickHandler(event:MouseEvent):void
+			{
+				btnLegend.selected=!btnLegend.selected;
+				panelLegend.visible=btnLegend.selected;
+				if (panelLegend.visible)
+					legend.layers=mapLayerManager.getLegendLayers(selectedFieldName);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			protected function map_zoomEndHandler(event:ZoomEvent):void
+			{
+				if (panelLegend.visible)
+					legend.updateLayersLegend();
+			}
+
+			public var mouseWhellCallFunction:Function=null;
+
+			protected function map_mouseWheelHandler(event:MouseEvent):void
+			{
+				if (mouseWhellCallFunction)
+					mouseWhellCallFunction(this);
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+
+	</fx:Declarations>
+
+	<map:MapControl mouseWheel="map_mouseWheelHandler(event)" zoomEnd="map_zoomEndHandler(event)" identifyFuntion="{identifyFunction}" focusIn="map_focusInHandler(event)" focusOut="map_focusOutHandler(event)" extentChange="map_extentChangeHandler(event)" scaleBarVisible="false" id="map" width="100%"
+					height="100%" mapLayerManager="{mapLayerManager}"/>
+
+	<component:NavigatorSogoStyle map="{map}" id="navigatorContain" left="-1" top="-1"/>
+
+	<!--
+	<navigator:Navigation map="{map}" left="5" top="5"/>
+	-->
+	<s:HGroup verticalAlign="top" top="3" gap="4" id="toolbar">
+		<component:ToolbarTextPopupButton id="labelNavigator" label="叠加图层" click="{popupPanel.displayPopUp=true;}"/>
+		<component:ToolbarButton click="toolbarbutton1_clickHandler(event)" icon="@Embed('/assets/webgis/Full_Screen16.png')" toolTip="显示在主地图中"/>
+		<component:ToolbarButton id="btnLegend" click="toolbarbutton2_clickHandler(event)" icon="@Embed('/assets/webgis/Legend16.png')" toggle="true" toolTip="是否显示图例"/>
+		<s:HGroup gap="-1" id="toolbarBaseMap">
+		</s:HGroup>
+	</s:HGroup>
+
+	<s:PopUpAnchor id="popupPanel" left="-1" top="-1" height="0" popUpPosition="below">
+		<s:BorderContainer id="panelTree" borderColor="#BDCBD3" backgroundColor="0xFFFFFF" width="{map.width/2}" height="{map.height+2}">
+			<s:layout>
+				<s:VerticalLayout gap="0"/>
+			</s:layout>
+			<s:BorderContainer width="100%" borderVisible="false" height="28" backgroundColor="#F8F8F8">
+				<s:Label verticalCenter="0" color="#7C7070" left="4" text="叠加图层" fontWeight="bold"/>
+				<component:ToolbarButton right="3" top="3" icon="@Embed('/assets/common/close.png')" click="{popupPanel.displayPopUp=false;}"/>
+			</s:BorderContainer>
+			<s:Line width="100%" height="0">
+				<s:stroke>
+					<s:SolidColorStroke color="0xE6EDF1"/>
+				</s:stroke>
+			</s:Line>
+			<component:LayerTree creationComplete="tree_creationCompleteHandler(event)" borderVisible="false" width="100%" height="100%" map="{map}" id="tree"/>
+		</s:BorderContainer>
+	</s:PopUpAnchor>
+
+	<component:FeatureProperty borderVisible="true" map="{map}" visible="false" id="featureProperty" width="250" height="{this.height/2}"/>
+
+	<!-- -->
+	<s:BorderContainer visible="false" right="-1" bottom="-1" id="panelLegend" borderColor="#BDCBD3" backgroundColor="0xFFFFFF" width="300" height="{map.height/3}">
+		<s:layout>
+			<s:VerticalLayout gap="0"/>
+		</s:layout>
+		<s:BorderContainer width="100%" borderVisible="false" height="28" backgroundColor="#F8F8F8">
+			<s:Label verticalCenter="0" color="#7C7070" left="4" text="地图图例" fontWeight="bold"/>
+			<component:ToolbarButton right="3" top="3" icon="@Embed('/assets/common/close.png')" click="{panelLegend.visible=false;btnLegend.selected=false;}"/>
+		</s:BorderContainer>
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="0xE6EDF1"/>
+			</s:stroke>
+		</s:Line>
+		<component:LegendPanel width="100%" height="100%" id="legend" map="{map}"/>
+	</s:BorderContainer>
+
+</s:Group>

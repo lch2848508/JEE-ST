@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer creationComplete="mxadvanceddatagriditemrenderer1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" focusEnabled="true"
+								  dataChange="mxadvanceddatagriditemrenderer1_dataChangeHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			
+			import spark.events.DropDownEvent;
+			import spark.events.IndexChangeEvent;
+			public var fieldName:String="";
+			[Bindable]
+			public var items:ArrayCollection=null;
+			[Bindable]
+			public var isEditable:Boolean=false;
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function mxadvanceddatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				mxadvanceddatagriditemrenderer1_creationCompleteHandler(null);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function mxadvanceddatagriditemrenderer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				cb.textInput.editable=false;
+				var v:String=data[fieldName];
+				lb.text="";
+				cb.selectedItem=null;
+				cb.selectedIndex=-1;
+				for (var i:int=0; i < items.length; i++)
+				{
+					var item:Object=items[i];
+					if (item.value == data[fieldName])
+					{
+						cb.selectedItem=item;
+						cb.selectedIndex=i;
+						cb.textInput.text=item.label;
+						lb.text=item.label;
+						break;
+					}
+				}
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function cb_closeHandler(event:DropDownEvent):void
+			{
+				var item:Object = cb.selectedItem;
+				if(item.value!=data[fieldName])
+				{
+					data[fieldName] = item.value;
+					ArrayCollectionUtils.flagRecordModified(data);
+				}
+			}
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			
+		]]>
+	</fx:Script>
+	<!--
+	<s:Label id="lblData" top="0" left="0" right="0" bottom="0" text="{listData.label}" />
+	-->
+	<s:Label id="lb" width="100%" visible="{!isEditable}" verticalCenter="0"/>
+	<s:ComboBox id="cb" close="cb_closeHandler(event)" dataProvider="{items}" width="100%" visible="{isEditable}"/>
+</s:MXAdvancedDataGridItemRenderer>

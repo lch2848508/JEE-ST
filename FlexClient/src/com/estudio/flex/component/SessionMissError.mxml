@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer borderStyle="solid" borderColor="0x000000" borderWeight="2" creationComplete="bordercontainer1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="400" height="60">
+    <fx:Declarations>
+        <!-- Place non-visual elements (e.g., services, value objects) here -->
+    </fx:Declarations>
+    <s:Label text="已经同服务器断开连接，5秒后将自动进入登录界面！" verticalCenter="0" horizontalCenter="0" fontSize="16">
+
+    </s:Label>
+
+    <s:Label right="10" bottom="4" id="labelSecond" text="5" color="0xFF0000" fontSize="14" fontWeight="bold">
+
+    </s:Label>
+
+    <fx:Script>
+        <![CDATA[
+            import com.estudio.flex.utils.JSFunUtils;
+
+            import mx.core.FlexGlobals;
+            import mx.events.FlexEvent;
+            import mx.managers.PopUpManager;
+
+            public static function execute():void
+            {
+                var instance:SessionMissError = new SessionMissError ();
+                PopUpManager.addPopUp (instance , FlexGlobals.topLevelApplication as DisplayObject , true);
+                PopUpManager.centerPopUp (instance);
+            }
+
+            protected function bordercontainer1_creationCompleteHandler(event:FlexEvent):void
+            {
+                var t:Timer = new Timer (1000 , 5);
+                t.addEventListener (TimerEvent.TIMER , function(event:Event):void
+                {
+                    index++;
+                    labelSecond.text = String (5 - index);
+                    labelSecond.validateNow ();
+                    if (index >= 5)
+                    {
+                        JSFunUtils.JSFun ("procGoLoginPage");
+                    }
+                });
+                t.start ();
+            }
+
+            private var index:int = 0;
+        ]]>
+    </fx:Script>
+</s:BorderContainer>

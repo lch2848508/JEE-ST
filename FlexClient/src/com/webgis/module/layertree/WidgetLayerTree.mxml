@@ -1,0 +1,571 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module implements="com.webgis.intf.MapWidgetIntf" creationComplete="module1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%"
+		  height="100%" xmlns:component="com.webgis.component.*" xmlns:layertree="com.webgis.module.layertree.*">
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+	<fx:Style source="../../MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.MAPCONSTS;
+			import com.webgis.MapLayerManager;
+			import com.webgis.event.MapModeEvent;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.map.MapControl;
+			import com.webgis.module.toolbar.SearchComboBoxSkin;
+			import com.webgis.service.MapServiceClient;
+			
+			import flash.net.navigateToURL;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.utils.ObjectUtil;
+			
+			import spark.events.IndexChangeEvent;
+			[Bindable]
+			private var mapInstance:Map=null;
+			private var mapAppInstance:Object=null;
+			private var selectedFieldName:String="selected";
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get map():Object
+			{
+				return mapInstance;
+			}
+
+			public function set map(value:Object):void
+			{
+				mapInstance=value as Map;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function setProperty(obj:Object):void
+			{
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapApp(value:Object):void
+			{
+				mapAppInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get mapApp():Object
+			{
+				return mapAppInstance;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////
+			public function switchDynamicLayerVisible(data:Object=null):void
+			{
+				mapAppInstance.switchDynamicLayerVisible(data);
+			}
+			public function get _timeAxisBtn():Boolean {
+				return this.timeAxisBtn;
+			}
+			public function set _timeAxisBtn(str:Boolean):void{
+				this.timeAxisBtn=str;
+				//Alert.show(this.timeAxisBtn.toString());
+			} 
+			[Bindable]private var specialViewBtn:Boolean=true;
+			[Bindable]private var timeAxisBtn:Boolean=true;
+			protected function timeAxisClick(event:MouseEvent):void
+			{
+				var item:Object=tree.selectedItem;
+				if (!item || item.type * 1 == 0 && !item[selectedFieldName])
+				{return;}
+				else if((layerSpecial.width!=30)&&layerSpecial.visible==true){
+					AlertUtils.alert("请先关闭专题图。");
+					return;
+				}
+				else
+				{
+					if(timeAxis.visible=true){
+						closeTimeAxisClickCallFunction();}
+					
+					if(!item.specialItems)
+					{
+						mapServiceClientInstance.getSpecialLayers(item.layerType==4,item.serverId,item.layerId,function(json:Object):void
+						{
+							item.specialItems=json;
+							if(item.specialItems.layers)
+							{
+								specialViewBtn=false;
+								timeAxis.show();
+								timeAxis.mapServiceClient=mapServiceClient;
+								
+								timeAxis.execute(item.specialItems.layers,item.serverId,(mapInstance as MapControl).mapLayerManager as MapLayerManager,item.specialItems.allLayers);
+								
+							}
+							else{
+								specialViewBtn=true;
+								AlertUtils.alert("该图层不支持时态显示.");}
+						});
+					}
+					else if (item.specialItems)
+					{
+						if (item.specialItems.layers)
+						{ 			
+							specialViewBtn=false;
+							timeAxis.show();
+							timeAxis.mapServiceClient=mapServiceClient;
+							
+							timeAxis.execute(item.specialItems.layers, item.serverId, (mapInstance as MapControl).mapLayerManager as MapLayerManager, item.specialItems.allLayers);
+							
+						}
+						else{
+							specialViewBtn=true;
+							AlertUtils.alert("该图层不支持时态显示.");}
+					}
+				}
+			}
+			private function closeTimeAxisClickCallFunction():void
+			{
+				specialViewBtn=true;
+				timeAxis.hide();
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			//创建完成事件
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				widgetContainInstance.getDynamicLayerTreeContain()["addElement"](this.owner);
+				tree.selectedFieldName="selected";
+				tree.mapLayerManager=mapAppInstance.getMapLayerManager();
+				tree.map=mapInstance as MapControl;
+				//widgetContainInstance.getMapContain()["addElement"](layerAbstractPanel);
+				widgetContainInstance.getMapContain()["addElement"](featureDataGrid);
+				widgetContainInstance.getMapContain()["addElement"](timeAxis);
+				FlexGlobals.topLevelApplication.addEventListener(MapModeEvent.SWITCHLAYER, function(event:MapModeEvent):void
+				{
+					if (event.map == map)
+					{
+						(tree.dataProvider as ArrayCollection).refresh();
+						tree.invalidateList();
+					}
+				});
+				featureDataGrid.mapContainIntf=widgetContainInstance;
+				featureProperty.mapServiceClient=mapServiceClientInstance;
+				var treeConfig:Object=extParams.layerTree;
+				if (!treeConfig.detailList)
+					removeToolbatItem(toolbarItemDataGrid);
+				if (!treeConfig.overlayLayer)
+					removeToolbatItem(toolbarItemOverlay);
+				if (!treeConfig.advanceSearch)
+				{
+					removeToolbatItem(toolbarItemAdvancedSearch);
+					removeToolbatItem(featureDataGrid.toolbarItemAdvancedSearch);
+				}
+				if (!treeConfig.specialView)
+					removeToolbatItem(toolbarItemSpecialView);
+				if (!treeConfig.abstractContent)
+					removeToolbatItem(toolbarItemAbstractView);
+
+				featureDataGrid.setToolbarItemVisible(treeConfig.export2excel, treeConfig.export2shape);
+			}
+
+			private function removeToolbatItem(item:ToolbarButton):void
+			{
+				if (item.parent != null)
+					(item.parent as Object).removeElement(item);
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var widgetContainInstance:MapWidgetContainIntf=null;
+
+			public function set widgetContain(value:MapWidgetContainIntf):void
+			{
+				widgetContainInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function get widgetContain():MapWidgetContainIntf
+			{
+				return widgetContainInstance;
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var mapServiceClientInstance:MapServiceClient=null;
+
+			public function get mapServiceClient():MapServiceClient
+			{
+				return mapServiceClientInstance;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function set mapServiceClient(value:MapServiceClient):void
+			{
+				mapServiceClientInstance=value;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+
+			protected function filterInputKeyDown(event:KeyboardEvent):void
+			{
+				if (event.keyCode == Keyboard.ENTER)
+				{
+					filterLayerTree();
+				}
+			}
+
+			protected function filterBtnClick(event:MouseEvent):void
+			{
+				filterLayerTree();
+			}
+			private var filterStr:String="";
+
+			private function filterLayerTree():void
+			{
+				var newFilterStr:String=StringUtils.trim(filterComboBox.textInput.text);
+				filterComboBox.textInput.text=newFilterStr;
+				newFilterStr=newFilterStr.toLowerCase();
+				if (filterStr != newFilterStr)
+				{
+					filterStr=newFilterStr;
+					var ls:ArrayCollection=filterComboBox.dataProvider as ArrayCollection;
+					if (!ArrayUtils.contain(ls.source, filterStr))
+						ls.addItem(filterStr);
+					if (StringUtils.isEmpty(filterStr))
+					{
+						tree.dataProvider=new ArrayCollection(mapAppInstance.getMapLayerManager().getDynamicLayerTree());
+					}
+					else
+					{
+						var list:Array=[];
+						generalTreeData(mapAppInstance.getMapLayerManager().getDynamicLayerTree()[0], list);
+						if (list.length == 0)
+							list=mapAppInstance.getMapLayerManager().getDynamicLayerTree();
+						tree.dataProvider=new ArrayCollection(list);
+					}
+					tree.callLater(function():void
+					{
+						tree.expandChildrenOf(tree.dataProvider.source[0], true);
+					});
+				}
+
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function generalTreeData(data:Object, list:Array):void
+			{
+				if (data.children)
+				{
+					var newData:Object=ObjectUtil.copy(data);
+					newData.children=[];
+					for (var i:int=0; i < data.children.length; i++)
+						generalTreeData(data.children[i], newData.children);
+					if (newData.children.length != 0)
+						list.push(newData);
+				}
+				else
+				{
+					var text:String=data.label;
+					if (text.toLowerCase().indexOf(filterStr) != -1)
+						list.push(data);
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function filterComboBox_changeHandler(event:IndexChangeEvent):void
+			{
+				callLater(function():void
+				{
+					filterLayerTree();
+				});
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function showDetailGridClick(event:MouseEvent):void
+			{
+				toolbarItemDataGrid.selected=!toolbarItemDataGrid.selected;
+				if (toolbarItemDataGrid.selected)
+				{
+					closeClickCallFunction();
+					featureDataGrid.show();
+					var treeItem:Object=tree.selectedItem;
+					featureDataGrid.mapServiceClient=mapServiceClient;
+					featureDataGrid.map=mapInstance as MapControl;
+					featureDataGrid.setServerOrLayerInfo("服务(图层)数据浏览", treeItem.layerType == 4, treeItem.layerId, {}, {});
+				}
+				else
+				{
+					featureDataGrid.hide();
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function export2File(event:MouseEvent):void
+			{
+//				var item:Object=tree.selectedItem;
+//				if (item && item.layerType >= 1 && item.layerType <= 4)
+//				{
+//					mapServiceClient.exportServerOrLayerFeature2File(item.layerType == 4, item.layerId, {}, event.currentTarget.tag == "export_shape" ? 1 : 0, function(json:Object):void
+//					{
+//						navigateToURL(new URLRequest(json.url), "_blank");
+//					});
+//				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////
+			//高级查询
+			protected function advSearchClick(event:MouseEvent):void
+			{
+				var item:Object=tree.selectedItem;
+				if (item)
+				{
+					var item:Object=tree.selectedItem;
+					if (!item || item.type * 1 == 0 && !item[selectedFieldName])
+						return;
+
+					if (!item.queryItems)
+					{
+						mapServiceClientInstance.getQueryLayers(item.layerType == 4, item.serverId, item.layerId, function(json:Object):void
+						{
+							item.queryItems=json;
+							if (item.queryItems.layers)
+								WinAdvSearch.execute(item.queryItems.layers, item.serverId, (mapInstance as MapControl).mapLayerManager as MapLayerManager, mapServiceClient, map as Map, widgetContainInstance);
+							else
+								AlertUtils.alert("该服务(图层)不支持高级查询.");
+						});
+					}
+					else if (item.queryItems)
+					{
+						if (item.queryItems.layers)
+							WinAdvSearch.execute(item.queryItems.layers, item.serverId, (mapInstance as MapControl).mapLayerManager as MapLayerManager, mapServiceClient, map as Map, widgetContainInstance);
+						else
+							AlertUtils.alert("该服务(图层)不支持高级查询.");
+					}
+				}
+
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////
+			//地图专题显示
+			private var specialViewSelect:Boolean=false;
+			protected function specialViewClick(event:MouseEvent):void
+			{
+				var item:Object=tree.selectedItem;
+				if (!item || item.type * 1 == 0 && !item[selectedFieldName])
+					return;
+
+				if (!item.specialItems)
+				{
+					mapServiceClientInstance.getSpecialLayers(item.layerType == 4, item.serverId, item.layerId, function(json:Object):void
+					{
+						item.specialItems=json;
+						if (item.specialItems.layers)
+						{
+							specialViewSelect=true;
+							widgetContainInstance.showExtContain("设置专题图", layerSpecial,function(isClose:Boolean){
+								if(!isClose){
+									specialViewSelect=false;
+								}
+							});
+							layerSpecial.mapServiceClient=mapServiceClient;
+							layerSpecial.execute(item.specialItems.layers, item.serverId, (mapInstance as MapControl).mapLayerManager as MapLayerManager, item.specialItems.allLayers);
+						}
+						else
+							AlertUtils.alert("该服务(图层)不支持专题显示.");
+					});
+				}
+				else if (item.specialItems)
+				{
+					if (item.specialItems.layers)
+					{
+						specialViewSelect=true;
+						widgetContainInstance.showExtContain("设置专题图", layerSpecial,function(isClose:Boolean){
+							if(!isClose){
+								specialViewSelect=false;
+							}
+						});
+						layerSpecial.mapServiceClient=mapServiceClient;
+						layerSpecial.execute(item.specialItems.layers, item.serverId, (mapInstance as MapControl).mapLayerManager as MapLayerManager, item.specialItems.allLayers);
+					}
+					else
+						AlertUtils.alert("该服务(图层)不支持专题显示.");
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////
+			protected function abstractViewClick(event:MouseEvent):void
+			{
+				widgetContain.showExtContain("资源摘要及资料信息", featureProperty);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function closeClickCallFunction():void
+			{
+//				toolbarItemAbstractView.selected=false;
+//				layerAbstractPanel.hide();
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function active():void
+			{
+				//if (toolbarItemAbstractView.selected)
+				//	layerAbstractPanel.show();
+				if (toolbarItemDataGrid.selected)
+					featureDataGrid.show();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function inactive():void
+			{
+				//layerAbstractPanel.hide();
+				featureDataGrid.hide();
+				timeAxis.hide();
+				widgetContainInstance.hideExtContain("设置专题图", layerSpecial);
+				widgetContainInstance.hideExtContain("设置图层叠加顺序及透明度", layerListView);
+				widgetContainInstance.hideExtContain("设置摘要信息", featureProperty);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function tree_changeHandler(event:ListEvent):void
+			{
+				toolbarItemAbstractView.enabled=false;
+				var item:Object=tree.selectedItem;
+				toolbarItemDataGrid.enabled=!item.children;
+				if (!toolbarItemDataGrid.enabled)
+					closeFeatureGridClickCallFunction();
+				var isResource:Boolean=item.type * 1 == 1;
+				if (!isResource)
+				{
+					widgetContainInstance.hideExtContain("设置摘要信息", featureProperty);
+					return;
+				}
+				if (item.extProperty)
+				{
+					if (item.extProperty.property)
+					{
+						featureProperty.registerFeatures(item.extProperty.property);
+						toolbarItemAbstractView.enabled=true;
+					}
+					else
+						widgetContainInstance.hideExtContain("设置摘要信息", featureProperty);
+				}
+				else
+				{
+					mapServiceClientInstance.executeMethod("getResourceExtProperty", {id: item.layerId}, function(json:Object):void
+					{
+						item.extProperty=json;
+						var list:Array=[];
+						if (json.property)
+						{
+							var readonly:Boolean=flash.external.ExternalInterface.call("getUserId") != -1;
+							ArrayCollectionUtils.TreeData2List(json.property.attachments, list);
+							if (readonly && json.property.attributes.length == 0 && list.length < 2 && json.property.pictures.length == 0)
+								json.property=null;
+						}
+						if (item.extProperty.property)
+						{
+							featureProperty.registerFeatures(item.extProperty.property);
+							toolbarItemAbstractView.enabled=true;
+						}
+						else
+							widgetContainInstance.hideExtContain("设置摘要信息", featureProperty);
+					});
+				}
+				//切换专题图 隐藏专题渲染
+				if(specialViewSelect){
+					specialViewClick(null);
+				}				
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//显示图层或地图服务摘要信息
+//			private function showLayerOrServerAbstract(item:Object):void
+//			{
+//				layerAbstractPanel.layerItem=item;
+//			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function getLayerTreeItemAbstractCallFunction(abstractContent:Object):void
+			{
+				//toolbarItemAbstractView.enabled=!((abstractContent.content == "" || abstractContent.content == "<p></p>") && !abstractContent.layers);
+				//if (!toolbarItemAbstractView.enabled)
+				//	layerAbstractPanel.hide();
+				//else if (toolbarItemAbstractView.selected)
+				//	layerAbstractPanel.show();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//设置图层叠加顺序及透明度
+			protected function event4LayerOverlayClick(event:MouseEvent):void
+			{
+				widgetContainInstance.showExtContain("设置图层叠加顺序及透明度", layerListView);
+				if (layerListView.dataProvider == null)
+				{
+					layerListView.mapServiceClient=mapServiceClient;
+					layerListView.map=mapInstance as MapControl;
+					var dataArray:ArrayCollection=(mapInstance as MapControl).mapLayerManager.getDynamicLayers();
+					dataArray.filterFunction=function(item:Object):Boolean
+					{
+						return item.layers[selectedFieldName] != null;
+					};
+					dataArray.refresh();
+					layerListView.mapLayerManager=(mapInstance as MapControl).mapLayerManager as MapLayerManager;
+					layerListView.dataProvider=dataArray;
+				}
+				//WinServerOverlay.execute(mapServiceClientInstance,((mapInstance as Object).mapLayerManager as MapLayerManager),map as MapControl);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function closeFeatureGridClickCallFunction():void
+			{
+				featureDataGrid.hide();
+				toolbarItemDataGrid.selected=false;
+			}
+
+			private var extParams:Object=null;
+
+			public function setParams(v:Object):void
+			{
+				this.extParams=v;
+//				trace(JSON.stringify(extParams));
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+	</fx:Declarations>
+
+	<s:BorderContainer width="100%" height="27" borderVisible="false" backgroundColor="#F4F7F8">
+		<s:HGroup gap="2" height="25" verticalAlign="middle" width="100%" paddingTop="2" paddingRight="2" paddingLeft="2" paddingBottom="2">
+			<s:Label text="条件" paddingTop="2"/>
+			<s:ComboBox keyDown="filterInputKeyDown(event)" change="filterComboBox_changeHandler(event)" dataProvider="{new ArrayCollection([''])}" skinClass="com.webgis.module.toolbar.SearchComboBoxSkin" width="100%" minHeight="22" height="22"
+						selectedIndex="0" id="filterComboBox"/>
+			<component:ToolbarButton click="filterBtnClick(event)" toolTip="过滤" width="22" height="22" tag="save_schema" icon="@Embed('/assets/common/ok.png')"/>
+			<!--
+			<component:ToolbarButton click="export2File(event)" toolTip="导出到Excel" icon="@Embed('/assets/webgis/xls.png')" tag="export_excel"/>
+			<component:ToolbarButton click="export2File(event)" toolTip="导出到Shape文件" icon="@Embed('/assets/webgis/ExportE00File16.png')" tag="export_shape"/>
+			-->
+			<component:ToolbarButton enabled="false" id="toolbarItemDataGrid" click="showDetailGridClick(event)" toolTip="列表方式显示图层(服务)的详细数据" width="22" height="22" tag="data_grid" icon="@Embed('/assets/webgis/TableStandalone16.png')"/>
+			<component:ToolbarButton id="toolbarItemOverlay" click="event4LayerOverlayClick(event)" toolTip="设置图层叠加顺序及透明度" width="22" height="22" tag="layer_overlay" icon="@Embed('/assets/webgis/Layers-16.png')"/>
+			<component:ToolbarButton id="toolbarItemAdvancedSearch" click="advSearchClick(event)" toolTip="高级查询" width="22" height="22" tag="data_stat" icon="@Embed('/assets/common/search.png')"/>
+			<component:ToolbarButton id="toolbarItemSpecialView" click="specialViewClick(event)" toolTip="查看专题" enabled="{specialViewBtn}" width="22" height="22" tag="special_view" icon="@Embed('/assets/webgis/special_view.png')"/>
+			<component:ToolbarButton id="toolbarItemAbstractView" click="abstractViewClick(event)" toolTip="地图摘要信息" width="22" height="22" tag="abstract_view" icon="@Embed('/assets/webgis/book-16.png')"/>
+			<component:ToolbarButton click="timeAxisClick(event)" id="timeAxisControl" enabled="{timeAxisBtn}" toolTip="时间轴" width="22" height="22" tag="time_axis" icon="@Embed('com/webgis/module/layertree/assets/images/TimeAxis.png')"/>
+		</s:HGroup>
+		<s:Line width="100%" bottom="0" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#DDE1E5"/>
+			</s:stroke>
+		</s:Line>
+	</s:BorderContainer>
+	<component:LayerTree change="tree_changeHandler(event)" id="tree" width="100%" height="100%"/>
+	<!--
+	<component:LayerAbstractPanel getAbstractCallFunction="{getLayerTreeItemAbstractCallFunction}" mapServiceClient="{mapServiceClientInstance}" closeCallFunction="{closeClickCallFunction}" left="0"
+								  bottom="0" width="100%" visible="false" height="0" id="layerAbstractPanel"/>
+	-->
+	<layertree:timeAxisPanel closeTimeAxis="{closeTimeAxisClickCallFunction}" right="0" top="0" height="50" visible="false" width="50%" id="timeAxis" />
+	<component:FeatureDataGridPanel columnFilterEnable="false" currentState="allResult" closeCallFunction="{closeFeatureGridClickCallFunction}" left="0" bottom="0" width="100%" visible="false" height="250" id="featureDataGrid"/>
+	<layertree:LayerSpecial id="layerSpecial" visible="false" height="0"/>
+	<layertree:LayerListView id="layerListView" visible="false" height="0"/>
+	<component:ResourceFeatureProperty id="featureProperty" visible="false" height="0"/>
+</s:Module>

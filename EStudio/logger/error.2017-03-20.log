@@ -1,0 +1,11 @@
+09:34:09 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:34:09 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:34:10 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:39:03 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:39:03 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+09:54:03 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 66, active 0, maxActive 50 
+09:54:03 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 62, active 0, maxActive 50 
+09:59:03 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 1, maxActive 50, runningSqlCount 1 : select id, url,type from sys_attachment_ex_tree where is_valid=0 
+09:59:04 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 1, maxActive 50, runningSqlCount 1 : select id, url,type from sys_attachment_ex_tree where is_valid=0 
+10:34:50 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 
+10:34:50 - com.alibaba.druid.pool.GetConnectionTimeoutException: wait millis 60, active 0, maxActive 50 

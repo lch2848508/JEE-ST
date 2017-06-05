@@ -1,0 +1,281 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta http-equiv="pragma" content="no-cache" />
+	<meta http-equiv="cache-control" content="no-cache" />
+	<meta http-equiv="expires" content="0" />
+	<script type="text/javascript" src="../js/jslib/jquery/jquery.js"></script>
+	<script type="text/javascript" src="../js/jslib/jquery/jquery.json.js"></script>
+	<script type="text/javascript" src="../js/table_utils.js"></script>
+	<script type="text/javascript" src="../js/jslib/utils.js"></script>
+	<script type="text/javascript"
+		src="../js/jslib/echarts-2.2.7/build/dist/echarts.pie.js"></script>
+
+	<script language="javascript" type="text/javascript">
+        var echartInstance = null;
+        var echartOption = {
+            tooltip : {
+                trigger : 'item',
+                formatter : "{b}({d}%)"
+            },
+            legend : {
+                orient : 'vertical',
+                x : 'left',
+                data : []
+            },
+            calculable : true,
+            series : [ {
+                type : 'pie',
+                data : []
+            } ]
+        };
+
+        var layerInfos = null;
+        var statisticInfos = null;
+        var statisticCategory2Values = {};
+        var isMergeTableCell = false;
+        var spatialAnalyCondition = null;
+        var spatialAnalyResult = null;
+        var displayFieldList = null;
+        ////////////////////////////////////////////////////////////////////////////////////
+        //显示空间分析结果
+        function setSpatialResult(params) {
+            spatialAnalyCondition = params[0];
+            spatialAnalyResult = params[1];
+            //if (spatialAnalyCondition.o == "bufAnaly") {
+            var groupFields = spatialAnalyCondition.groupFields;
+            var groupFieldLabels = spatialAnalyCondition.groupFieldLables;
+            var statisticFunctions = spatialAnalyCondition.statisticFunctions;
+            var layerType = spatialAnalyCondition.layerType;
+            showPlanGridTable(groupFields, groupFieldLabels, statisticFunctions, spatialAnalyResult.records, layerType);
+            //} else if (spatialAnalyCondition.o == "districtAnaly") {
+
+            //} else if (spatialAnalyCondition.o == "groupAnaly") { //分组分析
+
+            //}
+        }
+
+        function setMergeCellStatus(params) {
+            isMergeTableCell = params[0];
+            setSpatialResult([ spatialAnalyCondition, spatialAnalyResult ]);
+        }
+        //////////////////////////////////////////////////////////////////////////////////
+        //显示普通的表格
+        function showPlanGridTable(groupFields, groupFieldLabels, statisticFunctions, records, layerType) {
+            var fieldList = [];
+            var statisticFieldList = [];
+            var tableHtml = "<table id='tableSpatialResult' width='100%' border='1' cellpadding='0' cellspacing='0'><tr>";
+            if (spatialAnalyCondition.o == "districtAnaly") {
+                tableHtml += "<th scope='col'>行政区域</th>";
+                fieldList.push("CITY_NAME");
+            }
+            for ( var i = 0; i < groupFields.length; i++) {
+                tableHtml += "<th scope='col'>" + groupFieldLabels[i] + "</th>";
+                fieldList.push(groupFields[i]);
+            }
+
+            for ( var i = 0; i < statisticFunctions.length; i++) {
+                var funName = statisticFunctions[i];
+                if (funName == "max" || funName == "min" || funName == "sum") {
+                    if (layerType == 0)
+                        continue;
+                    if (funName == "max") {
+                        statisticFieldList.push("MAX_GEO_LENGTH");
+                        fieldList.push("MAX_GEO_LENGTH");
+                        tableHtml += "<th scope='col'>最大长度</th>";
+                        if (layerType == 2) {
+                            statisticFieldList.push("MAX_GEO_AREA");
+                            fieldList.push("MAX_GEO_AREA");
+                            tableHtml += "<th scope='col'>最大面积</th>";
+                        }
+                    } else if (funName == "min") {
+                        statisticFieldList.push("MIN_GEO_LENGTH");
+                        fieldList.push("MIN_GEO_LENGTH");
+                        tableHtml += "<th scope='col'>最小长度</th>";
+                        if (layerType == 2) {
+                            statisticFieldList.push("MIN_GEO_AREA");
+                            fieldList.push("MIN_GEO_AREA");
+                            tableHtml += "<th scope='col'>最小面积</th>";
+                        }
+                    } else if (funName == "sum") {
+                        statisticFieldList.push("SUM_GEO_LENGTH");
+                        fieldList.push("SUM_GEO_LENGTH");
+                        tableHtml += "<th scope='col'>总长度</th>";
+                        if (layerType == 2) {
+                            statisticFieldList.push("SUM_GEO_AREA");
+                            fieldList.push("SUM_GEO_AREA");
+                            tableHtml += "<th scope='col'>总面积</th>";
+                        }
+                    }
+                } else if (funName == "count") {
+                    tableHtml += "<th scope='col'>总数</th>";
+                    fieldList.push("COUNT");
+                    statisticFieldList.push("COUNT");
+                } else {
+                    var fieldName = StringUtils.after(funName,") as ");
+                    tableHtml += "<th scope='col'>" + spatialAnalyCondition.fun2Label[fieldName] + "</th>";
+                    fieldList.push(fieldName);
+                    statisticFieldList.push(fieldName);
+                }
+            }
+            tableHtml += "</tr>";
+
+            displayFieldList = fieldList;
+
+            for ( var i = 0; i < records.length; i++) {
+                var record = records[i];
+                tableHtml += "<tr class='recordTr'>";
+                for ( var j = 0; j < fieldList.length; j++) {
+                    var v = record[fieldList[j]];
+                    if (v == null)
+                        v = "其他";
+                    if (fieldList.length - statisticFieldList.length > j)
+                        tableHtml += "<td id='cell_" + i + "_" + j + "'><span class='span4href'>" + v + "</span></td>";
+                    else if (fieldList[j].indexOf("MAX") == 0 || fieldList[j].indexOf("MIN") == 0)
+                        tableHtml += "<td class='num' id='cell_" + i + "_" + j + "'><span class='span4href'>" + v + "</span></td>";
+                    else
+                        tableHtml += "<td class='num'>" + v + "</td>";
+                }
+                tableHtml += "</tr>";
+            }
+
+            tableHtml += "</table>"
+
+            $("#div_content").html(tableHtml);
+            if (isMergeTableCell && checktable('tableSpatialResult')) {
+                for ( var i = 0; i < fieldList.length - statisticFieldList.length - 1; i++)
+                    coltogather($('#tableSpatialResult tr'), i);
+            }
+
+            $(".span4href").bind("click", function() {
+                hrefSpanClick(this);
+                $(".selectedRow").removeClass("selectedRow");
+                $(this).parent().parent().addClass("selectedRow");
+            });
+
+            $('.recordTr').bind('mouseenter mouseleave', function() {
+                $(this).toggleClass('focusRow');
+            });
+        }
+        //////////////////////////////////////////////////////////////////////////////////
+        function hrefSpanClick(span) {
+            var td = $(span).parent("td")[0];
+            var s = td.id.split("_");
+            var x = s[1]*1;
+            var y = s[2]*1;
+            var groupFields = spatialAnalyCondition.groupFields;
+            var records = spatialAnalyResult.records;
+            var record = records[x];
+            var params = {
+                where : {},
+                layerId : spatialAnalyCondition.layerId,
+                layerType : spatialAnalyCondition.layerType,
+                analyType : spatialAnalyCondition.o
+            };
+            if (spatialAnalyCondition.o == "districtAnaly") {
+                params.isDistrictAnaly = true;
+                params.where.city_code = record.CITY_CODE;
+            }
+            if (isMergeTableCell) {
+                if (spatialAnalyCondition.o == "districtAnaly") {
+                    for ( var i = 0; i < y; i++)
+                        params.where[groupFields[i]] = record[groupFields[i]];
+                } else {
+                    for ( var i = 0; i <= y; i++)
+                        params.where[groupFields[i]] = record[groupFields[i]];
+                }
+
+            } else {
+                for ( var i = 0; i < groupFields.length; i++)
+                    params.where[groupFields[i]] = record[groupFields[i]];
+            }
+            params.where.geometry = spatialAnalyCondition.geometry;
+            params.where.geometryType = spatialAnalyCondition.geometryType;
+            params.where.filterStr = spatialAnalyCondition.filterStr;
+            var clickField = displayFieldList[y];
+            params.click_field = clickField;
+            params.click_value = $(span).html();
+            top.filterSpatialAnalyResult(params);
+        }
+    </script>
+
+	<style>
+* {
+	font-size: 12px;
+	zoom: 1;
+}
+
+html {
+	width: 100%;
+	height: 100%;
+}
+
+body {
+	margin: 0px;
+	padding: 0px;
+	background-color: #FFFFFF;
+	width: 100%;
+	height: 100%;
+	zoom: 1;
+}
+
+table {
+	border-collapse: collapse;
+	border-color: #009;
+}
+
+tr {
+	height: 28px;
+}
+
+th {
+	font-weight: bold;
+	background: #FFc;
+}
+
+td {
+	padding-left: 5px;
+	padding-right: 5px;
+}
+
+.focusRow {
+	background-color: #CFF;
+}
+
+.selectedRow {
+	background-color: #CCC;
+}
+
+.span4href {
+	font-family: "微软雅黑", "新宋体";
+	color: #03F;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.num {
+	font-family: "Courier New", Courier, monospace;
+	text-align: right;
+}
+
+#div_content {
+	font-family: "微软雅黑", "新宋体";
+	font-size: 4px;
+	padding: 4px;
+}
+
+#div_content * {
+	line-height: 150%;
+}
+
+#divDetail {
+	
+}
+</style>
+</head>
+<body>
+	<div id="div_content"></div>
+</body>
+</html>

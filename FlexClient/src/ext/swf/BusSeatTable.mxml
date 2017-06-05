@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Grid borderStyle="inset" borderVisible="true" borderColor="#000000" horizontalGap="1" verticalGap="1" backgroundColor="#000000" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.containers.GridItem;
+			import mx.containers.GridRow;
+			import mx.controls.Label;
+			import mx.messaging.AbstractConsumer;
+			//////////////////////////////////////////////////////////////////////////////
+			//座位数量
+			private var _seatNumber:int=0;
+			private var _isSymmetrical:Boolean=false;
+			private var _seatCells:Array=[];
+			private var _seatUserInfos:Array=[];
+			private var _seatedUserList:Array=null;
+
+			private var _win:WinArrangSeatInfo=null;
+
+
+			public function get win():WinArrangSeatInfo
+			{
+				return _win;
+			}
+
+			public function set win(value:WinArrangSeatInfo):void
+			{
+				_win=value;
+			}
+
+			public function get seatUserInfos():Array
+			{
+				return _seatUserInfos;
+			}
+
+			public function set seatUserInfos(value:Array):void
+			{
+				_seatUserInfos=value;
+				for (var i:int=0; i < value.length; i++)
+				{
+					var index:int=value[i].seat_no;
+					if (value[i].tourist_id)
+					{
+						SeatCell(_seatCells[index - 1]).hasUser=true;
+					}
+					SeatCell(_seatCells[index - 1]).seat_no=value[i].seat_no;
+					SeatCell(_seatCells[index - 1]).username=value[i].name;
+				}
+
+			}
+
+
+			public function set seatNumber(value:int):void
+			{
+				_seatNumber=value;
+				drawSeats();
+			}
+
+			public function get seatNumber():int
+			{
+				return _seatNumber;
+			}
+
+			//------------------------------------------------------------------------------
+			//根据任务列表绘制
+			public function drawUsersIcon(userList:Array):void
+			{
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			private function drawSeats():void
+			{
+				while (this.numChildren != 0)
+					this.removeChildAt(this.numChildren - 1);
+
+				_seatCells=[];
+				_seatUserInfos=[];
+
+				var isEven:Boolean=_seatNumber % 2 == 0;
+				var isSymmetry:Boolean=isEven ? _seatNumber % 4 == 0 : (_seatNumber - 1) % 4 == 0;
+				var row:int=isSymmetry ? _seatNumber / 4 : _seatNumber / 4 + 1;
+				for (var i=0; i < row; i++)
+				{
+					var gridRow:GridRow=new GridRow();
+					gridRow.percentHeight=100;
+					gridRow.percentWidth=100;
+					var cellNumber:int=(i == 0 || (!isEven && i == row - 1)) ? 5 : 4;
+					for (var j:int=0; j < cellNumber; j++)
+					{
+						var cell:GridItem=new GridItem();
+						if (i == 0 && j == 2)
+						{
+							cell.rowSpan=isEven ? row : row - 1;
+						}
+						else
+						{
+							if (i == 0 && j != 2)
+								_seatCells.push(cell);
+							else if (isSymmetry)
+								_seatCells.push(cell);
+							else if (i != row - 2)
+								_seatCells.push(cell);
+							else if (i == row - 2 && j < 2)
+								_seatCells.push(cell);
+						}
+						cell.percentWidth=100;
+						cell.percentHeight=100;
+						cell.setStyle("backgroundColor", "#FFFFFF");
+						cell.setStyle("horizontalAlign", "center");
+						cell.setStyle("verticalAlign", "middle");
+						gridRow.addChild(cell);
+
+					}
+					this.addChild(gridRow);
+				}
+
+				for (var i:int=0; i < _seatCells.length; i++)
+				{
+					var cell:GridItem=_seatCells[i] as GridItem;
+
+					var label:SeatCell=new SeatCell();
+					label.caption=String(i + 1);
+					cell.addChild(label);
+					_seatCells[i]=label;
+					label.busTable=this;
+				}
+
+			}
+
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//自动排座位
+			public function autoArrangeSeatInfo(needCount:int):Array
+			{
+				var result:Array=[];
+				var hasProcess:int=0;
+				for (var i:int=0; i < this._seatCells.length && hasProcess < needCount; i++)
+				{
+					var seatCell:SeatCell=this._seatCells[i] as SeatCell;
+					if (!seatCell.hasUser && !seatCell.isOrder)
+					{
+						seatCell.isOrder=true;
+						result.push(seatCell);
+						hasProcess++;
+					}
+				}
+				return result;
+			}
+
+			public function orderSeat(seatno:int):void
+			{
+				var seatCell:SeatCell=this._seatCells[seatno - 1] as SeatCell;
+				if (seatCell.hasUser)
+					seatCell.hasUser=false;
+				seatCell.isOrder=true;
+			}
+
+			function selectOrUnSelect(cell:SeatCell):void
+			{
+				var records:ArrayCollection=win.gridUserList.dataProvider as ArrayCollection;
+				if (cell.isOrder)
+				{
+					cell.isOrder=false;
+					cell.username="";
+					for (var i:int=0; i < records.length; i++)
+					{
+						var record:Object=records.getItemAt(i);
+						if (record.busid == win.comboboxBusList.selectedItem.id && record.seat_no == cell.seat_no)
+						{
+							record.busname="";
+							record.busid=null;
+							record.seat_no=null;
+						}
+					}
+					win.seatInfoIsChanged=true;
+				}
+				else
+				{
+					var record:Object=win.gridUserList.selectedItem;
+					if (record && record.busid != win.comboboxBusList.selectedItem.id)
+					{
+						record.busname=win.comboboxBusList.selectedItem.name;
+						record.busid=win.comboboxBusList.selectedItem.id;
+						record.seat_no=cell.seat_no;
+						cell.isOrder=true;
+						cell.username=record.name;
+						win.seatInfoIsChanged=true;
+					}
+					else if (record && record.busid == win.comboboxBusList.selectedItem.id)
+					{
+						this._seatCells[record.seat_no - 1].isOrder=false;
+						this._seatCells[record.seat_no - 1].username="";
+						record.seat_no=cell.seat_no;
+						cell.isOrder=true;
+						cell.username=record.name;
+						win.seatInfoIsChanged=true;
+					}
+				}
+				var oldindex:int=win.gridUserList.selectedIndex;
+				win.gridUserList.dataProvider=records;
+				win.gridUserList.selectedIndex=oldindex;
+				win.gridUserList.invalidateDisplayList();
+			}
+		]]>
+	</fx:Script>
+</mx:Grid>

@@ -1,0 +1,717 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:map="com.webgis.map.*" xmlns:ns="http://www.esri.com/2008/ags" xmlns:Navigation="com.webgis.Navigation.*"
+			   xmlns:navigator="com.webgis.module.navigator.*" creationComplete="applicationCreationCompleteHandler(event)" xmlns:layer="com.webgis.layer.layer.*" xmlns:component="com.webgis.component.*" xmlns:layertree="com.webgis.module.layertree.*">
+	<fx:Style source="MapApp.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.SpatialReference;
+			import com.esri.ags.Units;
+			import com.esri.ags.events.MapEvent;
+			import com.esri.ags.events.PrintEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.layers.ArcGISDynamicMapServiceLayer;
+			import com.esri.ags.layers.ArcGISTiledMapServiceLayer;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.layers.Layer;
+			import com.esri.ags.portal.PopUpRenderer;
+			import com.esri.ags.portal.supportClasses.PopUpInfo;
+			import com.esri.ags.tasks.PrintTask;
+			import com.estudio.flex.client.WinFormChangePassword;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.DateUtils;
+			import com.estudio.flex.utils.JSFunUtils;
+			import com.estudio.flex.utils.ObjectUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.component.ToolbarTextButton;
+			import com.webgis.component.WinGPSLocation;
+			import com.webgis.event.MapModeEvent;
+			import com.webgis.event.MapWidgetEvent;
+			import com.webgis.event.MapWidgetTypes;
+			import com.webgis.intf.MapWidgetContainIntf;
+			import com.webgis.intf.MapWidgetIntf;
+			import com.webgis.map.WebGISUtils;
+			import com.webgis.module.toolbar.SearchComboBoxSkin;
+			import com.webgis.service.MapServiceClient;
+
+			import flash.net.navigateToURL;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			import mx.events.ItemClickEvent;
+			import mx.events.ModuleEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+
+			import spark.components.BorderContainer;
+			import spark.events.IndexChangeEvent;
+			import spark.modules.Module;
+			import spark.modules.ModuleLoader;
+
+			private var layerFeatureInfos:Object={};
+			private var widgetContainIntf:MapWidgetContainIntf=null;
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			private var classList:Array=[spark.components.BorderContainer];
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			private var MAP_APP_ID:Number=-1;
+			public var USER_ID:Number=-1;
+			private var mapLayerManager:MapLayerManager=new MapLayerManager();
+			private var config:Object=null;
+			private var layerTreeSelectedFieldName:String="selected";
+			private var isFirstShowMultiMap:Boolean=true;
+
+			private var MAP_WKID:String="";
+			private var mapServiceClient:MapServiceClient=new MapServiceClient();
+			private var webgisModuleDir:String="";
+			private var isMisRole:Boolean=false;
+			public var cache:Object={};
+			[Bindable]
+			private var lonlatVisible:Boolean=false;
+			public var isDegress:Boolean=false;
+			[Bindable]
+			private var isLogin:Boolean=false;
+			[Bindable]
+			private var mapAppCaption:String="";
+			private var mapVersion:String="-1";
+
+			//附件属性
+			public var extObjects:Object={};
+
+			private var isLoadedModuleNumber:int=0;
+			private var WebGISConfig:Object=null;
+
+			private function allWidgetModuleLoaded():void
+			{
+				map.zoomToInitialExtent();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//调用函数初始化地图
+			protected function applicationCreationCompleteHandler(event:FlexEvent):void
+			{
+				Security.allowDomain("*");
+				Security.allowInsecureDomain("*");
+				WebGISConfig=flash.external.ExternalInterface.call("getWebGISConfig");
+				setRandomColors(WebGISConfig.randomColors);
+				setStepColors(WebGISConfig.stepColors);
+				trace(JSON.stringify(WebGISConfig));
+				MAP_APP_ID=flash.external.ExternalInterface.call("getDefaultMapAppId");
+				USER_ID=flash.external.ExternalInterface.call("getUserId");
+				isLogin=flash.external.ExternalInterface.call("isLogin");
+				mapAppCaption=flash.external.ExternalInterface.call("getAppCaption");
+				mapVersion=flash.external.ExternalInterface.call("getMapVersion");
+
+				var logoInfo:Object=flash.external.ExternalInterface.call("getLogoUrl");
+				imgLogoBg.source=logoInfo.LOGOBGURL;
+				imgLogoBg.validateNow();
+				imgLogo.source=logoInfo.LOGOURL;
+				imgLogo.left=logoInfo.LOGOLEFT;
+				imgLogo.top=logoInfo.LOGOTOP;
+				imgLogo.validateNow();
+
+				isMisRole=flash.external.ExternalInterface.call("isMisRole");
+				webgisModuleDir=flash.external.ExternalInterface.call("getWebgisModuleDir");
+
+				if (!isMisRole)
+					ArrayUtils.remove(arrTopMenuItems, 0);
+				var fontList:Array=Font.enumerateFonts(true);
+				for (var i:int=0; i < fontList.length; i++)
+					fontList[i]=fontList[i].fontName;
+				var isExistsFont:Boolean=ArrayUtils.contain(fontList, "YaHei Consolas Hybrid");
+				var isChrome:Boolean=JSFunUtils.JSFun("isChrome", {});
+				if (!(isChrome && !isExistsFont))
+					ArrayUtils.remove(arrTopMenuItems, ArrayUtils.find(arrTopMenuItems, "type", "6"));
+
+				linkbarTopMenuItems.dataProvider=arrTopMenuItems;
+
+				mapServiceClient.getAppConfig(MAP_APP_ID, USER_ID, function(param:Object):void
+				{
+					config=param;
+					mapLayerManager.init(map, config);
+					loadWidgetContain();
+					if (param.userMapExtent)
+						map.userMapExtent=new Extent(param.userMapExtent[0], param.userMapExtent[1], param.userMapExtent[2], param.userMapExtent[3]);
+					//map.executeTest();
+				});
+				FlexGlobals.topLevelApplication.addEventListener(MapModeEvent.SWITCHLAYER, function(event:MapModeEvent):void
+				{
+					if (event.map == map)
+						updateMapLegend();
+				});
+				mapServiceClient.geometryService=map.geometryService;
+
+				createMapAppNavigator();
+
+				extCodeForExtClass();
+
+				//ExternalInterface.addCallback("filterSpatialAnalyResult", this.test);
+			}
+
+			private function test():void
+			{
+
+			}
+
+			private function extCodeForExtClass():void
+			{
+				var popUpInfo:PopUpInfo=new PopUpInfo();
+				// Tell the pop-up info about the field name template
+				popUpInfo.title="测试";
+				popUpInfo.showZoomToButton=false;
+
+				var popUpRenderer:ClassFactory=new ClassFactory(PopUpRenderer);
+				popUpRenderer.properties={"popUpInfo": popUpInfo};
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function createMapAppNavigator():void
+			{
+				var comboboxMaxWidth:int=40;
+				mapAppComboBox.textInput.editable=false;
+				var appList:Array=flash.external.ExternalInterface.call("getMapAppList").mapApps;
+				if (!appList)
+				{
+					mapAppComboBox.visible=false;
+					return;
+				}
+				for (var i:int=0; i < appList.length; i++)
+				{
+					var appInfo:Object=appList[i];
+					mapAppComboBox.dataProvider.addItem({label: appInfo.name, id: appInfo.id});
+					if (StringUtils.equal(appInfo.id, MAP_APP_ID + ""))
+						mapAppComboBox.selectedIndex=i;
+					comboboxMaxWidth=Math.max(mapAppComboBox.measureText(appInfo.name).width + 40, comboboxMaxWidth);
+				}
+				mapAppComboBox.width=comboboxMaxWidth;
+				mapAppComboBox.addEventListener(IndexChangeEvent.CHANGE, event4mMapAppComboBoxChange);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			private function event4mMapAppComboBoxChange(event:IndexChangeEvent):void
+			{
+				var item:Object=mapAppComboBox.dataProvider.getItemAt(event.newIndex);
+				if (StringUtils.equal(item.id, MAP_APP_ID + ""))
+					return;
+				var url:String=flash.external.ExternalInterface.call("getMapAppURL") + "?appId=" + item.id;
+				goURL(url, "_self");
+			}
+
+			/////////////////////////////////////////////////////
+			public function goURL(url:String, target:String="_blank"):void
+			{
+				url=ObjectUtils.unescape4flex(url) as String;
+				flash.net.navigateToURL(new flash.net.URLRequest(url), target);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//皮肤容器
+			private function loadWidgetContain():void
+			{
+				var app:Object=this;
+				var widgetContain:Object=config.appConfig.widgetContain;
+				var url:String=widgetContain.url;
+				if (StringUtils.contain(url, "?"))
+					url=url + "&version=" + mapVersion;
+				else
+					url=url + "?version=" + mapVersion;
+				var moduleLoader:ModuleLoader=new ModuleLoader();
+				moduleLoader.percentWidth=100;
+				moduleLoader.percentHeight=100;
+
+				moduleLoader.addEventListener(ModuleEvent.READY, event4WidgetContainReady);
+				moduleLoader.loadModule(webgisModuleDir + url);
+				setModulePosition(moduleLoader, widgetContain.pos);
+				mapGroup.addElement(moduleLoader);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4WidgetContainReady(event:ModuleEvent):void
+			{
+				var containModule:Module=(event.currentTarget as ModuleLoader).child as Module;
+				containModule.addEventListener(FlexEvent.CREATION_COMPLETE, event4WidgetContainCreateComplete);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4WidgetContainCreateComplete(event:FlexEvent):void
+			{
+				map.resetMapParent();
+				map.visible=true;
+				trace(JSON.stringify(WebGISConfig));
+				widgetContainIntf=event.currentTarget as MapWidgetContainIntf;
+				widgetContainIntf.setParams(WebGISConfig);
+				widgetContainIntf.getMapContain()["addElement"](map);
+				widgetContainIntf.getMapContain()["addElement"](labelLonLat);
+				lonlatVisible=WebGISConfig.map.lonlat;
+				loadMapWidgets();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//控件
+			private function loadMapWidgets():void
+			{
+				var controls:Array=config.appConfig.widgetConrol;
+				if (controls)
+				{
+					isLoadedModuleNumber=controls.length;
+					for (var i:int=0; i < controls.length; i++)
+					{
+						var control:Object=controls[i];
+						var module:ModuleLoader=new ModuleLoader();
+						module.id="module_" + i;
+						module.addEventListener(ModuleEvent.READY, event4WidgetControlReady);
+						var url:String=control.url;
+						if (StringUtils.contain(url, "?"))
+							url=url + "&version=" + mapVersion;
+						else
+							url=url + "?version=" + mapVersion;
+						module.loadModule(webgisModuleDir + url);
+						this.addElement(module);
+						setModulePosition(module, control.pos);
+					}
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4WidgetControlReady(event:ModuleEvent):void
+			{
+				var app:Object=this;
+				var widget:MapWidgetIntf=(event.currentTarget as ModuleLoader).child as MapWidgetIntf;
+				widget.setParams(WebGISConfig);
+				widget.map=map;
+				widget.mapApp=app;
+				widget.widgetContain=widgetContainIntf;
+				widget.mapServiceClient=mapServiceClient;
+				isLoadedModuleNumber=isLoadedModuleNumber - 1;
+				if (isLoadedModuleNumber == 0)
+					callLater(allWidgetModuleLoaded);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			private function setModulePosition(control:UIComponent, pos:Object):void
+			{
+				var w:String=pos.width;
+				if (!StringUtils.isEmpty(w))
+				{
+					if (pos.width_unit == 1)
+						control.percentWidth=Convert.str2int(w, 0);
+					else
+						control.width=Convert.str2int(w, 0);
+				}
+				var h:String=pos.height;
+				if (!StringUtils.isEmpty(h))
+				{
+					if (pos.height_unit == 1)
+						control.percentHeight=Convert.str2int(h, 0);
+					else
+						control.height=Convert.str2int(h, 0);
+				}
+
+				if (!StringUtils.isEmpty(pos.left))
+				{
+					control.left=Convert.str2int(pos.left, 0);
+					control.x=Convert.str2int(pos.left, 0);
+				}
+				if (!StringUtils.isEmpty(pos.top))
+				{
+					control.top=Convert.str2int(pos.top, 0);
+					control.y=Convert.str2int(pos.top, 0);
+				}
+				if (!StringUtils.isEmpty(pos.right))
+					control.right=Convert.str2int(pos.right, 0);
+				if (!StringUtils.isEmpty(pos.bottom))
+					control.bottom=Convert.str2int(pos.bottom, 0);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//鹰眼图
+			public function getOvermapLayer():Layer
+			{
+				return mapLayerManager.getOvermapLayer();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//动态图层树
+			public function getDynamicLayerTree():Array
+			{
+				return mapLayerManager.getDynamicLayerTree();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//获取区域导航信息
+			public function getNavigatorAreaInfos():Object
+			{
+				return config.appConfig.navigatorArea;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			public function clearIdentifyFeatures():void
+			{
+				featurePropertyPanel.clear();
+				widgetContainIntf.hideExtContain("", featurePropertyPanel);
+				map.closePopupControl();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//清除
+			public function clear():void
+			{
+				map.clear();
+				clearIdentifyFeatures();
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//查询
+			public function search(str:String, geometry:Geometry, geometryUid:String):void
+			{
+				map.activePanMode();
+
+				if (!widgetContainIntf.searchContain)
+					return;
+
+				widgetContainIntf.searchContain.clear();
+
+				var layerAndServerIds:Array=mapLayerManager.getQueryLayerIds(map, layerTreeSelectedFieldName);
+				mapServiceClient.search(str, layerAndServerIds, geometry, geometryUid, function(json:Object):void
+				{
+					widgetContainIntf.searchContain.registerSearchContent(json);
+					widgetContainIntf.focusSearchContain();
+				});
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			//获取实体
+			public function getFeature(layerId:String, objectId:String):void
+			{
+				mapServiceClient.getFeature(layerId, objectId, function(json:Object):void
+				{
+					map.activePanMode();
+					map.clearFeature();
+					if (json.record)
+					{
+						var geometry:Geometry=Geometry.fromJSON(json.record.wkt);
+						var feature:Graphic=new Graphic(geometry, null, json.record.attributes);
+						map.splashFeature(feature, true, false, true, json.record.caption);
+					}
+				});
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+			//识别实体
+			public function identifyFunction(geometry:Geometry, map:MapControl):void
+			{
+				featurePropertyPanel.clear();
+				var resolution:Number=map.extent.width / map.width;
+				var layerAndServerIds:Array=mapLayerManager.getIdentifyLayerIds(map, layerTreeSelectedFieldName);
+				mapServiceClient.identify(geometry, layerAndServerIds, resolution, function(json:Object):void
+				{
+					if (json.records && json.records.length != 0)
+					{
+						featurePropertyPanel.mapServiceClient=mapServiceClient;
+						widgetContainIntf.showExtContain("点选结果显示", featurePropertyPanel);
+						featurePropertyPanel.registerFeatures(json);
+					}
+					else
+						map.clearFeature();
+				});
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////
+			public function getNavigatorAreaContent():Object
+			{
+				return this.config.userDistrictTree;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////
+			public function updateMapLegend():void
+			{
+				legend.layers=mapLayerManager.getLegendLayers(layerTreeSelectedFieldName);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////
+			//地图比对
+
+
+			public function showMultiMap():void
+			{
+				if (!this.widgetContainIntf.multiMap)
+					return;
+				widgetContainIntf["visible"]=false;
+				mapGroup.removeAllElements();
+				mapGroup.addElement(widgetContainIntf.multiMap as UIComponent);
+				widgetContainIntf.multiMap["visible"]=true;
+				if (isFirstShowMultiMap)
+				{
+					isFirstShowMultiMap=false;
+					widgetContainIntf.multiMap.initParams(this.mapLayerManager);
+					widgetContainIntf.multiMap.centerAt(map.center, map.level);
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////
+			//隐藏多图比对
+			public function hideMultiMap():void
+			{
+				widgetContainIntf.multiMap["visible"]=false;
+				mapGroup.removeAllElements();
+				mapGroup.addElement(widgetContainIntf as UIComponent);
+				widgetContainIntf["visible"]=true;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			//图层管理器
+			public function getMapLayerManager():MapLayerManager
+			{
+				return mapLayerManager;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+
+			protected function linkbarTopMenuItems_itemClickHandler(event:ItemClickEvent):void
+			{
+				var item:Object=event.item;
+				if (item.type == 1)
+				{
+					var url:String=flash.external.ExternalInterface.call("getMapAppURL") + "/../../flexclient/index.jsp";
+					goURL(url, "_self");
+				}
+				if (item.type == 2)
+				{
+					WinFormChangePassword.execute();
+				}
+				else if (item.type == 3)
+				{
+					AlertUtils.confirm("确定要退出系统？", function():void
+					{
+						flash.external.ExternalInterface.call("logoff");
+					});
+				}
+				else if (item.type == 4)
+				{
+					var url:String=flash.external.ExternalInterface.call("getMapAppURL") + "/../../statistic_analyze/index.jsp";
+					goURL(url, "decision");
+				}
+				else if (item.type == 6)
+				{
+					flash.external.ExternalInterface.call("openDownloadFontDialog");
+				}
+			}
+
+
+			public function closePopupWindow(win:UIComponent):void
+			{
+				PopUpManager.removePopUp(win);
+			}
+
+			public function showPopupWindow(win:UIComponent, isModal:Boolean=false, isCenter:Boolean=false, x:int=-1, y:int=-1):void
+			{
+				PopUpManager.addPopUp(win, FlexGlobals.topLevelApplication as DisplayObject, isModal);
+				if (isModal)
+					PopUpManager.centerPopUp(win);
+				else if (isCenter)
+					PopUpManager.centerPopUp(win);
+				if (x != -1 && y != -1)
+				{
+					win.x=x;
+					win.left=x;
+					win.y=y;
+					win.top=y;
+				}
+			}
+
+			//打印
+			public function print():void
+			{
+				PrintForm.execute(map, mapLayerManager.getPrintServerUrl());
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			//显示图例
+			public function showLegend():void
+			{
+				legend.visible=true;
+				widgetContainIntf.showExtContain("地图图例", legend);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			public function winGPSLocation():void
+			{
+				WinGPSLocation.execute(function(lon:Number, lat:Number):void
+				{
+					var wkid:int=map.spatialReference.wkid;
+					if (wkid == 4326 || map.isDegress)
+					{
+						var feature:Graphic=new Graphic(new MapPoint(lon, lat));
+						feature.symbol=map.locationSymbol;
+						map.splashFeature(feature, true, false);
+					}
+					else
+						mapServiceClient.project(new MapPoint(lon, lat, new SpatialReference(4326)), wkid, function(p:Geometry):void
+						{
+							var point:MapPoint=MapPoint(p);
+							if (!isNaN(point.x) && !isNaN(point.y))
+							{
+								var feature:Graphic=new Graphic(p);
+								feature.symbol=map.locationSymbol;
+								map.splashFeature(feature, true, false);
+							}
+							else
+							{
+								AlertUtils.alert("输入的坐标有误或已经超出地图允许的范围，请检查并注意经纬度顺序！");
+							}
+						});
+				});
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////
+			protected function map_loadHandler(event:MapEvent):void
+			{
+				map.removeEventListener(MapEvent.LOAD, map_loadHandler);
+				map.zoomToInitialExtent();
+				var baseLayer:Object=map.layers.source[0] as Layer;
+				isDegress=baseLayer.hasOwnProperty("units") && baseLayer.units == Units.DECIMAL_DEGREES;
+				map.isDegress=isDegress;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////
+
+			protected function map_mouseMoveHandler(event:MouseEvent):void
+			{
+				if (lonlatVisible)
+				{
+					var mapLocalPixelPoint:Point=globalToLocal(new Point(event.stageX, event.stageY));
+					var mapPoint:MapPoint=map.toMap(mapLocalPixelPoint);
+					var label:String=isDegress ? WebGISUtils.number2DFM(mapPoint.x) + "," + WebGISUtils.number2DFM(mapPoint.y) : Math.round(mapPoint.x * 100) / 100 + "," + Math.round(mapPoint.y * 100) / 100;
+					labelLonLat.text=label;
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private var randomColors:Array=["0x74cc00", "0x4da0e9", "0xf2a600", "0xa37cb9", "0xf15e5e", "0x004ACE2B", "0x00029DF0", "0x00FD9E0C", "0x9C9900", "0x367517", "0x006241", "0x00676B", "0x103667", "0x211551", "0x38044B", "0x64004B", "0x00A6AD"];
+			private var stepColors:Array=[0x2F0000, 0x4D0000, 0x600000, 0x750000, 0x930000, 0xAE0000, 0xCE0000, 0xEA0000, 0xFF0000, 0xFF2D2D, 0xFF5151, 0xff7575, 0xFF9797, 0xFFB5B5, 0xFFD2D2, 0xFFECEC, 0x000000, 0x272727, 0x3C3C3C, 0x4F4F4F, 0x5B5B5B, 0x6C6C6C, 0x7B7B7B, 0x8E8E8E, 0x9D9D9D, 0xADADAD, 0xBEBEBE, 0xd0d0d0, 0xE0E0E0, 0xF0F0F0, 0xFCFCFC, 0xFFFFFF];
+			private var randomColorIndex:int=0;
+			private var stepColorIndex:int=0;
+
+			public function initRandomColor():void
+			{
+				randomColorIndex=0;
+			}
+
+			public function randomColor(index:int=-1):uint
+			{
+				if (index == -1)
+				{
+					if (randomColorIndex >= randomColors.length)
+						randomColorIndex=0;
+					return randomColors[(randomColorIndex++) % randomColors.length];
+				}
+				else
+				{
+					return randomColors[index % randomColors.length];
+				}
+			}
+
+			public function getRandomColors():Array
+			{
+				return randomColors;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function stepColor(index:int=-1):uint
+			{
+				if (index == -1)
+				{
+					if (stepColorIndex >= stepColors.length)
+						stepColorIndex=0;
+					return stepColors[(stepColorIndex++) % stepColors.length];
+				}
+				else
+				{
+					return stepColors[index % stepColors.length];
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function setRandomColors(colors:Array):void
+			{
+				randomColors=colors;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function setStepColors(colors:Array):void
+			{
+				stepColors=colors;
+			}
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<fx:Array id="arrTopMenuItems">
+			<fx:Object label="管理系统" type="1" ico="@Embed('/assets/common/mis.png')"/>
+			
+			<fx:Object label="交通统计" type="4" ico="@Embed('/assets/common/chart.png')"/>
+			
+			<fx:Object label="更改密码" type="2" ico="@Embed('/assets/common/changepassword.png')"/>
+			<fx:Object label="退出系统" type="3" ico="@Embed('/assets/common/logout.png')"/>
+			<fx:Object label="" type="6" ico="@Embed('/assets/common/font.png')"/>
+		</fx:Array>
+
+
+	</fx:Declarations>
+
+	<map:MapControl mouseMove="map_mouseMoveHandler(event)" load="map_loadHandler(event)" visible="false" mapServiceClient="{mapServiceClient}" identifyFuntion="{identifyFunction}" mapApp="{this}" mapLayerManager="{mapLayerManager}" width="100%" height="100%" id="map" scaleBarVisible="false">
+	</map:MapControl>
+
+	<s:Group left="0" right="0" top="0" id="headerGroup" height="50">
+		<s:Image id="imgLogoBg" left="0" top="0" width="100%" height="100%" fillMode="clip"/>
+		<s:Image id="imgLogo" left="0" verticalCenter="0"/>
+
+		<s:HGroup gap="2" visible="{isLogin}" right="0" top="0" verticalAlign="middle">
+			<s:ComboBox id="mapAppComboBox" dataProvider="{new ArrayCollection([])}" width="180"/>
+			<mx:LinkBar itemClick="linkbarTopMenuItems_itemClickHandler(event)" id="linkbarTopMenuItems" contentBackgroundAlpha="0.0" dataProvider="{arrTopMenuItems}" fontWeight="bold" iconField="ico">
+			</mx:LinkBar>
+		</s:HGroup>
+
+		<s:Label text="{'欢迎您：' + flash.external.ExternalInterface.call('getUserName') + ' 今天是'+DateUtils.getTodayStr()}" right="3" bottom="3" fontWeight="bold" color="#8B0000"/>
+		<s:Line width="100%" bottom="0" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#DDE1E5"/>
+			</s:stroke>
+		</s:Line>
+	</s:Group>
+	<s:Group left="0" right="0" top="50" bottom="0" id="mapGroup"/>
+	<s:Group left="0" right="0" height="0" bottom="0" id="footGroup"/>
+	<s:ToggleButton width="0" height="0"/>
+
+	<s:CheckBox visible="false"/>
+	<layertree:SpinEdit visible="false"/>
+	<mx:PopUpButton visible="false"/>
+	<s:ButtonBar visible="false"/>
+	<mx:VideoDisplay visible="false"/>
+	<mx:Canvas visible="false"/>
+	<mx:CheckBox visible="false"/>
+	<s:HSlider visible="false"/>
+	<mx:HSlider visible="false"/>
+
+	<!-- 图例 -->
+	<component:LegendPanel visible="false" width="100%" height="100%" id="legend" map="{map}" mapLayerManager="{mapLayerManager}"/>
+
+	<!-- 属性 -->
+	<component:FeatureProperty map="{map}" id="featurePropertyPanel" visible="false"/>
+	<mx:AdvancedDataGrid visible="false" width="0" height="0"/>
+	<s:ComboBox visible="false" width="0" height="0" skinClass="com.webgis.module.toolbar.SearchComboBoxSkin" id="layerComboBox"/>
+	<mx:Grid visible="false">
+		<mx:GridRow>
+			<mx:GridItem>
+			</mx:GridItem>
+		</mx:GridRow>
+	</mx:Grid>
+
+	<s:Label fontFamily="Courier New" fontWeight="bold" color="0xFF0000" left="4" bottom="4" visible="{lonlatVisible}" id="labelLonLat"/>
+</s:Application>

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup left="0" right="0" top="0" bottom="0" paddingLeft="5" paddingRight="5" paddingTop="5" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx" gap="0">
+	<fx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.TitleWindow;
+			import spark.events.TextOperationEvent;
+			
+			private static var win:TitleWindow=null;
+			
+			private static var inst:InputTextForm=null;
+			
+			private static var fun:Function=null;
+			
+			private static var nonull:Boolean=true;
+			
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			public static function execute(caption:String, value:String, callFun:Function, readonly:Boolean=false, require:Boolean=true, width:int=320):void
+			{
+				if (win == null)
+				{
+					inst=new InputTextForm();
+					win=new TitleWindow();
+					win.height=105;
+					win.title=caption;
+					win.addElement(inst);
+					win.addEventListener(CloseEvent.CLOSE, function(event:CloseEvent):void
+					{
+						inst.button2_clickHandler(null);
+					});
+				}
+				win.title=caption;
+				fun=callFun;
+				nonull=require;
+				inst.textarea.text=value;
+				win.width=width;
+				inst.textarea_changeHandler(null);
+				inst.textarea.editable=!readonly;
+				inst.enabled=!readonly;
+				PopUpManager.addPopUp(win, FlexGlobals.topLevelApplication as UIComponent, true);
+				PopUpManager.centerPopUp(win);
+				//FlexGlobals.topLevelApplication.showPopupWindow (win , true);
+				
+				//PopUpManager.centerPopUp(win);
+			}
+			
+			///////////////////////////////////////////////////////////////////////////////////////////////////
+			//确定
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var value:String=textarea.text;
+				PopUpManager.removePopUp(win);
+				
+				if (fun != null)
+					fun(value);
+				fun=null;
+			}
+			
+			///////////////////////////////////////////////////////////////////////////////////////////////////
+			//关闭
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				PopUpManager.removePopUp(win);
+				//FlexGlobals.topLevelApplication.closePopupWindow (win);
+				
+			}
+			
+			///////////////////////////////////////////////////////////////////////////////////////////////////
+			//
+			protected function textarea_changeHandler(event:TextOperationEvent):void
+			{
+				if (nonull)
+				{
+					btnOK.enabled=textarea.text != "";
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:TextInput id="textarea" width="100%" height="100%" change="textarea_changeHandler(event)">
+	</s:TextInput>
+	<s:HGroup id="groupButtons" width="100%" height="40" verticalAlign="middle" gap="5">
+		<s:Spacer width="100%">
+		</s:Spacer>
+		<s:Button id="btnOK" width="75" height="30" fontWeight="bold" label="确定" click="button1_clickHandler(event)" tabIndex="65536">
+		</s:Button>
+		<s:Button width="75" height="30" fontWeight="bold" label="关闭" click="button2_clickHandler(event)" tabIndex="65537">
+		</s:Button>
+	</s:HGroup>
+</s:VGroup>

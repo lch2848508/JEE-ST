@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXDataGridItemRenderer focusEnabled="true" dataChange="mxdatagriditemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.component.FormGrid;
+			import com.estudio.flex.component.InputMemoForm;
+			import com.estudio.flex.module.FormDataService;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.events.CalendarLayoutChangeEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ToolTipEvent;
+
+			import spark.events.TextOperationEvent;
+
+			[Binadble]
+			public var readonly:Boolean=false;
+
+			private var cellValue:String="";
+
+			public var dataField:String="";
+			public var datasetName:String="";
+			public var formDataService:FormDataService=null;
+			public var formInstance:InterfaceFormUI=null;
+			public var grid:FormGrid=null;
+
+			////////////////////////////////////////////////////////////////////////////
+			protected function mxdatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				cellValue=oldValue=data[dataGridListData.dataField];
+				var ls:Array=StringUtils.split(StringUtils.trim(cellValue), ["\n"]);
+				textEditor.text=ls.length == 0 ? "" : ls.length == 1 ? ls[0] : ls[0] + "...";
+				//textEditor.toolTip=cellValue;
+			}
+
+			protected function image1_clickHandler(event:Event):void
+			{
+				//var value:String=textEditor.text;
+				InputMemoForm.execute(cellValue, editFunction, this.grid.readonly);
+			}
+
+			private function editFunction(text:String):void
+			{
+				if (!this.grid.readonly)
+				{
+					cellValue=text;
+					var ls:Array=StringUtils.split(StringUtils.trim(cellValue), ["\n"]);
+					textEditor.text=ls.length == 0 ? "" : ls.length == 1 ? ls[0] : ls[0] + "...";
+					newValue=cellValue;
+					if (!StringUtils.equal(oldValue, newValue))
+					{
+						if (!StringUtils.isEmpty(datasetName) && !StringUtils.isEmpty(dataField))
+							formInstance.setDataSetValue(datasetName, dataField, cellValue, [grid]);
+						grid.triggerChangeEvent(dataField, oldValue, cellValue);
+						oldValue=newValue;
+					}
+				}
+			}
+
+			private var oldValue:String="";
+			private var newValue:String="";
+
+			public override function get text():String
+			{
+				return cellValue;
+			}
+
+			protected function textEditor_toolTipShowHandler(event:ToolTipEvent):void
+			{
+//				event.toolTip.width=this.document.width;
+//				//event.toolTip.height = this.grid.height;
+//				var p:Point=new Point(0, 0);
+//				p=this.localToGlobal(p);
+//				event.toolTip.x=p.x;
+//				event.toolTip.y=Math.max(0, event.toolTip.y);
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup left="1" right="1" top="1" bottom="1" gap="-1">
+		<s:TextInput paddingTop="4" toolTipShow="textEditor_toolTipShowHandler(event)" doubleClick="{image1_clickHandler}" doubleClickEnabled="true" id="textEditor" width="100%" editable="false" height="100%" borderColor="#FF0000">
+		</s:TextInput>
+		<s:BorderContainer width="20" height="100%" borderColor="#FF0000" minHeight="20" minWidth="22" click="image1_clickHandler(event)">
+			<s:Image toolTip="点击编辑多行文本编辑框" horizontalCenter="0" verticalCenter="0" source="@Embed('/assets/common/btn_3dot.png')">
+			</s:Image>
+		</s:BorderContainer>
+	</s:HGroup>
+</s:MXDataGridItemRenderer>

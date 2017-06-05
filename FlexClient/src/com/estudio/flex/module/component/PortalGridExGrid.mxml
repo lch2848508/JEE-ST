@@ -1,0 +1,1525 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:PortalGridExControl creationComplete="portalgridexcontrol1_creationCompleteHandler(event)" currentState="normal" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+							   xmlns:component="com.estudio.flex.module.component.*" width="100%" height="100%" xmlns:component1="com.estudio.flex.component.*">
+	<component:states>
+		<s:State name="existsFilterToolbar"/>
+		<s:State name="existsPagination"/>
+		<s:State name="existsFilterAndPagination"/>
+		<s:State name="normal"/>
+	</component:states>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.component.IconButton;
+			import com.estudio.flex.component.ToolbarVertline;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.JSFunUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.estudio.flex.utils.UIUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.HierarchicalData;
+			import mx.controls.DateField;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumnGroup;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridRendererProvider;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.core.mx_internal;
+			import mx.events.AdvancedDataGridEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.utils.ArrayUtil;
+
+			import spark.components.Button;
+			import spark.components.ComboBox;
+			import spark.components.Group;
+			import spark.components.Label;
+			import spark.components.TextInput;
+			import spark.events.DropDownEvent;
+			import spark.events.IndexChangeEvent;
+
+			private var isExistsPagination:Boolean=false;
+			private var isExistsFilterToolbar:Boolean=false;
+
+			[Bindable]
+			public var callfun4SelectedChange:Function=null;
+
+			public var portalId:String="";
+
+			[Embed(source="/assets/common/expand.png")] //新建
+			[Bindable]
+			private var imgExpend:Class;
+
+			[Embed(source="/assets/common/collopse.png")] //新建
+			[Bindable]
+			private var imgCollopse:Class;
+
+			private var column2SpecialStyle:Object={}; //数据列对象专题图定义
+
+			private var gridOptions:Object=null;
+			private var groupField:String="";
+			private var flatArrayCollection:ArrayCollection=null;
+			private var isIncludeCheckBox:Boolean=false;
+			private var showFormType:int=0;
+			private var innerEditor:Boolean=false;
+			private var filterParams:Array=null;
+			private var databaseRecords:Array=null;
+			private var isGroupMode:Boolean=false;
+			private var isGridEditable:Boolean=false;
+			private var captionFieldName:String="";
+			private var paginationData:Object=null;
+			private var autoWidthColumns:Array=[];
+			private var isLockColumnMode:Boolean=false;
+			private var lockColumnCaption:String="";
+			private var isAutoColumnWidth:Boolean=false;
+			private var isCustomColumn:Boolean=false;
+			private var oldFilterParams:Object={};
+			private var selectKeys4RefreshData:Array=null;
+			///////////////////////////////////////////////////////////////////////////
+			//数据选择项回调函数
+			private var callFunction4EventSelectChange:Array=null;
+
+			public function registerCallFunction4EventSelectChange(fun:Function):void
+			{
+				if (ArrayUtils.indexOf(callFunction4EventSelectChange, fun) == -1)
+					callFunction4EventSelectChange.push(fun);
+			}
+
+			////////////////////////////////////////////////////////////////////////////
+			public function initData(data:Object):void
+			{
+				databaseRecords=data.rows;
+				if (databaseRecords == null)
+					databaseRecords=[];
+
+				if (selectKeys4RefreshData != null && selectKeys4RefreshData.length != 0)
+				{
+					for (var i:int=0; i < databaseRecords.length; i++)
+					{
+						var record:Object=databaseRecords[i];
+						if (ArrayUtils.contain(selectKeys4RefreshData, record.__key__))
+							record.__chk__=true;
+					}
+				}
+
+				if (isGroupMode)
+				{
+					flatArrayCollection=new ArrayCollection(ArrayCollectionUtils.FlatToHierarchData(databaseRecords, groupField));
+					advGrid.dataProvider=new HierarchicalData(flatArrayCollection);
+				}
+				else
+				{
+					flatArrayCollection=new ArrayCollection(databaseRecords);
+					advGrid.dataProvider=flatArrayCollection;
+				}
+				advGrid.invalidateList();
+				advGrid.callLater(selectFirstRecord);
+				if (isExistsPagination)
+				{
+					if (pagination)
+					{
+						pagination.updatePages(data.t, data.tr, data.p);
+						paginationData=null;
+					}
+					else
+					{
+						paginationData=data;
+					}
+				}
+				if (isAutoColumnWidth && autoWidthColumns.length != 0)
+				{
+					applyAutoColumnWidth(databaseRecords);
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////
+			//自动设置列宽
+			private function applyAutoColumnWidth(records:Array):void
+			{
+
+				for (var i:int=0; i < autoWidthColumns.length; i++)
+				{
+					var column:AdvancedDataGridColumn=(autoWidthColumns[i] as AdvancedDataGridColumn);
+					var fieldName:String=column.dataField;
+					if (StringUtils.endWith(fieldName, "_URL"))
+						fieldName=StringUtils.replace(fieldName, "_URL", "");
+					var headText:String=column.headerText;
+					var maxLength:int=FlexGlobals.topLevelApplication.measureTextWidth(headText); //StringUtils.isEmpty(headText) ? 0 : headText.length;
+					for (var j:int=0; j < records.length; j++)
+					{
+						var record:Object=records[j];
+						if (!record[fieldName] || StringUtils.isEmpty(record[fieldName]))
+							continue;
+						var length:int=FlexGlobals.topLevelApplication.measureTextWidth(record[fieldName] + ""); //("" + record[fieldName]).length;
+						maxLength=Math.max(length, maxLength);
+					}
+					column.width=Math.max(FlexGlobals.topLevelApplication.measureTextWidth(column.headerText), maxLength) + 20;
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////
+
+			private function firstInitPagination()
+			{
+				if (paginationData != null)
+				{
+					pagination.updatePages(paginationData.t, paginationData.tr, paginationData.p);
+					paginationData=null;
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			private function selectFirstRecord():void
+			{
+				if (flatArrayCollection.length == 0)
+					return;
+				if (isGroupMode)
+				{
+					advGrid.expandAll();
+					advGrid.selectedIndex=1;
+					callJSEvent("EventOnSelect", flatArrayCollection.source[0].children[0]);
+				}
+				else
+				{
+					advGrid.selectedIndex=0;
+					callJSEvent("EventOnSelect", flatArrayCollection.source[0]);
+				}
+				callfun4SelectedChange(controlName);
+			}
+
+			////////////////////////////////////////////////////////////////////////////
+			//初始化参数
+			override public function initParams(controlParams:Object):void
+			{
+				super.initParams(controlParams);
+				filterParams=controlParams.filterParams;
+				gridOptions=controlParams.options;
+				//编辑方式
+				innerEditor=StringUtils.equal(gridOptions.EditMode, "直接编辑");
+				var columnDefines:Array=controlParams.columns;
+				groupField=StringUtils.between(gridOptions.GroupField, "[", "]");
+				captionFieldName=StringUtils.between(gridOptions.CaptionField, "[", "]");
+				isExistsFilterToolbar=Convert.object2Boolean(gridOptions.OwnFilterToolbar) && filterParams && filterParams.length != 0;
+				isExistsPagination=Convert.object2Boolean(gridOptions.SupportPaging);
+				isIncludeCheckBox=Convert.object2Boolean(gridOptions.MultiSelected);
+				isAutoColumnWidth=Convert.object2Boolean(gridOptions.AutoColumnWidth);
+				isCustomColumn=Convert.object2Boolean(gridOptions.CustomColumn);
+				isGroupMode=Convert.object2Boolean(gridOptions.GroupColumn) && !StringUtils.isEmpty(groupField);
+				lockColumnCaption=gridOptions.LockField;
+				if (!StringUtils.isEmpty(lockColumnCaption) && (StringUtils.startWith(lockColumnCaption, "#B") || StringUtils.startWith(lockColumnCaption, "#E")))
+					lockColumnCaption=lockColumnCaption.substring(2);
+				isLockColumnMode=Convert.object2Boolean(gridOptions.LockColumn) && !StringUtils.isEmpty(lockColumnCaption);
+
+				//窗体显示方式
+				var showFormTypeStr:String=gridOptions.ShowFormMode;
+				if (StringUtils.equal(showFormTypeStr, "对话框"))
+					showFormType=0;
+				else if (StringUtils.equal(showFormTypeStr, "占用栏目位置"))
+					showFormType=1;
+				else if (StringUtils.equal(showFormTypeStr, "公共栏目位置"))
+					showFormType=2;
+
+				if (isExistsFilterToolbar && isExistsPagination)
+					this.currentState="existsFilterAndPagination";
+				else if (isExistsFilterToolbar)
+					this.currentState="existsFilterToolbar";
+				else if (isExistsPagination)
+					this.currentState="existsPagination";
+				else
+					this.currentState="normal";
+				createGridColumns(columnDefines);
+				generalToolbarItems();
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////
+			//生成工具条
+			private function generalToolbarItems():void
+			{
+				//if (!Convert.object2Boolean (gridOptions.ToolbarVisible))
+				//    return;
+				generalToolbarItem(gridOptions, "NewBtnVisible", "NewBtnTitle", "NewBtnIcon", "new");
+				generalToolbarItem(gridOptions, "EditBtnVisible", "EditBtnTitle", "EditBtnIcon", "edit", false);
+				generalToolbarItem(gridOptions, "DeleteBtnVisible", "DeleteBtnTitle", "DeleteBtnIcon", "delete");
+				generalToolbarSplit();
+				generalToolbarItem(gridOptions, "MoveUpBtnVisible", "MoveUpBtnTitle", "MoveUpBtnIcon", "moveup");
+				generalToolbarItem(gridOptions, "MoveDownBtnVisible", "MoveDownBtnTitle", "MoveDownBtnIcon", "movedown");
+				generalToolbarSplit();
+				generalToolbarItem(gridOptions, "RefreshBtnVisible", "RefreshBtnTitle", "RefreshBtnIcon", "refresh");
+			}
+
+			///////////////////////////////////////////////////////////////////////////
+			//创建数据列
+			private function createGridColumns(columnDefines:Array):void
+			{
+				var columns:ArrayCollection=new ArrayCollection();
+				var column:AdvancedDataGridColumn=null;
+				var render:ClassFactory=null;
+				var groupColumns:Array=[columns];
+				var groupColumnItems:Array=[];
+				var groupDepth:int=0;
+				var isLockColumn:Boolean=columnDefines
+
+				var groupFieldName:String=StringUtils.between(gridOptions.GroupField, "[", "]");
+				//设计的列
+				for (var i:int=0; i < columnDefines.length; i++)
+				{
+					var columnUIDefine:Object=columnDefines[i];
+					column=null;
+					var columnCaption:String=StringUtils.trim(columnUIDefine.Caption);
+					if (StringUtils.startWith(columnCaption, "#")) //分组列
+					{
+						if (StringUtils.startWith(columnCaption, "#B"))
+						{
+							var groupColumn:AdvancedDataGridColumnGroup=new AdvancedDataGridColumnGroup();
+							groupColumn.headerText=columnCaption.substring(2);
+							groupColumn.draggable=false;
+							groupColumns.push(new ArrayCollection());
+							groupColumnItems.push(groupColumn);
+							column=groupColumn;
+							groupColumn.headerRenderer=new ClassFactory(AdvDataGridColumnGroupHeaderRenderEx);
+							groupDepth++;
+						}
+						else if (StringUtils.startWith(columnCaption, "#E"))
+						{
+							groupColumnItems[groupColumnItems.length - 1].children=groupColumns[groupColumns.length - 1].toArray();
+							ArrayUtils.remove(groupColumnItems, groupColumnItems.length - 1);
+							ArrayUtils.remove(groupColumns, groupColumns.length - 1);
+							groupDepth--;
+						}
+					} //特殊列
+					else //普通列
+					{
+						var fieldName:String=columnUIDefine.Field;
+						if (!StringUtils.isEmpty(fieldName) && Convert.object2Boolean(gridOptions.GroupColumn) && StringUtils.equal(fieldName, groupFieldName))
+							continue;
+						column=new AdvancedDataGridColumn();
+						column.dataField=fieldName; //字段;
+						if (StringUtils.isEmpty(column.dataField))
+							column.dataField="__F" + i + "__";
+						column.headerText=columnCaption; //标题
+						column.minWidth=0; //FlexGlobals.topLevelApplication.measureTextWidth(column.headerText) + 20;
+						column.resizable=!columnUIDefine.FixedWidth; //宽度固定		
+						column.editable=false;
+
+						if (column.resizable)
+						{
+							column.headerWordWrap=false;
+							column.wordWrap=false;
+								//column.minWidth=this.measureText(column.headerText).width + 20;
+						}
+
+						column.setStyle("textAlign", columnUIDefine.Align); //对齐方式
+						//column.headerRenderer = new ClassFactory(AdvDataGrid);
+						if (!StringUtils.isEmpty(columnUIDefine.Width) && !StringUtils.equal("*", columnUIDefine.Width))
+							column.width=Convert.str2int(columnUIDefine.Width, 120);
+
+
+						if (column.width <= 0)
+							column.visible=false;
+						column.headerRenderer=new ClassFactory(AdvDataGridColumnHeaderRenderEx);
+
+						//可以编辑的列
+						var IsEditable:Boolean=columnUIDefine.Editable;
+						var editorClass:String=columnUIDefine.EditorClass;
+						var itemRender:ClassFactory=null;
+						var editorRender:ClassFactory=null;
+						var isColumnDynamicWidth:Boolean=isAutoColumnWidth;
+
+						if (columnUIDefine.URLS.length != 0)
+						{
+							if (columnUIDefine.URLS[0].Type == "IS_A_HREF_COLUMN")
+							{
+								itemRender=new ClassFactory(AdvDataGridColumnHref4HTMLStyle);
+								itemRender.properties={fieldName: fieldName, controlName: controlName, portalInstance: portalInstance, textAlign: columnUIDefine.Align};
+								column.itemRenderer=itemRender;
+							}
+							else
+							{
+								itemRender=new ClassFactory(AdvDataGridColumnHref);
+								itemRender.properties={fieldName: fieldName, controlName: controlName, portalInstance: portalInstance, textAlign: columnUIDefine.Align};
+								column.itemRenderer=itemRender;
+							}
+							column.editable=false;
+						}
+						else if (StringUtils.equal(editorClass, "CheckBox"))
+						{
+							itemRender=new ClassFactory(AdvDataGridColumnCheckBox);
+							itemRender.properties={isEditable: IsEditable && !(readonly), fieldName: column.dataField};
+							column.itemRenderer=itemRender;
+							column.rendererIsEditor=true;
+							isGridEditable=IsEditable;
+							isColumnDynamicWidth=false;
+						}
+						else if (StringUtils.equal(editorClass, "Image"))
+						{
+							column.editable=false;
+							itemRender=new ClassFactory(AdvDataGridColumnIcon);
+							itemRender.properties={fieldName: column.dataField};
+							column.itemRenderer=itemRender;
+							isColumnDynamicWidth=false;
+						}
+						else if (StringUtils.equal(editorClass, "TextBox"))
+						{
+							column.editable=IsEditable;
+						}
+						else if (StringUtils.equal(editorClass, "ComboBox"))
+						{
+							itemRender=new ClassFactory(AdvDataGridColumnCombobox);
+							var items:ArrayCollection=getComboboxColumnItems(columnUIDefine.EditorProperty);
+							itemRender.properties={fieldName: column.dataField, items: items, isEditable: IsEditable};
+							column.itemRenderer=itemRender;
+						}
+						else if (StringUtils.equal(editorClass, "Date") || StringUtils.equal(editorClass, "DateTime"))
+						{
+							editorRender=new ClassFactory(AdvDataGridColumnDate);
+							var includeTime:Boolean=true; //StringUtils.equal(editorClass, "DateTime");
+							editorRender.properties={fieldName: fieldName, includeTime: includeTime}
+							column.itemEditor=editorRender;
+							column.editable=true;
+							column.setStyle("fontFamily", "Courier New");
+							column.setStyle("fontSize", 13);
+							isColumnDynamicWidth=false;
+							column.width=includeTime ? 190 : 120;
+							column.resizable=false;
+						}
+
+						//是否允许编辑
+						if (column.editable && IsEditable)
+							isGridEditable=true;
+
+						//外观
+						var columnDefaultStyle:Object={};
+						var columnStyle:Object=columnUIDefine.Style;
+						if (columnStyle != null)
+						{
+							if (columnStyle.viewType == 0) //显示为文本
+							{
+								columnDefaultStyle=columnStyle.defaultStyle;
+								for (var k:String in columnDefaultStyle)
+									column.setStyle(k, columnDefaultStyle[k]);
+
+								if (columnStyle.special && columnStyle.specialItems.length != 0) //专题图
+								{
+									column2SpecialStyle[column.dataField + column.headerText]=createJSSpecialFunction4Text(columnStyle.specialItems, columnStyle.defaultStyle);
+									column.styleFunction=setColumnSpecialStyle;
+								}
+							}
+							else //显示为图片 增加图片渲染器
+							{
+								render=new ClassFactory(AdvDataGridColumnGridImageRender);
+								if (columnStyle.special && columnStyle.specialItems.length != 0) //专题图
+								{
+									column2SpecialStyle[column]=createJSSpecialFunction4Image(columnStyle.specialItems);
+									render.properties={JSFun: column2SpecialStyle[column]};
+								}
+								column.itemRenderer=render;
+								isColumnDynamicWidth=false;
+							}
+						}
+
+						//是否需要计算列宽
+						if (isColumnDynamicWidth && column.resizable)
+							autoWidthColumns.push(column);
+
+						if (!column.resizable)
+							column.width=Math.max(column.width, column.minWidth);
+					} // end if 普通列
+
+					if (column != null)
+					{
+						if (column is AdvancedDataGridColumnGroup)
+							groupColumns[groupColumns.length - 2].addItem(column);
+						else
+							groupColumns[groupColumns.length - 1].addItem(column);
+					}
+				}
+
+
+
+				//多选 CheckBox
+				if (isIncludeCheckBox)
+				{
+					column=new AdvancedDataGridColumn();
+					column.width=24;
+					column.minWidth=24;
+					column.resizable=false;
+					column.headerRenderer=new ClassFactory(AdvDataGridColumnCheckBoxHeaderRender);
+					column.headerText="选择";
+					column.dataField="__chk__";
+					var itemEditor:ClassFactory=new ClassFactory(AdvDataGridColumnCheckBoxRender);
+					column.itemRenderer=itemEditor;
+					column.rendererIsEditor=false;
+					column.editable=false;
+					columns.addItemAt(column, 0);
+				}
+
+
+				//处理分组列
+				if (Convert.object2Boolean(gridOptions.GroupColumn) && !StringUtils.isEmpty(groupFieldName))
+				{
+					var groupRender:AdvancedDataGridRendererProvider=new AdvancedDataGridRendererProvider();
+					groupRender.columnIndex=0;
+					groupRender.columnSpan=0;
+					groupRender.renderer=new ClassFactory(AdvancedDataGridGroupItemRendererEx);
+					groupRender.dataField="__group__";
+					advGrid.rendererProviders=[groupRender];
+
+					column=new AdvancedDataGridColumn();
+					column.width=-1;
+					column.minWidth=-1;
+					column.resizable=false;
+					column.dataField="__group__";
+					column.editable=false;
+					columns.addItemAt(column, 0);
+				}
+
+				//DataGrid.
+				advGrid.groupedColumns=columns.toArray();
+				if (!isGroupMode && isLockColumnMode)
+				{
+					var lockColumnCount:int=findLockColumnIndex(columns);
+					if (lockColumnCount != -1)
+						advGrid.lockedColumnCount=lockColumnCount + 1;
+				}
+				advGrid.invalidateList();
+			}
+
+			//////////////////////////////////////////////////////////////////////////
+			//获取绑定的列
+			private function findLockColumnIndex(columns:ArrayCollection):int
+			{
+				var getGroupColumns:Function=function(groupColumns:AdvancedDataGridColumnGroup, result:Array):void
+				{
+					for (var i:int=0; i < groupColumns.children.length; i++)
+					{
+						result.push(groupColumns.children[i]);
+						if (groupColumns.children[i] is AdvancedDataGridColumnGroup)
+							getGroupColumns(groupColumns.children[i] as AdvancedDataGridColumnGroup, result);
+					}
+				}
+				var isGroupColumnContainColumnByCaption:Function=function(groupColumns:AdvancedDataGridColumnGroup, caption:String):Boolean
+				{
+					var list:Array=[];
+					getGroupColumns(groupColumns, list);
+					for (var i:int=0; i < list.length; i++)
+						if (list[i].headerText == caption)
+							return true;
+					return false;
+				}
+
+				var result:int=-1;
+				for (var i:int=0; i < columns.length; i++)
+				{
+					var column:Object=columns.getItemAt(i);
+					if ((column is AdvancedDataGridColumn) && (column as AdvancedDataGridColumn).headerText == lockColumnCaption)
+					{
+						result=i;
+						break;
+					}
+					else if ((column is AdvancedDataGridColumnGroup) && isGroupColumnContainColumnByCaption(column as AdvancedDataGridColumnGroup, lockColumnCaption))
+					{
+						result=i;
+						break;
+					}
+				}
+				return result;
+			}
+
+			///////////////////////////////////////////////////////////////////////////
+			private function getComboboxColumnItems(itemStr:String):ArrayCollection
+			{
+				var result:Array=[];
+				var l:Array=itemStr.split("|");
+				for (var i:int=0; i < l.length; i++)
+				{
+					var t:Array=l[i].split("=");
+					if (t.length == 2)
+						result.push({value: t[0], label: t[1]});
+				}
+				return new ArrayCollection(result);
+			}
+			//////////////////////////////////////////////////////////////////////////////////
+			private var special_fun_index:int=0;
+
+			private function createJSSpecialFunction4Text(specialStyles:Array, defaultStyle:String):String
+			{
+				var functionName:String="__special_" + (portalId) + "_" + controlName + "_" + (special_fun_index++);
+				var functionBody:String="function " + functionName + "(RECORD) {\n  try {\n    RECORD=RECORD[0];\n";
+				for (var i:int=0; i < specialStyles.length; i++)
+				{
+					if (i == 0)
+						functionBody+="    if(" + specialStyles[i].code + ") return " + JSON.stringify(specialStyles[i].style) + ";\n";
+					else
+						functionBody+="    else if(" + specialStyles[i].code + ") return " + JSON.stringify(specialStyles[i].style) + ";\n";
+				}
+				functionBody+=" } catch(e) {}\n  return " + JSON.stringify(defaultStyle) + ";\n"
+				functionBody+="}\n";
+				////(functionBody);
+				JSFunUtils.JSFun("dynamicCreateJS", functionBody);
+				//ExternalInterface.call(functionBody);
+				return functionName;
+			}
+
+			private function createJSSpecialFunction4Image(specialStyles:Array):String
+			{
+				var functionName:String="__special_" + (portalId) + "_" + controlName + "_" + (special_fun_index++);
+				var functionBody:String="function " + functionName + "(RECORD) {\n  try {\n    RECORD=RECORD[0];\n";
+				for (var i:int=0; i < specialStyles.length; i++)
+				{
+					if (i == 0)
+						functionBody+="    if(" + specialStyles[i].code + ") return \"" + specialStyles[i].url + "\";\n";
+					else
+						functionBody+="    else if(" + specialStyles[i].code + ") return \"" + specialStyles[i].url + "\";\n";
+				}
+				functionBody+=" } catch(e) {}\n  return \"\";\n"
+				functionBody+="}\n";
+				JSFunUtils.JSFun("dynamicCreateJS", functionBody);
+				//ExternalInterface.call(functionBody);
+				return functionName;
+			}
+
+			//----------------------------------------------------------------------------------------------------
+			//专题图
+			private function setColumnSpecialStyle(data:Object, column:AdvancedDataGridColumn):Object
+			{
+				var result:Object=data == null ? null : data.hasOwnProperty("children") ? null : JSFunUtils.JSFun(column2SpecialStyle[column.dataField + column.headerText] as String, data) as Object;
+				return result;
+			}
+
+			//----------------------------------------------------------------------------------------------------
+			protected function advGrid_changeHandler(event:ListEvent):void
+			{
+				var item:Object=advGrid.selectedItem;
+				if (item && !item.children)
+				{
+					callfun4SelectedChange(controlName);
+					callJSEvent("EventOnSelect", item);
+				}
+			}
+
+			//----------------------------------------------------------------------------------------------------
+			override public function getRelationFieldValues():Object
+			{
+				var result:Object={};
+				var selectedItem:Object=advGrid.selectedItem;
+				if (selectedItem)
+				{
+					for (var i:int=0; i < this.relationFields.length; i++)
+					{
+						var fieldName:String=this.relationFields[i];
+						result[controlName + "$" + fieldName]=selectedItem[fieldName];
+					}
+				}
+				return result;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function getRecordFieldValue(fieldName:String, isNew:Boolean, isChild:Boolean):String
+			{
+				var result:String="";
+				var record:Object=advGrid.selectedItem;
+				if (!record && flatArrayCollection.length)
+					record=isGroupMode ? flatArrayCollection.getItemAt(0).children[0] : flatArrayCollection.getItemAt(0);
+				result=isNew ? "" : (record ? record[fieldName] : "");
+				return result;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function IsSelectedItemSupportOperation(operation:String):Boolean
+			{
+				if (StringUtils.equal("delete", operation))
+				{
+					if (StringUtils.isEmpty(getSelectedKeys()))
+					{
+						AlertUtils.msnMessage("系统", "没有选择记录，不能执行此操作!", false);
+						return false;
+					}
+				}
+				else
+				{
+					var record:Object=advGrid.selectedItem;
+					if (record == null || record.children)
+					{
+						AlertUtils.msnMessage("系统", "没有选择记录，不能执行此操作!", false);
+						return false;
+					}
+					var records:Array=(isGroupMode) ? advGrid.getParentItem(record).children : flatArrayCollection.source;
+					var index:int=-1;
+					if (StringUtils.equal("moveup", operation))
+					{
+						index=ArrayUtils.indexOf(records, record);
+						return index != 0;
+					}
+					else if (StringUtils.equal("movedown", operation))
+					{
+						index=ArrayUtils.indexOf(records, record);
+						return index != records.length - 1;
+					}
+				}
+				return true;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function getSelectedKeys():String
+			{
+				var result:Array=[];
+				if (isIncludeCheckBox)
+				{
+					var list:Array=[];
+					ArrayCollectionUtils.TreeData2List(flatArrayCollection.source, list);
+					for (var i:int=0; i < list.length; i++)
+						if (list[i].__chk__ && !list[i].children)
+							result.push(list[i].__key__);
+				}
+				var record:Object=advGrid.selectedItem;
+				if (record != null && !record.children && ArrayUtils.indexOf(result, record.__key__) == -1)
+				{
+					if (isIncludeCheckBox && !record.__chk__)
+					{
+						record.__chk__=true;
+						advGrid.invalidateList();
+					}
+					result.push(record.__key__);
+				}
+
+				return result.join(",");
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function deleteSelectedItems():void
+			{
+				if (!isExistsPagination || pagination.isLastPage)
+				{
+					if (isIncludeCheckBox)
+					{
+						var list:Array=[];
+						var lastIndex:int=-1;
+						var lastRecords:Array=null;
+						ArrayCollectionUtils.TreeData2List(flatArrayCollection.source, list);
+						for (var i:int=list.length - 1; i >= 0; i--)
+						{
+							var record:Object=list[i];
+							if (record.__chk__ || (record.children && record.children.length == 0))
+							{
+								var records:Array=record.children ? advGrid.getParentItem(record).children : flatArrayCollection.source;
+								var index:int=ArrayUtils.indexOf(records, record);
+								lastIndex=index;
+								lastRecords=records;
+								ArrayUtils.remove(records, index);
+							}
+						}
+						if (lastRecords.length == lastIndex)
+							lastIndex--;
+
+						if (lastIndex != -1)
+						{
+							record=lastRecords[lastIndex];
+							if (record.children)
+								record=record.children[record.children.length - 1];
+							advGrid.selectedItem=record;
+						}
+
+					}
+					else //删除单条记录
+					{
+						var record:Object=advGrid.selectedItem;
+						if (isGroupMode) //分组
+						{
+							var pRecord:Object=advGrid.getParentItem(record);
+							var index:int=ArrayUtils.indexOf(pRecord.children, record);
+							var dIndex:int=index;
+							index++;
+							if (pRecord.children.length == index)
+								index-=2;
+							if (index != -1)
+								advGrid.selectedItem=pRecord.children[index];
+							ArrayUtils.remove(pRecord.children, dIndex);
+							if (pRecord.children.length == 0)
+							{
+								var isFirst:Boolean=true;
+								index=ArrayUtils.indexOf(flatArrayCollection.source, pRecord);
+								dIndex=index;
+								index++;
+								if (index == flatArrayCollection.source.length)
+								{
+									index-=2;
+									isFirst=false;
+								}
+								if (index != -1)
+								{
+									pRecord=flatArrayCollection.source[index];
+									advGrid.selectedItem=pRecord.children[isFirst ? 0 : pRecord.children.length - 1];
+								}
+								ArrayUtils.remove(flatArrayCollection.source, dIndex);
+							}
+						}
+						else
+						{
+							var index:int=ArrayUtils.indexOf(flatArrayCollection.source, record);
+							var dIndex:int=index;
+							index++;
+							if (flatArrayCollection.source.length == index)
+								index-=2;
+							if (index != -1)
+								advGrid.selectedItem=flatArrayCollection.source[index];
+							ArrayUtils.remove(flatArrayCollection.source, dIndex);
+						}
+					}
+					if (isExistsPagination && flatArrayCollection.length == 0)
+						refreshData();
+					else
+						advGrid.invalidateList();
+				}
+				else //翻页 不是最后一页
+				{
+					refreshData();
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//获取交换记录顺序
+			override public function getExchangeRecordKeys(isMoveUp:Boolean):Array
+			{
+				var record:Object=advGrid.selectedItem;
+				var pRecords:Array=(isGroupMode) ? advGrid.getParentItem(record).children : flatArrayCollection.source;
+				var index:int=ArrayUtils.indexOf(pRecords, record);
+				var index1:int=index + (isMoveUp ? -1 : 1);
+				return [record.__key__, pRecords[index1].__key__];
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//交换记录顺序
+			override public function exchangeRecordIndex(isMoveUp:Boolean):void
+			{
+				var selectedIndex:int=advGrid.selectedIndex;
+				var record:Object=advGrid.selectedItem;
+				var pRecords:Array=(isGroupMode) ? advGrid.getParentItem(record).children : flatArrayCollection.source;
+				var index:int=ArrayUtils.indexOf(pRecords, record);
+				var index1:int=index + (isMoveUp ? -1 : 1);
+				var record1:Object=pRecords[index1];
+				pRecords[index]=record1;
+				pRecords[index1]=record;
+				advGrid.selectedIndex=selectedIndex + (isMoveUp ? -1 : 1);
+				advGrid.selectedItem=record;
+				advGrid.invalidateList();
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function refreshData():void
+			{
+				selectKeys4RefreshData=getSelectedKeys().split(",");
+				var key:String="";
+				if (advGrid.selectedItem && advGrid.selectedItem.__key__)
+					key=advGrid.selectedItem.__key__;
+				if (pagination)
+					pagination.refresh();
+				else
+					goPage(2500, 1);
+				selectKeys4RefreshData=null;
+
+				if (!StringUtils.isEmpty(key))
+				{
+					advGrid.callLater(function():void
+					{
+						selectRecordByKey(key);
+					});
+				}
+			}
+
+			public function firstPage():void
+			{
+				if (pagination)
+					pagination.firstPage();
+				else
+					goPage(2500, 1);
+			}
+
+			public function lastPage():void
+			{
+				if (pagination)
+					pagination.lastPage();
+				else
+					goPage(2500, 1);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function getShowFormType():int
+			{
+				return this.showFormType;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function isInnerEditor():Boolean
+			{
+				return innerEditor;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function mergeRecord(isNew:Boolean, isChild:Boolean, record:Object):void
+			{
+				if (!record)
+				{
+					AlertUtils.alert("表单保存后返回的结果为空，请联系系统管理员！");
+					return;
+				}
+				if (isNew)
+				{
+					var isASC:Boolean=StringUtils.equal("从小到大", gridOptions.SortMode);
+					var recordCount:int=flatArrayCollection.length;
+					if (isGroupMode)
+					{
+						recordCount=0;
+						for (var i:int=0; i < flatArrayCollection.length; i++)
+						{
+							recordCount+=flatArrayCollection.getItemAt(i).children.length;
+						}
+					}
+					var mustGoPage:Boolean=(isExistsPagination && //分页
+						!((isASC && pagination.isLastPage && pagination.recordPrePage > recordCount) || //last
+						(!isASC && pagination.isFirstPage && pagination.recordPrePage > recordCount) //first
+						)) || getFilterParams() != null;
+					if (mustGoPage)
+					{
+						clearFilterControlValues();
+						if (pagination)
+						{
+							if (isASC)
+								pagination.lastPage();
+							else
+								pagination.firstPage();
+						}
+						else
+							goPage(2500, 1);
+					}
+					else
+					{
+						if (isGroupMode) //分页
+						{
+							var index:int=ArrayCollectionUtils.indexOf(flatArrayCollection, "__group__", record[groupField]);
+							var pRecord:Object=null;
+							if (index != -1)
+							{
+								pRecord=flatArrayCollection.getItemAt(index);
+								ArrayUtils.addItemAt(pRecord.children, record, isASC ? pRecord.children.length : 0);
+							}
+							else
+							{
+								pRecord={__group__: StringUtils.nvl(record[groupField], ""), children: [record]};
+								flatArrayCollection.addItemAt(pRecord, isASC ? flatArrayCollection.length : 0);
+							}
+						}
+						else //不分页
+						{
+							flatArrayCollection.addItemAt(record, isASC ? flatArrayCollection.length : 0);
+						}
+					}
+				}
+				else
+				{
+					var oldRecord:Object=advGrid.selectedItem;
+					if (oldRecord.__key__ != record.__key__)
+						oldRecord=this.selectRecordByKey(record.__key__);
+					for (var k:String in record)
+						oldRecord[k]=record[k];
+					ArrayCollectionUtils.flagRecordModified(oldRecord);
+					settingParentRefValue(oldRecord);
+					//需要从新分组
+					if (isGroupMode)
+					{
+						var groupStr:String=advGrid.getParentItem(oldRecord).__group__;
+						if (!StringUtils.equal(record[groupField], groupStr))
+						{
+							flatArrayCollection=new ArrayCollection(ArrayCollectionUtils.FlatToHierarchData(databaseRecords, groupField));
+							advGrid.dataProvider=new HierarchicalData(flatArrayCollection);
+							advGrid.selectedItem=null;
+							advGrid.callLater(function():void
+							{
+								advGrid.expandAll();
+							});
+						}
+					}
+
+				}
+				advGrid.invalidateList();
+				if (record)
+				{
+					if (!advGrid.selectedItem || !StringUtils.equal(advGrid.selectedItem.__key__, record.__key__))
+					{
+						advGrid.callLater(function():void
+						{
+							advGrid.expandAll();
+							selectRecordByKey(record.__key__);
+						});
+					}
+					else
+					{
+						callfun4SelectedChange(controlName);
+					}
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function clearFilterControlValues():Boolean
+			{
+				var result:Boolean=false;
+				for (var k:String in filterParamName2Control)
+				{
+					var control:UIComponent=filterParamName2Control[k];
+					var paramValue:String=null;
+					if (control is TextInput)
+					{
+						paramValue=StringUtils.trim((TextInput(control)).text);
+						if (!StringUtils.isEmpty(paramValue))
+						{
+							(TextInput(control)).text="";
+							result=true;
+						}
+					}
+					else if (control is DateField)
+					{
+						paramValue=Convert.dateTime2Str(DateField(control).selectedDate, "YYYY-MM-DD");
+						if (!StringUtils.isEmpty(paramValue))
+						{
+							DateField(control).selectedDate=null;
+							result=true;
+						}
+					}
+					else if (control is ComboBox)
+					{
+						var combo:ComboBox=control as ComboBox;
+						if (combo.selectedItem != null)
+						{
+							combo.selectedItem.data;
+							combo.selectedItem=null;
+							combo.textInput.text="";
+							result=true;
+						}
+					}
+
+				}
+				return result;
+			}
+
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getFilterParams():Object
+			{
+				var result:Object=null;
+				for (var k:String in filterParamName2Control)
+				{
+					var control:UIComponent=filterParamName2Control[k];
+					var paramValue:String=null;
+					if (control is TextInput)
+					{
+						paramValue=StringUtils.trim((TextInput(control)).text);
+					}
+					else if (control is DateField)
+					{
+						paramValue=Convert.dateTime2Str(DateField(control).selectedDate, "YYYY-MM-DD");
+					}
+					else if (control is ComboBox)
+					{
+						var combo:ComboBox=control as ComboBox;
+						if (combo.selectedItem != null)
+							paramValue=combo.selectedItem.data;
+					}
+					if (StringUtils.isEmpty(paramValue))
+						continue;
+					if (result == null)
+						result={};
+					result[controlName + "$" + k]=paramValue;
+
+				}
+				return result;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function setFilterControlValues(record:Object):void
+			{
+				clearFilterControlValues();
+				for (var k:String in record)
+				{
+					var control:UIComponent=filterParamName2Control[k];
+					if (!control)
+						continue;
+					var paramValue:String=record[k];
+
+					if (control is TextInput)
+					{
+						(TextInput(control)).text=paramValue;
+						TextInput(control).invalidateDisplayList();
+						TextInput(control).validateDisplayList();
+						TextInput(control).validateNow();
+					}
+					else if (control is DateField)
+					{
+						DateField(control).selectedDate=Convert.str2DateTime(paramValue, null);
+						DateField(control).invalidateDisplayList();
+						DateField(control).validateDisplayList();
+						DateField(control).validateNow();
+					}
+					else if (control is ComboBox)
+					{
+						var combo:ComboBox=control as ComboBox;
+						var items:Array=ArrayCollection(combo.dataProvider).source;
+						var index:int=ArrayUtils.find(items, "LABEL", paramValue);
+						if (index == -1)
+							index=ArrayUtils.find(items, "ID", paramValue);
+						if (index != -1)
+						{
+							combo.selectedIndex=index;
+							combo.selectedItem=combo.dataProvider.getItemAt(index);
+							combo.invalidateDisplayList();
+							combo.validateDisplayList();
+							combo.validateNow();
+						}
+					}
+
+				}
+				this.callLater(refreshData);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function selectRecordByKey(key:String):Object
+			{
+				var result:Object=null;
+				if (!advGrid.selectedItem || !StringUtils.equal(advGrid.selectedItem.__key__, key))
+				{
+					var list:Array=[];
+					ArrayCollectionUtils.TreeData2List(flatArrayCollection.source, list);
+					for (var i:int=0; i < list.length; i++)
+					{
+						var record:Object=list[i];
+						if (StringUtils.equal(record.__key__, key))
+						{
+							advGrid.callLater(function():void
+							{
+								advGrid.selectedIndex=i;
+								advGrid.selectedItem=record;
+								advGrid.scrollToIndex(i);
+								advGrid.invalidateList();
+								callfun4SelectedChange(controlName);
+								callJSEvent("EventOnSelect", record);
+							});
+							result=record;
+							break;
+						}
+					}
+				}
+				return result;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function goPage(numPerPage:int, page:int):void
+			{
+				saveToServer();
+				portalInstance.loadPortalGridRecords(controlName, numPerPage, page, getFilterParams());
+				FlexGlobals.topLevelApplication.closeCurrentPortalEditFormInfo(this.portalInstance, null);
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private var filterParamName2Control:Object={};
+			private var filterPanelVisible:Boolean=true;
+			private var filterComboboxList:Array=[];
+
+			//生成工具条
+			public function createFilterToolbar(toolbarControl:Group, comboboxFilterValues:Object):void
+			{
+				if (!filterParams || filterParams.length == 0)
+					return;
+
+				if (isExistsFilterToolbar && !filterToolbarPanel)
+				{
+					callLater(function():void
+					{
+						createFilterToolbar(toolbarControl, comboboxFilterValues);
+					});
+					return;
+				}
+
+				var filterToolbarContainVisibles:Array=[false, false, false, false, false];
+				var lastElement:Object=toolbarControl.getElementAt(toolbarControl.numElements - 1);
+				if (!(lastElement is ToolbarVertline))
+					toolbarControl.addElement(new ToolbarVertline());
+
+				var group:Group=null;
+				for (var i:int=0; i < filterParams.length; i++)
+				{
+					var param:Object=filterParams[i];
+					var pos:int=Convert.str2int(param.pos, 1);
+					pos=Math.min(5, Math.max(1, pos));
+					var controlIndex:int=pos - 1;
+					group=isExistsFilterToolbar ? filterToolbarPanel.getGroup(controlIndex) : toolbarControl;
+					filterToolbarContainVisibles[controlIndex]=isExistsFilterToolbar;
+
+					if (param["label"] != "")
+					{
+						var label:Label=new Label();
+						label.text=param["label"];
+						UIUtils.padding(label, 0, 3, 0, 0);
+						label.setStyle("paddingLeft", 3);
+						label.setStyle("paddingRight", 3);
+						group.addElement(label);
+					}
+
+					if (param["control"] == "TextBox")
+					{
+						var input:TextInput=new TextInput();
+						input.width=param["controlWidth"] ? param["controlWidth"] * 1 : 120;
+						input.height=22;
+						group.addElement(input);
+						filterParamName2Control[param["name"]]=input;
+						input.addEventListener(KeyboardEvent.KEY_DOWN, eventFilterInputKeyPress);
+					}
+					else if (param["control"] == "Date")
+					{
+						var datefield:DateField=new DateField();
+						datefield.editable=true;
+						datefield.height=22;
+						datefield.formatString="YYYY-MM-DD";
+						datefield.yearNavigationEnabled=true;
+						group.addElement(datefield);
+						filterParamName2Control[param["name"]]=datefield;
+							//datefield.addEventListener(mx.events.FlexEvent.DATA_CHANGE, function(event:FlexEvent):void {
+							//	eventFilterInputKeyPress(null);
+							//});
+					}
+					else if (param["control"] == "ComboBox")
+					{
+						var combobox:ComboBox=new ComboBox();
+						combobox.width=param["controlWidth"] ? param["controlWidth"] * 1 : 120;
+						combobox.height=22;
+						group.addElement(combobox);
+						combobox.addEventListener(FlexEvent.CREATION_COMPLETE, function(event:FlexEvent):void
+						{
+							event.currentTarget.textInput.editable=false;
+						});
+
+						combobox.labelField="LABEL";
+						var comboboxValueKey:String=(this.controlName + "_" + param["name"]).toUpperCase();
+						if (comboboxFilterValues && comboboxFilterValues[comboboxValueKey])
+						{
+							//var maxWidth:int=40;
+							for (var m:int=0; m < comboboxFilterValues[comboboxValueKey].length; m++)
+							{
+								var labelStr:String=comboboxFilterValues[comboboxValueKey][m].LABEL;
+								comboboxFilterValues[comboboxValueKey][m].data=comboboxFilterValues[comboboxValueKey][m].ID;
+									//maxWidth=Math.max(maxWidth, measureText(labelStr).width + 40);
+							}
+							//combobox.width=maxWidth;
+							combobox.dataProvider=new ArrayCollection(comboboxFilterValues[comboboxValueKey]);
+							combobox.selectedIndex=0;
+						}
+						filterParamName2Control[param["name"]]=combobox;
+						filterComboboxList.push({isExistsParent: param.isExistsParent, combobox: combobox, paramName: param["name"]});
+						//if (param.isExistsParent)
+						//	combobox.addEventListener(DropDownEvent.OPEN, event4FilterComboboxOpen);
+						combobox.addEventListener(IndexChangeEvent.CHANGE, event4FilterComboboxChange);
+					}
+				} //end for
+
+				if (isExistsFilterToolbar)
+				{
+					for (var i:int=0; i < filterToolbarContainVisibles.length; i++)
+						if (filterToolbarContainVisibles[i])
+							group=filterToolbarPanel.getGroup(i);
+				}
+
+				//过滤数据 
+				var btn:IconButton=new IconButton();
+				btn.iconURL="../images/18x18/search.png";
+				btn.toolTip="过滤数据";
+				btn.addEventListener(MouseEvent.CLICK, function():void
+				{
+					eventFilterInputKeyPress(null);
+				});
+				group.addElement(btn);
+
+				//清除过滤数据
+				btn=new IconButton();
+				btn.toolTip="清除过滤条件";
+				btn.iconURL="../images/18x18/filter_delete0.png";
+				btn.addEventListener(MouseEvent.CLICK, function():void
+				{
+					if (clearFilterControlValues())
+						eventFilterInputKeyPress(null);
+				});
+				group.addElement(btn);
+
+				if (isExistsFilterToolbar)
+				{
+					filterToolbarPanel.setFilterGroupVisible(filterToolbarContainVisibles);
+					if (filterParams.length != 0)
+					{
+						btn=new IconButton();
+						btn.iconURL="../images/18x18/br_up.png";
+						btn.toolTip="点击隐藏过滤条件";
+						btn.addEventListener(MouseEvent.CLICK, function(event:Event):void
+						{
+							filterPanelVisible=!filterPanelVisible;
+							btn.toolTip=filterPanelVisible ? "点击隐藏过滤条件" : "点击显示过滤条件";
+							btn.iconURL=filterPanelVisible ? "../images/18x18/br_up.png" : "../images/18x18/br_down.png";
+							showOrHideFilterToolbarPanel(filterPanelVisible);
+						});
+						toolbarControl.addElement(btn);
+					}
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//下拉列表控件下拉发生变化事件
+			private function event4FilterComboboxChange(event:IndexChangeEvent):void
+			{
+				var pCombobox:ComboBox=event.currentTarget as ComboBox;
+				var reloadCombobox:ComboBox=null;
+				var firstIndex:int=1;
+				for (var i:int=0; i < filterComboboxList.length; i++)
+				{
+					if (filterComboboxList[i].combobox == pCombobox)
+					{
+						firstIndex=i + 1;
+						break;
+					}
+				}
+				for (var i:int=firstIndex; i < filterComboboxList.length; i++)
+				{
+					if (filterComboboxList[i - 1].combobox == pCombobox && filterComboboxList[i].isExistsParent)
+					{
+						pCombobox=filterComboboxList[i].combobox as ComboBox;
+						pCombobox.selectedItem=null;
+						pCombobox.textInput.text="";
+						pCombobox.selectedIndex=-1;
+						pCombobox.dataProvider.removeAll();
+						if (reloadCombobox == null)
+							reloadCombobox=pCombobox;
+					}
+					else
+					{
+						break;
+					}
+				}
+				if (reloadCombobox)
+					dyanmicLoadFilterComboboxItems(reloadCombobox);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			//显示下拉列表值
+			private function event4FilterComboboxOpen(event:DropDownEvent):void
+			{
+				var combobox:ComboBox=event.currentTarget as ComboBox;
+			}
+
+			private function dyanmicLoadFilterComboboxItems(combobox:ComboBox):void
+			{
+				if (combobox.dataProvider.length == 0)
+				{
+					for (var i:int=1; i < filterComboboxList.length; i++)
+					{
+						if (filterComboboxList[i].combobox == combobox && filterComboboxList[i].isExistsParent)
+						{
+							var pItem:Object=filterComboboxList[i - 1].combobox.selectedItem;
+							if (pItem)
+							{
+								var params:Object={PARENT_COMBOBOX: pItem.ID, paramName: filterComboboxList[i].paramName, controlName: controlName};
+								params.portalId=portalId;
+								var json:Object=JSFunUtils.JSFun("getPortalControlFilterComboboxItems", params);
+								if (json)
+								{
+									if (!json.records)
+										json.records=[{ID: "", data: ""}];
+									combobox.dataProvider=new ArrayCollection(json.records);
+									//var maxWidth:int=40;
+									for (var j:int=0; j < json.records.length; j++)
+									{
+										var r:Object=json.records[j];
+										combobox.dataProvider.getItemAt(j).data=r.ID;
+											//maxWidth=Math.max(measureText(r.LABEL).width + 40, maxWidth);
+									}
+									//combobox.width=maxWidth;
+									combobox.invalidateDisplayList();
+									combobox.validateNow();
+								}
+							}
+							break;
+						}
+					}
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function showOrHideFilterToolbarPanel(isVisible:Boolean):void
+			{
+				if (!isVisible)
+					this.removeElement(filterToolbarPanel);
+				else
+					this.addElementAt(filterToolbarPanel, 0);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function eventFilterInputKeyPress(event:KeyboardEvent):void
+			{
+				if (event == null || event.keyCode == Keyboard.ENTER)
+				{
+					var filterParams:Object=getFilterParams();
+					var newStr:String=JSON.stringify(filterParams);
+					var oldStr:String=JSON.stringify(oldFilterParams);
+					if (StringUtils.equal(newStr, oldStr))
+						return;
+					oldFilterParams=filterParams;
+					if (isExistsPagination)
+						goPage(pagination.recordPrePage, pagination.currentPage);
+					else
+						goPage(2500, 1);
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getWindowCaption(isNew:Boolean):String
+			{
+				var result:String="";
+				if (isNew)
+				{
+					result="新增" + gridOptions.ControlName;
+				}
+				else
+				{
+					result="编辑" + gridOptions.ControlName;
+					if (!StringUtils.isEmpty(captionFieldName))
+						result+="-" + getSelectedItem()[captionFieldName];
+				}
+				return result;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function advGrid_doubleClickHandler(event:MouseEvent):void
+			{
+				var record:Object=advGrid.selectedItem;
+				if (record && !record.children && !callJSEvent("EventOnDoubleClick", {}))
+					if (readonly)
+					{
+						portalInstance.viewRecord(this);
+					}
+					else
+					{
+						portalInstance.editRecord(this);
+					}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getSelectedItem():Object
+			{
+				return advGrid.selectedItem;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getSelectedItems():Array
+			{
+				var result:Array=[];
+				if (isIncludeCheckBox)
+				{
+					var record:Object=advGrid.selectedItem;
+					if (record && !record.children && !record.__chk__)
+					{
+						record.__chk__=true;
+						advGrid.invalidateList();
+					}
+					ArrayCollectionUtils.Filter(flatArrayCollection.source, result, function(record:Object):Boolean
+					{
+						return !record.children && Convert.object2Boolean(record.__chk__);
+					});
+				}
+				else
+				{
+					result.push(advGrid.selectedItem);
+				}
+				return result;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			public function refreshUI():void
+			{
+				advGrid.invalidateList();
+			}
+
+			/////////////////////////////////////////////////////////////////////////////
+			//保存到服务
+			public function saveToServer():Object
+			{
+
+				if (isGridEditable && !portalInstance.readonly)
+				{
+					var newRecords:Array=[];
+					var modifiedRecords:Array=[];
+					ArrayCollectionUtils.getNewAndModifiedRecords(flatArrayCollection.source, newRecords, modifiedRecords);
+					if (newRecords.length + modifiedRecords.length != 0)
+					{
+						var params:Object={o: "savePortalGridEx", controlName: controlName, portalId: portalId, n: JSON.stringify(newRecords), u: JSON.stringify(modifiedRecords)};
+						if (parentControlParams != null)
+						{
+							for (var i:int=0; i < parentControlParams.length; i++)
+							{
+								var cp:Object=parentControlParams[i];
+								if (cp.control == this.controlName)
+									continue;
+								params[cp.control + "$" + cp.field]=portalInstance.getControlSelectedItem(cp.control)[cp.field];
+							}
+						}
+						var json:Object=JSFunUtils.JSFun("savePortalGridExControl", params);
+					}
+				}
+				return {r: false};
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+			public function settingParentRefValue(item:Object):void
+			{
+				if (isGridEditable && !portalInstance.readonly && !item.isSettingRefParentValue)
+				{
+					item.isSettingRefParentValue = true;
+					for (var i:int=0; i < parentControlParams.length; i++)
+					{
+						var cp:Object=parentControlParams[i];
+						if (cp.control == this.controlName)
+							continue;
+						item[cp.control + "$" + cp.field]=portalInstance.getControlSelectedItem(cp.control)[cp.field];
+					}
+				}
+			}
+			//////////////////////////////////////////////////////////////////////////////
+			protected function advGrid_itemEditEndHandler(event:AdvancedDataGridEvent):void
+			{
+				var item:Object=advGrid.selectedItem;
+				if (item)
+				{
+					ArrayCollectionUtils.flagRecordModified(item);
+					settingParentRefValue(item);
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////
+
+			protected function pagination_creationCompleteHandler(event:FlexEvent):void
+			{
+				firstInitPagination();
+			}
+
+			protected function portalgridexcontrol1_creationCompleteHandler(event:FlexEvent):void
+			{
+				_isCreateCompleted=true;
+			}
+		]]>
+	</fx:Script>
+	<component:GridFilterPanel id="filterToolbarPanel" includeIn="existsFilterToolbar,existsFilterAndPagination"/>
+
+	<mx:AdvancedDataGrid change="advGrid_changeHandler(event)" editable="{!(readonly)}" dataProvider="[]" id="advGrid" x="0" y="0" width="100%" height="100%" borderStyle="none" paddingTop="0" verticalAlign="middle" doubleClickEnabled="true" horizontalScrollPolicy="auto" verticalScrollPolicy="auto"
+						 sortableColumns="false" disclosureClosedIcon="{imgCollopse}" disclosureOpenIcon="{imgExpend}" draggableColumns="false" folderClosedIcon="{null}" folderOpenIcon="{null}" defaultLeafIcon="{null}" headerHeight="28" rowHeight="25" alternatingItemColors="[0xFFFFFF]"
+						 sortExpertMode="true" doubleClick="advGrid_doubleClickHandler(event)" itemEditEnd="advGrid_itemEditEndHandler(event)"/>
+
+	<component1:Pagination creationComplete="pagination_creationCompleteHandler(event)" includeIn="existsPagination,existsFilterAndPagination" width="100%" id="pagination" portalGrid="{this}"/>
+
+</component:PortalGridExControl>

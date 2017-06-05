@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:MenuItemRenderer dataChange="menuitemrenderer1_dataChangeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+    <fx:Script>
+        <![CDATA[
+            import com.estudio.flex.utils.StringUtils;
+            import com.utilities.IconUtility;
+
+            import mx.core.UIComponent;
+            import mx.events.FlexEvent;
+
+            protected function menuitemrenderer1_dataChangeHandler(event:FlexEvent):void
+            {
+                if (!StringUtils.isEmpty (data.iconURL))
+                    data.icon = IconUtility.getClass (this as UIComponent , data.iconURL , 18 , 18);
+            }
+        ]]>
+    </fx:Script>
+    <fx:Declarations>
+
+    </fx:Declarations>
+</mx:MenuItemRenderer>

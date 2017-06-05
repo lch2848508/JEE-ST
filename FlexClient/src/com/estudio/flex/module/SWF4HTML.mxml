@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module creationComplete="module1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+	<s:states>
+		<s:State name="editor"/>
+		<s:State name="view"/>
+	</s:states>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.Convert;
+
+			import mx.events.FlexEvent;
+			[Bindable]
+			private var content:String="";
+
+			public function setText(param:Object):void
+			{
+				currentState=Convert.object2Boolean(param.readonly, true) ? "view" : "editor";
+				content=param.text;
+				this.validateNow();
+			}
+
+			public function getText(params:Object):String
+			{
+				return textArea.htmlText;
+			}
+
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				//currentState="view";
+			}
+
+			protected function textArea_creationCompleteHandler(event:FlexEvent):void
+			{
+				textArea.fontFamilyArray=["YaHei Consolas Hybrid,微软雅黑", "宋体", "Arial", "Courier New", "Tahoma", "Times New Roman", "Verdana"];
+				textArea.toolbar.height=20;
+				textArea.textArea.setStyle("focusThickness", "0");
+				textArea.textArea.minWidth=10;
+				textArea.textArea.minHeight=10;
+				textArea.textArea.setStyle("borderStyle", "none");
+			}
+		]]>
+	</fx:Script>
+	<mx:RichTextEditor width="100%" height="100%" minWidth="10" minHeight="10" creationComplete="textArea_creationCompleteHandler(event)" dropShadowVisible="false" headerHeight="0" borderStyle="none" borderVisible="false" includeIn="editor" id="textArea" htmlText="{content}"/>
+
+	<mx:TextArea focusThickness="0" includeIn="view" htmlText="{content}" width="100%" height="100%" borderStyle="none" editable="false"/>
+</s:Module>

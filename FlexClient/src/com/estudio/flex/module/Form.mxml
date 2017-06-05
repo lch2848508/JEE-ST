@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module width="100%" height="100%" creationPolicy="all" creationComplete="eventModalCreationCompleteHandler(event)" implements="com.estudio.flex.common.InterfaceFormUI" xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" backgroundColor="0xF5F5F5" currentState="normalStyle" xmlns:component="com.estudio.flex.module.component.*">
+	<fx:Style source="../client/MainForm.css"/>
+	
+	<fx:Script>
+		<![CDATA[
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Script source="Form.as"/>
+	<fx:Script source="Form4Control.as"/>
+	<fx:Script source="Form4Event.as"/>
+	<fx:Script source="Form4Data.as"/>
+	<s:states>
+		<s:State name="dialogStyle"/>
+		<s:State name="dialogStyleAndHiddenButton"/>
+		<s:State name="normalStyle"/>
+		<s:State name="normalToolbarStyle"/>
+	</s:states>
+	<s:VGroup id="groupMain" left="0" right="0" top="0" bottom="0" paddingBottom="{_isDialog?3:0}" paddingLeft="{_isDialog?5:-1}" paddingRight="{_isDialog?5:-1}" paddingTop="{_isDialog?5:(_showToolbarEx?0:-1)}" gap="-1">
+
+		<!-- 工具条 -->
+		<component:ToolbarGroup includeIn="normalToolbarStyle" id="groupFormToolbarContain" width="100%">
+			<s:Line height="100%" left="0" width="0">
+				<s:stroke>
+					<s:SolidColorStroke color="#7B889C"/>
+				</s:stroke>
+			</s:Line>
+
+			<s:Line height="100%" right="0" width="0">
+				<s:stroke>
+					<s:SolidColorStroke color="#7B889C"/>
+				</s:stroke>
+			</s:Line>
+			<s:HGroup width="100%" height="100%" paddingLeft="3" paddingRight="3" verticalAlign="middle" gap="3" top="-1" id="groupFormToolbar"/>
+		</component:ToolbarGroup>
+
+		<!-- 表单区域 -->
+		<s:Group width="100%" height="100%" id="groupFormContainAutoFill">
+			<s:Scroller width="100%" height="100%">
+				<s:Group id="myScroller">
+					<s:Group id="groupFormContainScroll" horizontalCenter="0">
+					</s:Group>
+				</s:Group>
+			</s:Scroller>
+		</s:Group>
+
+		<s:HGroup includeIn="dialogStyle" id="groupButtons" width="100%" height="40" verticalAlign="middle" creationComplete="groupButtons_creationCompleteHandler(event)" initialize="eventBottomButtonsInitialize(event)" gap="5">
+			<s:CheckBox id="checkbox_closeAfterSave" x="3" y="10" label="保存后关闭窗体" click="eventCheckBoxCloseAfterSaveHandle(event)" tabIndex="65535">
+			</s:CheckBox>
+			<s:Spacer width="100%" minWidth="0">
+			</s:Spacer>
+			<s:Button id="btnSaveAndSend" visible="{_isWorkflowEditModalForm}" width="90" height="30" fontWeight="bold" enabled="{this.readonly}" label="保存并发送" click="eventSaveButtonClick(event)" tabIndex="65536">
+			</s:Button>
+			<s:Button id="btnOK" width="75" height="30" fontWeight="bold" enabled="{!this.readonly}" label="保存" click="eventSaveButtonClick(event)" tabIndex="65536">
+			</s:Button>
+			<s:Button id="btnClose" width="75" height="30" fontWeight="bold" label="关闭" click="eventCloseButtonClick(event)" tabIndex="65537">
+			</s:Button>
+		</s:HGroup>
+	</s:VGroup>
+</s:Module>

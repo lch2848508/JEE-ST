@@ -1,0 +1,502 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:PortalGridExControl creationComplete="portalgridexcontrol1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+							   xmlns:render="com.estudio.flex.component.mx.treeview.render.*" xmlns:component="com.estudio.flex.module.component.*" width="100%" height="100%">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Tree;
+			import mx.core.ScrollPolicy;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			[Bindable]
+			public var includeCheckBox:Boolean=true;
+
+			[Bindable]
+			public var callfun4SelectedChange:Function=null;
+
+
+			[Bindable]
+			public var labelFieldName:String="";
+
+			[Bindable]
+			public var iconFieldName:String="";
+
+			[Bindable]
+			public var checkFieldName:String="";
+
+			[Bindable]
+			public var defaultIconFileName:String="";
+
+			[Bindable]
+			public var checkEnabledFieldName:String="";
+
+			[Bindable]
+			public var rootIcon:String="";
+
+			private var tree:Tree=null;
+			private var treeOptions:Object=null;
+			private var treeDataProvider:ArrayCollection=null;
+			private var captionFieldName:String="";
+			///////////////////////////////////////////////////////////////////////////
+			//数据选择项回调函数
+			private var callFunction4EventSelectChange:Array=null;
+
+			public function registerCallFunction4EventSelectChange(fun:Function):void
+			{
+				if (ArrayUtils.indexOf(callFunction4EventSelectChange, fun) == -1)
+					callFunction4EventSelectChange.push(fun);
+			}
+
+			///////////////////////////////////////////////////////////////////////////
+			public function getParentItem():Object
+			{
+				var record:Object=tree.selectedItem;
+				if (record && tree.getParentItem(record))
+					record=tree.getParentItem(record);
+				return record;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			public function initData(data:Object):void
+			{
+				treeDataProvider=new ArrayCollection([data]);
+				this.tree.dataProvider=treeDataProvider;
+				tree.callLater(function():void
+				{
+					tree.selectedIndex=0;
+					tree.selectedItem=tree.dataProvider.source[0];
+					tree.expandChildrenOf(tree.selectedItem, true);
+					callJSEvent("EventOnSelect", tree.dataProvider.source[0]);
+					callfun4SelectedChange(controlName);
+				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function initParams(controlParams:Object):void
+			{
+				super.initParams(controlParams);
+				treeOptions=controlParams.options;
+
+				captionFieldName=StringUtils.between(treeOptions.CaptionField, "[", "]");
+				includeCheckBox=controlParams.checkbox;
+				labelFieldName=controlParams.labelField;
+				iconFieldName=controlParams.iconFieldName;
+				defaultIconFileName=controlParams.iconFileName;
+				checkFieldName=controlParams.checkFieldName;
+				rootIcon=controlParams.RootIcon;
+				checkEnabledFieldName=controlParams.checkEnabledField;
+
+				tree=new Tree();
+				tree.percentWidth=100;
+				tree.percentHeight=100;
+
+				tree.horizontalScrollPolicy=ScrollPolicy.AUTO;
+				tree.verticalScrollPolicy=ScrollPolicy.AUTO;
+				tree.addEventListener(ListEvent.CHANGE, event4TreeSelectChange);
+				tree.addEventListener(MouseEvent.DOUBLE_CLICK, event4TreeDoubleClick);
+
+				//点击事件
+				//tree.addEventListener (ListEvent.CHANGE , eventTreeOnSelectChange);
+				//tree.addEventListener (MouseEvent.DOUBLE_CLICK , function(e:MouseEvent):void
+				//{
+				//	funTreeEdit ()
+				//});
+				tree.doubleClickEnabled=true;
+				var itemRender:ClassFactory=new ClassFactory(PortalGridExTreeItemRender);
+				itemRender.properties={checkEnabledFieldName: checkEnabledFieldName, rootIconFileName: this.rootIcon, controlInstance: this, checkboxClickFun: this.event4TreeCheckBoxClick, labelFieldName: this.labelFieldName, iconFieldName: this.iconFieldName, checkFieldName: this.checkFieldName, defaultIconFileName: this.defaultIconFileName};
+				tree.itemRenderer=itemRender;
+				tree.left=1;
+				tree.top=1;
+				tree.right=1;
+				tree.bottom=1;
+				this.addElement(tree);
+
+				generalToolbarItems();
+			}
+
+			///////////////////////////////////////////////////////////////////////////
+			//生成工具条
+			private function generalToolbarItems():void
+			{
+				if (Convert.object2Boolean(treeOptions.ToolbarVisible))
+				{
+					if (Convert.object2Boolean(treeOptions.NewBtnVisible) && Convert.object2Boolean(treeOptions.NewChildBtnVisible))
+						generalToolbarItem(treeOptions, "NewBtnVisible", "NewBtnTitle", "NewBtnIcon", "new", true, [{label: '项', type: "new", title: treeOptions.NewBtnTitle}, {label: '子项', type: "newchild", title: treeOptions.NewChildBtnTitle}]);
+					else if (Convert.object2Boolean(treeOptions.NewBtnVisible))
+						generalToolbarItem(treeOptions, "NewBtnVisible", "NewBtnTitle", "NewBtnIcon", "new");
+
+					//generalToolbarItem(treeOptions, "NewChildBtnVisible", "NewChildBtnTitle", "NewChildBtnIcon", "newchild");
+
+					generalToolbarItem(treeOptions, "EditBtnVisible", "EditBtnTitle", "EditBtnIcon", "edit", false);
+					generalToolbarItem(treeOptions, "DeleteBtnVisible", "DeleteBtnTitle", "DeleteBtnIcon", "delete");
+					generalToolbarSplit();
+					generalToolbarItem(treeOptions, "MoveUpBtnVisible", "MoveUpBtnTitle", "MoveUpBtnIcon", "moveup");
+					generalToolbarItem(treeOptions, "MoveDownBtnVisible", "MoveDownBtnTitle", "MoveDownBtnIcon", "movedown");
+					generalToolbarSplit();
+					generalToolbarItem(treeOptions, "RefreshBtnVisible", "RefreshBtnTitle", "RefreshBtnIcon", "refresh");
+				}
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4TreeSelectChange(event:ListEvent):void
+			{
+				callfun4SelectedChange(this.controlName);
+				callJSEvent("EventOnSelect", tree.selectedItem);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4TreeCheckBoxClick(data:Object):void
+			{
+				if (ArrayUtils.indexOf(this.relationFields, "__keys__"))
+				{
+					callfun4SelectedChange(this.controlName);
+				}
+			}
+
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function getRelationFieldValues():Object
+			{
+				var result:Object={};
+				var selectedItem:Object=tree.selectedItem;
+				for (var i:int=0; i < this.relationFields.length; i++)
+				{
+					var fieldName:String=this.relationFields[i];
+					if (StringUtils.equal("__keys__", fieldName))
+						result[controlName + "$" + fieldName]=getSelectedKeys();
+					else
+						result[controlName + "$" + fieldName]=selectedItem[fieldName];
+				}
+				return result;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function getRecordFieldValue(fieldName:String, isNew:Boolean, isChild:Boolean):String
+			{
+				var result:String="";
+				var record:Object=tree.selectedItem;
+				if (!record)
+					record=tree.dataProvider.source[0];
+				if (StringUtils.equal("__pkey__", fieldName))
+				{
+					if (isChild)
+					{
+						result=record.__key__;
+					}
+					else
+					{
+						var pRecord:Object=tree.getParentItem(record);
+						if (pRecord == null)
+							pRecord=record;
+						result=pRecord.__key__;
+					}
+				}
+				else if (StringUtils.equal("__keys__", fieldName))
+				{
+					result=getSelectedKeys();
+				}
+				else
+				{
+					result=isNew ? "" : record[fieldName];
+				}
+				return result;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function IsSelectedItemSupportOperation(operation:String):Boolean
+			{
+				if (StringUtils.equal("delete", operation))
+				{
+					if (StringUtils.isEmpty(getSelectedKeys()))
+					{
+						AlertUtils.msnMessage("系统", "没有选择记录，不能执行此操作!", false);
+						return false;
+					}
+				}
+				else
+				{
+
+					var record:Object=tree.selectedItem;
+					if (record == null)
+					{
+						AlertUtils.msnMessage("系统", "没有选择记录，不能执行此操作!", false);
+						return false;
+					}
+
+					var parentRecord:Object=tree.getParentItem(record);
+					if (parentRecord == null)
+					{
+						AlertUtils.msnMessage("系统", "根节点不允许执行此操作!", false);
+						return false;
+					}
+
+					var index:int=-1;
+					if (StringUtils.equal("moveup", operation))
+					{
+						index=ArrayUtils.indexOf(parentRecord.children, record);
+						return index != 0;
+					}
+					else if (StringUtils.equal("movedown", operation))
+					{
+						index=ArrayUtils.indexOf(parentRecord.children, record);
+						return index != parentRecord.children.length - 1;
+					}
+				}
+				return true;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function getSelectedKeys():String
+			{
+				var ids:Array=[];
+				if (includeCheckBox)
+				{
+					var list:Array=[];
+					ArrayCollectionUtils.TreeData2List(tree.dataProvider.source, list);
+					for (var i:int=list.length - 1; i >= 1; i--)
+					{
+						if (list[i][checkFieldName])
+							ids.push(list[i].__key__);
+					}
+				}
+
+				if (tree.getParentItem(tree.selectedItem) != null && ArrayUtils.indexOf(ids, tree.selectedItem.__key__) == -1)
+				{
+					if (!tree.selectedItem[checkFieldName])
+					{
+						tree.selectedItem[checkFieldName]=true;
+						tree.invalidateList();
+					}
+					ids.push(tree.selectedItem.__key__);
+				}
+				return ids.join(",");
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function deleteSelectedItems():void
+			{
+				if (includeCheckBox)
+				{
+					var list:Array=[];
+					var lastPRecord:Object=null;
+					var lastIndex:int=null;
+					ArrayCollectionUtils.TreeData2List(treeDataProvider.source, list);
+					for (var i:int=list.length - 1; i >= 1; i--)
+					{
+						var record:Object=list[i];
+						if (record[checkFieldName])
+						{
+							var pRecord:Object=tree.getParentItem(record);
+							var index:int=ArrayUtils.indexOf(pRecord.children, record);
+							ArrayUtils.remove(pRecord.children, index);
+							if (pRecord.children.length == 0)
+								delete pRecord.children;
+							lastPRecord=pRecord;
+							lastIndex=index;
+						}
+					}
+					if (lastPRecord.children)
+					{
+						if (lastIndex >= lastPRecord.children.length - 1)
+							lastIndex=lastPRecord.children.length - 1;
+						tree.selectedItem=lastPRecord.children[lastIndex];
+					}
+					else
+						tree.selectedItem=lastPRecord;
+				}
+				else
+				{
+					var record:Object=tree.selectedItem;
+					var pRecord:Object=tree.getParentItem(record);
+					var index:int=ArrayUtils.indexOf(pRecord.children, record);
+					var dIndex:int=index;
+					index++;
+					if (pRecord.children.length == index)
+						index-=2;
+					if (index == -1)
+						tree.selectedItem=pRecord;
+					else
+						tree.selectedItem=pRecord.children[index];
+					ArrayUtils.remove(pRecord.children, dIndex);
+					if (pRecord.children.length == 0)
+						delete pRecord.children;
+				}
+				tree.invalidateList();
+				callJSEvent("EventOnSelect", tree.selectedItem);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function getExchangeRecordKeys(isMoveUp:Boolean):Array
+			{
+				var record:Object=tree.selectedItem;
+				var pRecord:Object=tree.getParentItem(record);
+				var index:int=ArrayUtils.indexOf(pRecord.children, record) + (isMoveUp ? -1 : 1);
+				return [record.__key__, pRecord.children[index].__key__];
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function exchangeRecordIndex(isMoveUp:Boolean):void
+			{
+				var record:Object=tree.selectedItem;
+				var pRecord:Object=tree.getParentItem(record);
+				var index:int=ArrayUtils.indexOf(pRecord.children, record);
+				var index1:int=index + (isMoveUp ? -1 : 1);
+				var record1:Object=pRecord.children[index1];
+				pRecord.children[index1]={};
+				pRecord.children[index]=record1;
+				pRecord.children[index1]=record;
+				tree.selectedIndex=index1;
+				tree.selectedItem=record;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			override public function refreshData():void
+			{
+				var key:String="";
+				if (tree.selectedItem)
+					key=tree.selectedItem.__key__;
+
+				//刷新界面
+				tree.selectedIndex=0;
+				tree.selectedItem=tree.dataProvider.source[0];
+				portalInstance.loadPortalTreeRecords(controlName);
+				tree.callLater(function():void
+				{
+					if (!StringUtils.isEmpty(key))
+						selectRecordByKey(key);
+					callfun4SelectedChange(controlName);
+				});
+
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getWindowCaption(isNew:Boolean):String
+			{
+				var result:String="";
+				if (isNew)
+				{
+					result="新增" + treeOptions.ControlName;
+				}
+				else
+				{
+					result="编辑" + treeOptions.ControlName;
+					if (!StringUtils.isEmpty(captionFieldName))
+						result+="-" + getSelectedItem()[captionFieldName];
+				}
+				return result;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function mergeRecord(isNew:Boolean, isChild:Boolean, record:Object):void
+			{
+				if (isNew)
+				{
+					var pRecord:Object=isChild ? tree.selectedItem : tree.getParentItem(tree.selectedItem);
+					if (!pRecord.children)
+						pRecord.children=[];
+					pRecord.children.push(record);
+				}
+				else
+				{
+					var item:Object=tree.selectedItem;
+					for (var k:String in record)
+					{
+						item[k]=record[k];
+					}
+				}
+				tree.invalidateList();
+				tree.expandItem(pRecord, true);
+				tree.callLater(function():void
+				{
+					selectRecordByKey(record.__key__);
+					callfun4SelectedChange(controlName);
+				});
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function selectRecordByKey(key:String):void
+			{
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(tree.dataProvider.source, list);
+				var index:int=ArrayUtils.find(list, "__key__", key);
+				tree.callLater(function():void
+				{
+					tree.selectedIndex=index;
+					tree.selectedItem=list[index];
+					tree.scrollToIndex(index);
+					tree.invalidateList();
+				});
+				callJSEvent("EventOnSelect", list[index]);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function isRootNodeSelected():Boolean
+			{
+				var record:Object=tree.selectedItem;
+				return tree.getParentItem(record) == null;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4TreeDoubleClick(event:MouseEvent):void
+			{
+				var record:Object=tree.selectedItem;
+				if (!callJSEvent("EventOnDoubleClick", record) && record && tree.getParentItem(record) != null)
+					portalInstance.editRecord(this);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getSelectedItem():Object
+			{
+				return tree.selectedItem;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getSelectedItems():Array
+			{
+				var result:Array=[];
+				if (includeCheckBox)
+				{
+					if (tree.selectedItem && !Convert.object2Boolean(tree.selectedItem[checkFieldName]))
+					{
+						tree.selectedItem[checkFieldName]=tree;
+						tree.invalidateList();
+					}
+					ArrayCollectionUtils.Filter(tree.dataProvider.source, result, function(record:Object):Boolean
+					{
+						return Convert.object2Boolean(record[checkFieldName]);
+					});
+				}
+				else
+				{
+					result.push(tree.selectedItem);
+				}
+				return result;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function getRootId():String
+			{
+				return tree.dataProvider.source[0].__key__;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function refreshUI():void
+			{
+				tree.invalidateList();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function portalgridexcontrol1_creationCompleteHandler(event:FlexEvent):void
+			{
+				_isCreateCompleted=true;
+			}
+		]]>
+	</fx:Script>
+</component:PortalGridExControl>

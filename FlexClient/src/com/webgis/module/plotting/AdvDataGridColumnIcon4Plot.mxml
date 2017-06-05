@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:MXAdvancedDataGridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" focusEnabled="true" dataChange="mxadvanceddatagriditemrenderer1_dataChangeHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			public var fieldName:String="";
+
+			protected function mxadvanceddatagriditemrenderer1_dataChangeHandler(event:FlexEvent):void
+			{
+				var url:String= data.iconUrl;
+				img.source=url;
+			}
+		]]>
+	</fx:Script>
+	<!--
+	<s:Label id="lblData" top="0" left="0" right="0" bottom="0" text="{listData.label}" />
+	-->
+	<s:Image id="img" verticalCenter="0" horizontalCenter="0" width="16" height="16">
+
+	</s:Image>
+</s:MXAdvancedDataGridItemRenderer>

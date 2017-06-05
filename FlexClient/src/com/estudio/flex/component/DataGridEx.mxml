@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:DataGrid horizontalScrollPolicy="auto" itemEditEnd="dataGridItemEditEnd(event)" verticalScrollPolicy="auto" rowHeight="25" headerHeight="28" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+            import com.estudio.flex.utils.StringUtils;
+
+            import mx.collections.ArrayCollection;
+            import mx.controls.DataGrid;
+            import mx.controls.MXFTETextInput;
+            import mx.controls.dataGridClasses.DataGridColumn;
+            import mx.events.DataGridEvent;
+
+            public function getDatas():Array
+            {
+                var result:Array = null;
+                if (this.dataProvider is ArrayCollection)
+                    result = (this.dataProvider as ArrayCollection).source
+                else if (this.dataProvider is Array)
+                    result = this.dataProvider as Array;
+                return result;
+            }
+
+            public function first():void
+            {
+                if (this.dataProvider is ArrayCollection && (this.dataProvider as ArrayCollection).length)
+                    this.selectedItem = (this.dataProvider as ArrayCollection).getItemAt (0);
+            }
+
+            public function select(fieldName:String , value:String):void
+            {
+                for (var i:int = 0 ; i < (this.dataProvider as ArrayCollection).length ; i++)
+                {
+                    if (StringUtils.equal ((this.dataProvider as ArrayCollection).getItemAt (i)[fieldName] , value))
+                    {
+                        this.selectedItem = (this.dataProvider as ArrayCollection).getItemAt (i);
+                        break;
+                    }
+                }
+            }
+
+            //////////////////////////////////////////////////////////////////////////////////////////
+            public function getModifyDatas():Array
+            {
+                var result:Array = [];
+                var datas:Array = getDatas ();
+                for (var i:int = 0 ; i < datas.length ; i++)
+                {
+                    var item:Object = datas[i];
+                    if (item.__isModified__)
+                    {
+                        for (var j:int = 0 ; j < columns.length ; j++)
+                        {
+                            var column:DataGridColumn = columns[j] as DataGridColumn;
+                            if (columns[j].editable && !StringUtils.equal (item[column.dataField] , item["__" + column.dataField]))
+                            {
+                                result.push (item)
+                                break;
+                            }
+                        }
+                    }
+                }
+                return result;
+            }
+
+            /////////////////////////////////////////////////////////////////////////////////
+            public function clearModifiedStatus():void
+            {
+                var datas:Array = getDatas ();
+                for (var i:int = 0 ; i < datas.length ; i++)
+                {
+                    var item:Object = datas[i];
+                    item.__isModified__ = false;
+                }
+            }
+
+            ////////////////////////////////////////////////////////////////////////////////
+            private function dataGridItemEditEnd(event:DataGridEvent):void
+            {
+                var grid:DataGrid = event.currentTarget as DataGrid;
+                var editorInstance:Object = grid.itemEditorInstance;
+                if (editorInstance is MXFTETextInput)
+                {
+                    var newValue:String = MXFTETextInput (editorInstance).text;
+                    var item:Object = grid.selectedItem;
+                    var oldValue:String = item[event.dataField];
+                    if (oldValue != newValue && !item.__isModified__)
+                    {
+                        item.__isModified__ = true;
+                        item["__" + event.dataField] = oldValue;
+                    }
+                }
+            }
+            //////////////////////////////////////////////////////////////////////////////////
+        ]]>
+    </fx:Script>
+</mx:DataGrid>

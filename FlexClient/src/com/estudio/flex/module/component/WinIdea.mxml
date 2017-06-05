@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:ResizableTitleWindow skinClass="com.estudio.flex.component.ResizableTitleWindowSkin" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*"
+								xmlns:workflow="com.estudio.flex.module.component.workflow.*" width="800" height="560" close="resizabletitlewindow1_closeHandler(event)" creationComplete="resizabletitlewindow1_creationCompleteHandler(event)" title="批注查看器">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.RUNTIME_COMMAND;
+			import com.estudio.flex.component.ResizableTitleWindowSkin;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.JSFunUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import flashx.textLayout.conversion.TextConverter;
+
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+
+			import spark.components.Label;
+
+			private var _params:Object=null;
+			private var _processTypeId:String=null;
+			private var _readonly:Boolean=false;
+			private var _isCompleted:Boolean=false;
+			private var _uiOptions:Object=null;
+
+			[Bindable]
+			private var panelHeaderHeight:int=20;
+
+			private static var _instance:WinIdea=null;
+
+			//--------------------------------------------------------------------------------------------
+			public static function show(params:Object, options:Object):void
+			{
+				if ((_instance=FlexGlobals.topLevelApplication.cache["WIN_WORKFLOW_IDEA"]) == null)
+					FlexGlobals.topLevelApplication.cache["WIN_WORKFLOW_IDEA"]=_instance=new WinIdea();
+				_instance._params=params;
+				var p:DisplayObject=FlexGlobals.topLevelApplication as DisplayObject;
+				_instance._uiOptions=options;
+				_instance.width=Math.min(_instance.width, p.width);
+				_instance.height=Math.min(_instance.height, p.height);
+				if (_instance.panelIdea)
+				{
+					_instance.displayIdeas();
+				}
+				if (_instance._isCompleted)
+				{
+					_instance.initButtomButtons();
+				}
+				FlexGlobals.topLevelApplication.showPopupWindow(_instance, true);
+			}
+
+			//--------------------------------------------------------------------------------------------
+			private function displayIdeas():void
+			{
+				//uploadFile.p_id=_params.step_id;
+				if (_params.ideas)
+				{
+					this.hBox.addElement(this.groupIdeaList);
+					//ideaList.dataProvider=new ArrayCollection(_params.ideas);
+					var htmlTextAsHTML:String="";
+					for (var i:int=0; i < _params.ideas.length; i++)
+					{
+						var idea:Object=_params.ideas[i];
+						htmlTextAsHTML+="<textformat leading='3' leftmargin='4'><span fontWeight='bold'><font color='0xFF0000' size='14'>" + idea.date + " " + idea.activity + " " + idea.user + "</font></span>";
+						htmlTextAsHTML+="</br>";
+						htmlTextAsHTML+="<span>" + StringUtils.str2HTML(idea.idea) + "</span></textformat><br></br>";
+
+					}
+
+					ideaRichText.textFlow=TextConverter.importToFlow(htmlTextAsHTML, TextConverter.TEXT_FIELD_HTML_FORMAT);
+				}
+				if (_params.ideaAble)
+					this.hBox.addElement(this.groupMyIdea);
+				var myidea:Object=_params.myidea;
+				if (myidea)
+					textArea.text=myidea.idea;
+				this.line2.visible=this.line3.visible=_params.ideas && _params.ideaAble;
+				this.width=_params.ideas && _params.ideaAble ? 800 : 600;
+
+				this.textArea.editable=this.btnSave.enabled=this.btnSaveAndBack.enabled=this.btnSaveAndSend.enabled=!this._readonly;
+				//uploadFile.readonly=_readonly;
+			}
+
+			//--------------------------------------------------------------------------------------------
+			//关闭窗体
+			protected function resizabletitlewindow1_closeHandler(event:CloseEvent):void
+			{
+				FlexGlobals.topLevelApplication.closePopupWindow(_instance);
+
+				this.hBox.removeAllElements();
+			}
+
+			//---------------------------------------------------------------------------------------------
+			protected function resizabletitlewindow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.hBox.removeAllElements();
+				_instance.setStyle("skinClass", ResizableTitleWindowSkin);
+				displayIdeas();
+
+				var commonWords:Array=JSFunUtils.JSFun("getWorkFlowCommonWords", {}) as Array;
+				for (var i:int=0; i < commonWords.length; i++)
+				{
+					var label:Label=new Label();
+					label.text=commonWords[i];
+					tile.addElement(label);
+					label.mouseChildren=false;
+					label.buttonMode=true;
+					label.useHandCursor=true;
+					label.addEventListener(MouseEvent.CLICK, event4CommonWordClick);
+				}
+				_isCompleted=true;
+
+				initButtomButtons();
+
+			}
+
+			private function event4CommonWordClick(event:MouseEvent):void
+			{
+				var l:Label=event.currentTarget as Label;
+				textArea.insertText(l.text);
+			}
+
+			//---------------------------------------------------------------------------------------------
+
+			//--------------------------------------------------------------------------------------------------
+			protected function richtexteditor1_creationCompleteHandler(event:FlexEvent):void
+			{
+			}
+
+
+			//--------------------------------------------------------------------------------------------------
+			//保存批注
+			protected function eventBtnOkclick(event:MouseEvent):void
+			{
+				var step_id:String=_params.step_id;
+				var json:Object=JSFunUtils.JSFun("ideaProcess", {step_id: step_id, idea_content: textArea.text});
+				if (json && json.r)
+				{
+					if (event.currentTarget == btnSaveAndBack)
+					{
+						event4BtnCloseClick(null);
+						_params.instance.workFunction4Href(RUNTIME_COMMAND.COMMAND_WORKFLOW_BACK_CASE);
+					}
+					else if (event.currentTarget == btnSaveAndSend)
+					{
+						event4BtnCloseClick(null);
+						_params.instance.workFunction4Href(RUNTIME_COMMAND.COMMAND_WORKFLOW_SEND_CASE);
+					}
+					else
+					{
+						AlertUtils.alert("批注已经保存!");
+					}
+				}
+				else if (json && json.msg)
+				{
+					AlertUtils.alert(json.msg);
+				}
+			}
+
+			//--------------------------------------------------------------------------------------------------
+			//关闭
+			protected function event4BtnCloseClick(event:MouseEvent):void
+			{
+				FlexGlobals.topLevelApplication.closePopupWindow(_instance);
+
+				this.hBox.removeAllElements();
+			}
+
+			protected function event4ViewDiagram(event:MouseEvent):void
+			{
+				event4BtnCloseClick(null);
+				_params.instance.workFunction4Href(RUNTIME_COMMAND.COMMAND_WORKFLOW_VIEW_DIAGRAM);
+			}
+
+			protected function event4ViewForm(event:MouseEvent):void
+			{
+				event4BtnCloseClick(null);
+				if (!_uiOptions.isDataReadOnly && _uiOptions.isEditFormAble)
+					_params.instance.workFunction4Href(RUNTIME_COMMAND.COMMAND_WORKFLOW_EDIT_FORM);
+				else
+					_params.instance.workFunction4Href(RUNTIME_COMMAND.COMMAND_WORKFLOW_VIEW_FORM);
+			}
+
+			private function initButtomButtons():void
+			{
+				group4Buttons.removeAllElements();
+				if ((!_uiOptions.isDataReadOnly && _uiOptions.isEditFormAble) || _uiOptions.isViewFormAble)
+					group4Buttons.addElement(btnViewForm);
+				group4Buttons.addElement(btnViewDiagram);
+				if (!_uiOptions.isDataReadOnly && _uiOptions.isIdeaAble)
+				{
+					if (_uiOptions.isBackAble)
+						group4Buttons.addElement(btnSaveAndBack);
+					if (_uiOptions.isSendAble)
+						group4Buttons.addElement(btnSaveAndSend);
+					if (_uiOptions.isIdeaAble)
+						group4Buttons.addElement(btnSave);
+				}
+				group4Buttons.addElement(btnClose);
+			}
+		]]>
+	</fx:Script>
+
+	<s:VGroup width="100%" height="100%" gap="0">
+		<mx:HDividedBox id="hBox" x="0" y="0" width="100%" height="100%" backgroundColor="0xEBF4FF" dividerAffordance="1" horizontalGap="5">
+			<s:HGroup id="groupIdeaList" width="350" height="100%" gap="0">
+				<mx:Panel id="panelIdea" width="100%" height="100%" borderVisible="false" dropShadowVisible="false" headerHeight="28" title="批注列表">
+					<s:Scroller width="100%" height="100%">
+						<s:RichEditableText editable="false" lineBreak="toFit" x="0" y="0" width="100%" height="100%" id="ideaRichText">
+
+						</s:RichEditableText>
+					</s:Scroller>
+				</mx:Panel>
+
+				<s:Line id="line3" right="0" bottom="0" width="0" height="100%">
+					<s:stroke>
+						<s:SolidColorStroke caps="square" color="0x606976" weight="1"/>
+					</s:stroke>
+				</s:Line>
+			</s:HGroup>
+
+			<s:HGroup id="groupMyIdea" width="100%" height="100%" gap="0">
+				<s:Line id="line2" left="0" bottom="0" width="0" height="100%">
+					<s:stroke>
+						<s:SolidColorStroke caps="square" color="0x606976" weight="1"/>
+					</s:stroke>
+				</s:Line>
+				<mx:VDividedBox width="100%" height="100%" verticalGap="4">
+
+					<s:VGroup width="100%" height="120" minWidth="0" minHeight="0" gap="0">
+						<mx:Panel width="100%" height="100%" minWidth="0" minHeight="0" borderVisible="false" dropShadowVisible="false" headerHeight="28" title="我的批注">
+							<s:TextArea id="textArea" width="100%" height="100%" borderVisible="false" fontSize="14">
+
+							</s:TextArea>
+						</mx:Panel>
+						<s:Line width="100%" height="0">
+							<s:stroke>
+								<s:SolidColorStroke caps="square" color="0x606976" weight="1"/>
+							</s:stroke>
+						</s:Line>
+					</s:VGroup>
+
+					<s:VGroup width="100%" height="120" minWidth="0" minHeight="0" gap="0">
+						<s:Line width="100%" height="0">
+							<s:stroke>
+								<s:SolidColorStroke caps="square" color="0x606976" weight="1"/>
+							</s:stroke>
+						</s:Line>
+						<mx:Panel width="100%" height="100%" minWidth="0" minHeight="0" borderVisible="false" dropShadowVisible="false" headerHeight="28" title="常用词汇">
+							<s:Scroller x="0" y="0" width="100%" height="100%">
+								<s:TileGroup id="tile" x="0" y="0" width="100%" height="100%" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+								</s:TileGroup>
+							</s:Scroller>
+
+						</mx:Panel>
+						<!--
+						<s:Line height="0" width="100%">
+							<s:stroke>
+								<s:SolidColorStroke color="0x606976" weight="1" caps="square"/>
+							</s:stroke>
+						</s:Line>
+						-->
+					</s:VGroup>
+
+					<!--
+					<s:VGroup width="100%" height="0" gap="0" minWidth="0" minHeight="0">
+						<s:Line height="0" width="100%">
+							<s:stroke>
+								<s:SolidColorStroke color="0x606976" weight="1" caps="square"/>
+							</s:stroke>
+						</s:Line>
+						<mx:Panel headerHeight="20" width="100%" height="100%" title="附件列表" dropShadowVisible="false" borderVisible="false" minWidth="0" minHeight="0">
+							<component:InputFileUpload id="uploadFile" allowMaxSize="10" type="workflow_idea" width="100%" height="100%" x="0" y="0">
+							</component:InputFileUpload>
+						</mx:Panel>
+					</s:VGroup>
+					-->
+
+				</mx:VDividedBox>
+			</s:HGroup>
+		</mx:HDividedBox>
+
+		<s:Line id="line1" width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke caps="square" color="0x606976" weight="1"/>
+			</s:stroke>
+		</s:Line>
+
+		<s:HGroup id="group4Buttons" right="0" bottom="0" height="40" fontWeight="bold" gap="5" paddingRight="5" textAlign="right" verticalAlign="middle">
+			<s:Button id="btnViewForm" width="85" height="28" label="编辑表单 " click="event4ViewForm(event)" verticalCenter="0">
+			</s:Button>
+			<s:Button id="btnViewDiagram" width="85" height="28" label="查看流程" click="event4ViewDiagram(event)" verticalCenter="0">
+			</s:Button>
+			<s:Button id="btnSaveAndBack" width="85" height="28" label="保存并退回" click="eventBtnOkclick(event)" verticalCenter="0">
+			</s:Button>
+			<s:Button id="btnSaveAndSend" width="85" height="28" label="保存并发送" click="eventBtnOkclick(event)" verticalCenter="0">
+			</s:Button>
+			<s:Button id="btnSave" width="75" height="28" label="保存" click="eventBtnOkclick(event)" verticalCenter="0">
+			</s:Button>
+			<s:Button id="btnClose" width="75" height="28" label="放弃" click="event4BtnCloseClick(event)" verticalCenter="0">
+			</s:Button>
+		</s:HGroup>
+	</s:VGroup>
+
+</component:ResizableTitleWindow>

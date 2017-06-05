@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:esri="http://www.esri.com/2008/ags" >
+
+	<fx:Script>
+		<![CDATA[
+//			import mx.events.VideoEvent; creationComplete="application1_creationCompleteHandler(event)"
+//			/////////////////////////////////////////////////////////////////////////////////
+//			protected function btnPlayClick(event:MouseEvent):void
+//			{
+//				
+//				if (!videoPlayer.playing)
+//					videoPlayer.play();
+//			}
+//			/////////////////////////////////////////////////////////////////////////////////
+//			protected function btnStopClick(event:MouseEvent):void
+//			{
+//				if (videoPlayer.playing)
+//					videoPlayer.stop();
+//			}
+//			/////////////////////////////////////////////////////////////////////////////////
+//			protected function videoPlayer_completeHandler(event:mx.events.VideoEvent):void
+//			{
+//				//progressBar.maximum = videoPlayer.totalTime;
+//			}
+			//////////////////////////////////////////////////////////////////////////////////
+			 import com.esri.ags.events.GenerateRendererEvent;
+			 import com.esri.ags.events.LayerEvent;
+			 import com.esri.ags.layers.ArcGISDynamicMapServiceLayer;
+			 import com.esri.ags.layers.ArcGISTiledMapServiceLayer;
+			 import com.esri.ags.layers.WMTSLayer;
+			 import com.esri.ags.layers.supportClasses.LabelClass;
+			 import com.esri.ags.layers.supportClasses.LabelOptions;
+			 import com.esri.ags.layers.supportClasses.LayerDrawingOptions;
+			 import com.esri.ags.renderers.UniqueValueRenderer;
+			 import com.esri.ags.symbols.SimpleFillSymbol;
+			 import com.esri.ags.tasks.GenerateRendererTask;
+			 import com.esri.ags.tasks.supportClasses.AlgorithmicColorRamp;
+			 import com.esri.ags.tasks.supportClasses.GenerateRendererParameters;
+			 import com.esri.ags.tasks.supportClasses.UniqueValueDefinition;
+			 
+			 import mx.collections.ArrayList;
+			 import mx.controls.Alert;
+			 import mx.events.FlexEvent;
+			 import mx.rpc.events.FaultEvent;
+			 
+			 //分类参数，作为输入参数生成渲染对象
+			 private var _classificationRendererParameters:GenerateRendererParameters = new GenerateRendererParameters();
+			 //分类参数的渲染定义
+			 private var _UniqueValueDefinition:UniqueValueDefinition = new UniqueValueDefinition();
+			 //色带
+			 private var _colorRamp:AlgorithmicColorRamp = new AlgorithmicColorRamp();
+			 
+			 //色带frmocolor
+			 private var _fromColor:Number=0x00ff00;
+			 //色带toCOlor
+			 private var _toColor:Number=0x000fff;
+			 
+			 //渲染生成器
+			 private var _GenerateRendererTask:GenerateRendererTask;
+			 //图层绘制选项
+			 private var _layerDrawingOptions:LayerDrawingOptions = new LayerDrawingOptions();
+			 //图层标注类
+			 private var _labelClass:LabelClass = new LabelClass();
+			 //结果图层
+			 private var _lyr:ArcGISDynamicMapServiceLayer = new ArcGISDynamicMapServiceLayer();
+			 //是否显示标注
+			 private var _isShowlabel:Boolean = true;
+			 //标注显示最小比例尺
+			 private var _showlabelMinScale:Number=25000;
+			 //服务地址
+			 private var _serverUrl:String = "http://localhost:6080/arcgis/rest/services/GDS/TD_GDS/MapServer";
+			 //图层id
+			 private var _lyrID:Number = 1;
+			 //唯一值字段名称
+			 private var _uniqueFieldName:String="ZZQK";
+			 //唯一值字段别名
+			 private var _uniqueFieldAliasName:String="整治情况";
+			 
+			 protected function application1_creationCompleteHandler(event:FlexEvent):void
+			 {
+				  _GenerateRendererTask =new GenerateRendererTask();
+				  _GenerateRendererTask.url = _serverUrl+"//"+_lyrID;
+				  _GenerateRendererTask.addEventListener(GenerateRendererEvent.EXECUTE_COMPLETE,Generate_excute_complete);
+				  _GenerateRendererTask.addEventListener(FaultEvent.FAULT,fun);
+				  function fun(e:FaultEvent):void
+				  {
+				     var d:Object =e;
+				  }
+				  
+				  _lyr = new ArcGISDynamicMapServiceLayer(_serverUrl);
+				  _lyr.visibleLayers=new ArrayList([_lyrID]);
+				  
+				  _lyr.addEventListener(LayerEvent.LOAD,function():void{
+				   //加载完成后，渲染
+				   generateUniqueRenderParas();
+				  });
+				  this.map.addLayer(_lyr);
+			 }
+			 //执行渲染，生成对象
+			 private function generateUniqueRenderParas():void
+			 {
+				  _colorRamp.fromColor = _fromColor;
+				  _colorRamp.toColor = _toColor;
+				  _UniqueValueDefinition.colorRamp = _colorRamp;
+				  _UniqueValueDefinition.baseSymbol =  new SimpleFillSymbol();
+				  _UniqueValueDefinition.field=_uniqueFieldName;
+				  
+				  _classificationRendererParameters.classificationDefinition = _UniqueValueDefinition;
+				  //执行渲染，生成 渲染对象
+				  _GenerateRendererTask.execute(_classificationRendererParameters);
+			 }
+			 
+			 private function Generate_excute_complete(e:GenerateRendererEvent):void
+			 {
+				  var renderer:UniqueValueRenderer = e.renderer as UniqueValueRenderer;
+				  _layerDrawingOptions = new LayerDrawingOptions();
+				  _layerDrawingOptions.layerId = 1; //states layer id in the service
+				  _layerDrawingOptions.renderer = renderer;
+			  
+				  if (_isShowlabel)
+				  {
+				   _layerDrawingOptions.showLabels = true;
+				   //set the labelExpression field name (e.g. [POP07_SQMI])
+				   //_labelClass.labelExpression = '"' + _uniqueFieldAliasName + '" CONCAT NEWLINE CONCAT [' + _uniqueFieldName + ']';
+				   _labelClass.labelExpression =   "["+ _uniqueFieldName + "]";
+				   var lblOpt:LabelOptions = new LabelOptions();
+				   lblOpt.fontFamily="宋体";
+				   _labelClass.labelOptions=lblOpt;
+				   //'"' + classificationFieldAlias + '" CONCAT NEWLINE CONCAT [' + classificationField + ']';
+				   _labelClass.labelPlacement="esriServerPolygonPlacementAlwaysHorizontal";
+				   _labelClass.minScale = _showlabelMinScale;
+				   _layerDrawingOptions.labelClasses = [ _labelClass ];
+				   
+				   if (map.scale > _showlabelMinScale&& _isShowlabel)
+				   {
+					Alert.show("当前标注不可见，请放大");
+					_isShowlabel = false;
+				   }
+				  }
+				  else
+				  {
+				   _layerDrawingOptions.showLabels = false;
+				  }
+				  
+				  var layerDrawingOptionsArr:Array = [ _layerDrawingOptions ];
+				  _lyr.layerDrawingOptions = layerDrawingOptionsArr;
+			  
+			 }
+	 
+		]]>
+	</fx:Script>
+	<esri:Map id="map" width="100%" height="100%">
+		<!-- -->
+		<esri:ArcGISTiledMapServiceLayer url="http://localhost:6080/arcgis/rest/services/GDS/TD_GDS/MapServer"/>
+		<esri:extent>
+			<esri:Extent xmin="-1788000" ymin="-4177000" xmax="10044000" ymax="4511000">
+				<esri:SpatialReference wkid="102100"/>
+			</esri:Extent>
+		</esri:extent>
+		
+	</esri:Map>
+	<!--
+	<s:VGroup width="100%" height="100%">
+		<s:VideoDisplay scaleMode="stretch"  id="videoPlayer" width="100%" height="100%" autoPlay="false" source="http://127.0.0.1:8080/attachment/1.f4v"/>
+		<s:HGroup width="100%" height="30">
+			<s:Button label="播放" click="btnPlayClick(event)"/>
+			<s:Button label="停止" click="btnStopClick(event)"/>
+			<mx:ProgressBar width="100%" id="progressBar"/>
+		</s:HGroup>
+	</s:VGroup>
+	-->
+</s:Application>

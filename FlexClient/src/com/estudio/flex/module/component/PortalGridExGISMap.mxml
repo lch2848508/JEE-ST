@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:PortalGridExControl creationComplete="portalgridexcontrol1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.module.component.*" width="100%"
+							   height="100%" xmlns:workflow="com.estudio.flex.module.component.workflow.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.estudio.flex.utils.UIUtils;
+			
+			import mx.controls.SWFLoader;
+			import mx.events.FlexEvent;
+			import mx.events.ModuleEvent;
+			import mx.managers.SystemManager;
+			
+			import spark.modules.Module;
+			private var mapModuleInstance:Object=null;
+			private var mapParams:Object=null;
+			private var eventName4Edit:String="";
+			private var eventName4Post:String="";
+			private var isAutoSaveGeometry:Boolean=false;
+			public var parentControlName:String="";
+			private var recordPrefix:String="";
+			private var url:String="../client/attachment_ex";
+			private var parentFieldName:String="";
+			private var layerResourceId:String="";
+			private var layerFieldName:String="";
+			private var isGeometryFromArcGIS:Boolean=false;
+			private var initGeometry:String="";
+			private var isParentFieldString:Boolean=false;
+			private var isMapLoaded:Boolean=false;
+			///////////////////////////////////////////////////////////////////////
+			
+			///////////////////////////////////////////////////////////////////////
+			override public function initParams(controlParams:Object):void
+			{
+				super.initParams(controlParams);
+				eventName4Edit=controlParams.EventOnEdit;
+				eventName4Post=controlParams.EventOnPost;
+				isAutoSaveGeometry=controlParams.IsAutoSaveGeometry;
+				parentControlName=controlParams.ParentControlName;
+				recordPrefix=StringUtils.trim(controlParams.RecordPrefix);
+				parentFieldName=controlParams.ParentFieldName;
+				layerResourceId=controlParams.LayerResourceID;
+				layerFieldName=controlParams.LayerFieldName;
+				isGeometryFromArcGIS=!StringUtils.isEmpty(layerResourceId) && !StringUtils.isEmpty(layerFieldName) && !StringUtils.isEmpty(parentFieldName);
+				isParentFieldString=StringUtils.equal("字符串", controlParams.FieldDataType);
+				mapParams=controlParams;
+				if (mapModuleInstance)
+				{
+					mapModuleInstance.initParams(mapParams);
+					mapModuleInstance.callFunction4AfterEdit=function(result:Object):void
+					{
+						if (!StringUtils.isEmpty(eventName4Edit))
+							IFrameUtils.execute(portalInstance.getIFrameID(), eventName4Edit, result);
+					};
+					mapModuleInstance.callFunction4Post=function(result:Object):void
+					{
+						if (!StringUtils.isEmpty(eventName4Post))
+							IFrameUtils.execute(portalInstance.getIFrameID(), eventName4Post, result);
+					};
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////
+			public function addGeometrys(geometrys:String):void
+			{
+				if (mapModuleInstance)
+					mapModuleInstance.addGeometrys(geometrys);
+			}
+
+			protected function swfLoader_readyHandler(event:ModuleEvent):void
+			{
+				var module:Module=(event.currentTarget as ModuleLoader).child as Module;
+				module.addEventListener(FlexEvent.CREATION_COMPLETE, event4ModuleCreateComplete);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			private function event4ModuleCreateComplete(event:FlexEvent):void
+			{
+//				mapModuleInstance=(event.currentTarget as Object);
+//				if (mapParams)
+//				{
+//					mapModuleInstance.initParams(mapParams);
+//					mapModuleInstance.callFunction4AfterEdit=function(result:Object):void
+//					{
+//						if (!StringUtils.isEmpty(eventName4Edit))
+//							IFrameUtils.execute(portalInstance.getIFrameID(), eventName4Edit, result);
+//					};
+//					mapModuleInstance.callFunction4Post=function(result:Object):void
+//					{
+//						if (isAutoSaveGeometry && !StringUtils.isEmpty(parentControlName))
+//						{
+//							var recordId:String=recordPrefix + portalInstance.getControlSelectedItem(parentControlName).__key__;
+//							AjaxUtils.postData(url, {o: "saveGeometry", geometry: mapModuleInstance.getGeometrys(), recordId: recordId}, function(text:String, token:Object):void
+//							{
+//								AlertUtils.msnMessage("GIS", "成功保存图斑.", false);
+//							});
+//						}
+//						if (!StringUtils.isEmpty(eventName4Post))
+//							IFrameUtils.execute(portalInstance.getIFrameID(), eventName4Post, result);
+//					};
+//					if (!StringUtils.isEmpty(initGeometry))
+//						mapModuleInstance.addGeometrys(initGeometry);
+//				}
+//				isMapLoaded=true;
+				
+				mapModuleInstance=(event.currentTarget as Object);
+				if (mapParams)
+				{
+					mapModuleInstance.initParams(mapParams);
+					mapModuleInstance.callFunction4AfterEdit=function(result:Object):void
+					{
+						if (!StringUtils.isEmpty(eventName4Edit))
+							IFrameUtils.execute(portalInstance.getIFrameID(), eventName4Edit, result);
+					};
+					mapModuleInstance.callFunction4Post=function(result:Object):void
+					{
+						if (isAutoSaveGeometry && !StringUtils.isEmpty(parentControlName))
+						{
+							var recordId:String=recordPrefix + portalInstance.getControlSelectedItem(parentControlName).__key__;
+							AjaxUtils.postData(url, {o: "saveGeometry", geometry: mapModuleInstance.getGeometrys(), recordId: recordId}, function(text:String, token:Object):void
+							{
+								AlertUtils.msnMessage("GIS", "成功保存图斑.", false);
+							});
+						}
+						if (!StringUtils.isEmpty(eventName4Post))
+							IFrameUtils.execute(portalInstance.getIFrameID(), eventName4Post, result);
+					};
+					if (!StringUtils.isEmpty(initGeometry)){
+						//mapModuleInstance.addGeometrys(initGeometry);
+						mapModuleInstance.addGeometrys4JSON(jsonGeometries);
+					}
+					isMapLoaded=true;
+				}
+//<<<<<<< .mine
+//=======
+//				AjaxUtils.postData(url, {o: "getConditionByrecordPrefix",recordPrefix: recordPrefix}, function(text:String, token:Object):void
+//				{
+//					var json:Object=JSON.parse(text);
+//					if(json.r&&json&&json.flag){
+//						if(mapModuleInstance){
+//							var array4nf:Object =json.nf;
+//							for(var i:int=0;i<array4nf.length;i++){
+//								mapModuleInstance.filterComboBox_NF.dataProvider.addItem({label:array4nf[i].name,id:array4nf[i].id});
+//							}
+//							var array4dwmc:Object=json.dwmc;
+//							for(var i:int=0;i<array4dwmc.length;i++){
+//								mapModuleInstance.filterComboBox_XZQY.dataProvider.addItem({label:array4dwmc[i].name,id:array4dwmc[i].id});
+//							}
+//							if(json.lx!=null){
+//								var array4lx:Object=json.lx;
+//								for(var i:int=0;i<array4lx.length;i++){
+//									mapModuleInstance.filterComboBox_XL.dataProvider.addItem({label:array4lx[i].name,id:array4lx[i].id});
+//								}
+//							}
+//						}
+//					}
+//				});
+//>>>>>>> .r170
+			}
+			/////////////////////////////////////////////////////////////////////////////////////
+			//保存获取的图形信息
+			public var jsonGeometries:Object=null;
+			public var json4ProjectInfo:String=null;
+			/////////////////////////////////////////////////////////////////////////////////////
+			public function loadGeometry():void
+			{
+				var pItem:Object=portalInstance.getControlSelectedItem(parentControlName);
+				if (!pItem)
+				{
+					mapModuleInstance.addGeometrys("[]");
+					return;
+				}
+				if (!isGeometryFromArcGIS)
+				{
+//					var recordId:String=recordPrefix + pItem.__key__;
+//					AjaxUtils.postData(url, {o: "getGeometry", recordId: recordId}, function(text:String, token:Object):void
+//					{
+//						var json:Object=JSON.parse(text);
+//						if (json && json.r)
+//							if (mapModuleInstance)
+//								mapModuleInstance.addGeometrys(json.geometry);
+//							else
+//								initGeometry=json.geometry;
+//					});
+					
+					var recordId:String=recordPrefix + portalInstance.getControlSelectedItem(parentControlName).__key__;
+					
+					AjaxUtils.postData(url, {o: "getGeometry", recordId: recordId,recordIdNum:portalInstance.getControlSelectedItem(parentControlName).__key__,tablename:recordPrefix}, function(text:String, token:Object):void
+					{
+						var json:Object=JSON.parse(text);
+						if (json && json.r)
+							if (mapModuleInstance){
+								mapModuleInstance.addGeometrys4JSON(json);
+							}	
+							else
+							{
+								initGeometry=json.geometry;
+								jsonGeometries=json;
+							}
+					});
+				}
+				else
+				{
+					var selectedItem:Object=portalInstance.getControlSelectedItem(parentControlName);
+					if (selectedItem)
+					{
+						var keyValue:String=portalInstance.getControlSelectedItem(parentControlName)[parentFieldName];
+						AjaxUtils.postData(url, {o: "getGeometryFromResource", dataType: isParentFieldString ? 1 : 0, layerId: layerResourceId, keyValue: keyValue, keyField: layerFieldName}, function(text:String, token:Object):void
+						{
+							var json:Object=JSON.parse(text);
+							if (json && json.r)
+								if (mapModuleInstance)
+									mapModuleInstance.addGeometrys(json.geometry);
+								else
+									initGeometry=json.geometry;
+						});
+					}
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+
+			protected function portalgridexcontrol1_creationCompleteHandler(event:FlexEvent):void
+			{
+				_isCreateCompleted=true;
+			}
+		]]>
+	</fx:Script>
+	<s:ModuleLoader ready="swfLoader_readyHandler(event)" id="swfLoader" width="100%" height="100%" url="../flexclient/flash/com/webgis/MapModule4PortalGridEx.swf"/>
+</component:PortalGridExControl>

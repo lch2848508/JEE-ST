@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer currentState="pointState" borderVisible="false" creationComplete="vgroup1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:component="com.webgis.component.*">
+	<s:layout>
+		<s:VerticalLayout gap="0"/>
+	</s:layout>
+
+	<s:states>
+		<s:State name="pointState"/>
+		<s:State name="lineState"/>
+		<s:State name="polygonState"/>
+	</s:states>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.Geometry;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.FilenameUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.events.ItemClickEvent;
+			
+			import spark.events.IndexChangeEvent;
+
+			public var map:Object=null;
+			public var mapServiceClient:MapServiceClient=null;
+			public var mapApp:Object=null;
+
+			public var registerObject:Object=null;
+
+			public var callFunction:Function=null;
+
+			[Bindable]
+			public var dataTypes:ArrayCollection=null;
+
+			[Bindable]
+			private var geometryType:String="";
+
+			[Bindable]
+			public var readonly:Boolean=false;
+
+			[Bindable]
+			private var extAttributes:ArrayCollection=new ArrayCollection([]);
+			[Bindable]
+			private var extPictures:ArrayCollection=new ArrayCollection([]);
+			[Bindable]
+			private var extAttachments:ArrayCollection=new ArrayCollection([]);
+			[Bindable]
+			private var pictureTypes:ArrayCollection=new ArrayCollection(["全部图片", "一般图片", "视频资料", "现场照片", "会议照片", "材料", "图纸"]);
+			[Bindable]
+			private var recordId:String="";
+			
+			private var iconNumber:int = 30;
+
+			[Bindable]
+			private var content:String="";
+
+			[Bindable]
+			private var caption:String="";
+
+			[Bindable]
+			private var isshare:Boolean=false;
+
+			[Bindable]
+			private var symbolImgSrc:String="";
+			[Bindable]
+			private var symbolLineWidth:int=1;
+			[Bindable]
+			private var symbolLineColor:uint=0x000000;
+			[Bindable]
+			private var symbolFillColor:uint=0x000000;
+
+			////////////////////////////////////////////////////////////////////////////////////
+			public function registerFeatures(json:Object):void //注册实例
+			{
+				registerObject=json;
+				caption=registerObject.caption;
+				content=registerObject.content;
+				isshare=registerObject.isshare;
+				symbolImgSrc=registerObject.style.icon;
+				symbolLineColor=registerObject.style.lineColor;
+				symbolFillColor=registerObject.style.fillColor;
+				symbolLineWidth=registerObject.style.width;
+				geometryType=registerObject.graphic.geometry.type;
+				cbType.textInput.text=registerObject.type;
+				recordId=json.id;
+				var url:String="../images/webgis-marker/16x16/" + FilenameUtils.getFileName(symbolImgSrc)
+				symbolImgSrc=StringUtils.replace(url, "32x32", "16x16");
+
+				if (geometryType == "esriGeometryPoint")
+					currentState="pointState";
+				else if (geometryType == "esriGeometryPolyline")
+					currentState="lineState";
+				else
+					currentState="polygonState";
+
+				extPictures=new ArrayCollection(json.pictures);
+				extAttachments=new ArrayCollection(json.attachments);
+				extAttributes=new ArrayCollection(json.attributes);
+				if (extAttachments.length == 0)
+					extAttachments.addItem({caption: "附件目录树", isFolder: true, isRoot: true});
+
+				if (datagridExtParams)
+					datagridExtParams.invalidateList();
+
+				if (panel4PictureView)
+				{
+					panel4PictureView.pictureTypes=pictureTypes;
+					panel4PictureView.dataProvider=extPictures;
+					panel4PictureView.categoryCombobox.selectedIndex=0;
+					panel4PictureView.imageList.invalidateDisplayList();
+				}
+
+				if (panel4FileManager)
+				{
+					panel4FileManager.dataProvider=extAttachments;
+					panel4FileManager.tree.expandChildrenOf(extAttachments.getItemAt(0), true);
+					panel4FileManager.tree.invalidateList();
+				}
+
+				if (inputCaption)
+					inputCaption.text=caption;
+				if (inputContent)
+					inputContent.text=content;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function vgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (registerObject != null)
+					registerFeatures(registerObject);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function btnCommonProperty_clickHandler(event:MouseEvent):void
+			{
+				var items:Array=[btnCommonProperty, null /*btnExtProperty*/, btnPictureManager, btnFileManager];
+				var btn:ToolbarTextButton=event.currentTarget as ToolbarTextButton;
+				if (btn.selected)
+					return;
+				for (var i:int=0; i < items.length; i++)
+				{
+					btn=items[i] as ToolbarTextButton;
+					if (btn == event.currentTarget)
+					{
+						btn.selected=true;
+						viewStack.selectedIndex=i;
+					}
+					else if (btn && btn.selected)
+						btn.selected=false;
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function saveBtnClickHandle(event:MouseEvent):void
+			{
+				registerObject.caption=inputCaption.text;
+				registerObject.content=inputContent.text;
+				registerObject.isshare=chkShare.selected;
+				registerObject.style=generateStyle();
+				registerObject.attributes=extAttributes.source;
+				registerObject.pictures=extPictures.source;
+				registerObject.attachments=extAttachments.source;
+				registerObject.type=StringUtils.trim(cbType.textInput.text);
+				registerObject.type=StringUtils.nvl(registerObject.type, "无类型");
+				mapServiceClient.updateUserMarker(registerObject.id, registerObject.caption, registerObject.content, JSON.stringify(registerObject.attributes), JSON.stringify(registerObject.graphic.geometry), JSON.stringify(registerObject.style), registerObject.isshare, registerObject.type, JSON.stringify(registerObject.pictures), JSON.stringify(registerObject.attachments), function(json:Object):void
+				{
+
+				});
+				callFunction(registerObject);
+				var index:int=ArrayUtils.indexOf(dataTypes.source, registerObject.type);
+				if (index == -1)
+				{
+					dataTypes.addItem(registerObject.type);
+					dataTypes.refresh();
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			private function generateStyle():Object
+			{
+				if (currentState != "pointState")
+				{
+					registerObject.style.symbolLineColor=lineColor.selectedColor;
+					registerObject.style.width=Convert.str2int(inputLineWidth.text, 1);
+					if (currentState != "lineState")
+						registerObject.style.fillColor=fillColor.selectedColor;
+				}
+				return registerObject.style;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function panel4PictureView_creationCompleteHandler(event:FlexEvent):void
+			{
+				panel4PictureView.mapServiceClient=mapServiceClient;
+			}
+
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function viewStack_changeHandler(event:IndexChangedEvent):void
+			{
+
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			private function saveToServer(params:Object):void
+			{
+				saveBtnClickHandle(null);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function panel4FileManager_creationCompleteHandler(event:FlexEvent):void
+			{
+				panel4FileManager.mapServiceClient=mapServiceClient;
+//				panel4FileManager.recordId=combobox.selectedItem.recordId;
+//				panel4FileManager.layerId=combobox.selectedItem.layerId;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+
+			protected function panel4ImageList_creationCompleteHandler(event:FlexEvent):void
+			{
+				for (var i:int=0; i < iconNumber; i++)
+				{
+					var img:Image=new Image();
+					var fileName:String=(i < 10 ? ("00" + i) : ("0" + i)) + ".png";
+					img.source="../images/webgis-marker/32x32/" + fileName;
+					panel4ImageList.addElement(img);
+					img.addEventListener(MouseEvent.CLICK, function(event:Event):void
+					{
+						popupBtn.close();
+						var img:Image=event.currentTarget as Image;
+						iconImage.source=StringUtils.replace(img.source as String, "32x32", "16x16");
+						registerObject.style.icon=img.source as String;
+						saveToServer(registerObject);
+					});
+				}
+			}
+		]]>
+	</fx:Script>
+
+
+	<s:HGroup id="groupNavigatorButtons" gap="-1" height="26" verticalAlign="bottom" paddingBottom="-1" width="100%">
+		<component:ToolbarTextButton click="btnCommonProperty_clickHandler(event)" label="基本属性" id="btnCommonProperty" width="65" height="25" selected="true" tag="0"/>
+		<!--
+		<component:ToolbarTextButton click="btnCommonProperty_clickHandler(event)" label="标绘属性" id="btnExtProperty" width="70" height="25" tag="1"/>
+		-->
+		<component:ToolbarTextButton click="btnCommonProperty_clickHandler(event)" label="图片管理" id="btnPictureManager" width="70" height="25" tag="2"/>
+		<component:ToolbarTextButton click="btnCommonProperty_clickHandler(event)" label="文件管理" id="btnFileManager" width="70" height="25" tag="3"/>
+		<s:Spacer width="100%"/>
+		<component:ToolbarButton enabled="{!readonly}" click="saveBtnClickHandle(event)" visible="{viewStack.selectedIndex==1||viewStack.selectedIndex==0}" selected="true" width="25" height="25"
+								 icon="@Embed('/assets/common/save.png')"/>
+	</s:HGroup>
+
+	<s:Line width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#7B889C"/>
+		</s:stroke>
+	</s:Line>
+
+	<mx:ViewStack width="100%" height="100%" selectedIndex="0" id="viewStack" change="viewStack_changeHandler(event)">
+		<s:NavigatorContent label="基本属性">
+			<s:layout>
+				<s:VerticalLayout gap="0"/>
+			</s:layout>
+
+			<s:HGroup width="100%" height="30" gap="4" verticalAlign="middle" paddingLeft="4" paddingRight="4">
+				<s:Label text="标题" width="40" textAlign="center" fontWeight="bold"/>
+				<s:Line width="0" height="100%">
+					<s:stroke>
+						<s:SolidColorStroke color="#7B889C"/>
+					</s:stroke>
+				</s:Line>
+				<s:TextInput text="{caption}" width="100%" id="inputCaption" editable="{!readonly}"/>
+			</s:HGroup>
+
+			<s:Line width="100%" height="0">
+				<s:stroke>
+					<s:SolidColorStroke color="#7B889C"/>
+				</s:stroke>
+			</s:Line>
+
+			<s:HGroup width="100%" height="30" gap="4" verticalAlign="middle" paddingLeft="4" paddingRight="4">
+				<s:Label text="类型" width="40" textAlign="center" fontWeight="bold"/>
+				<s:Line width="0" height="100%">
+					<s:stroke>
+						<s:SolidColorStroke color="#7B889C"/>
+					</s:stroke>
+				</s:Line>
+				<s:ComboBox enabled="{!readonly}" dataProvider="{dataTypes}" width="100%" id="cbType"/>
+			</s:HGroup>
+
+			<s:Line width="100%" height="0">
+				<s:stroke>
+					<s:SolidColorStroke color="#7B889C"/>
+				</s:stroke>
+			</s:Line>
+
+			<s:HGroup width="100%" height="30" gap="4" verticalAlign="middle" paddingLeft="4" paddingRight="4">
+				<s:Label text="共享" width="40" textAlign="center" fontWeight="bold"/>
+				<s:Line width="0" height="100%">
+					<s:stroke>
+						<s:SolidColorStroke color="#7B889C"/>
+					</s:stroke>
+				</s:Line>
+				<s:CheckBox top="13" right="10" label="共享" id="chkShare" enabled="{!readonly}" selected="{isshare}"/>
+			</s:HGroup>
+
+			<s:Line width="100%" height="0">
+				<s:stroke>
+					<s:SolidColorStroke color="#7B889C"/>
+				</s:stroke>
+			</s:Line>
+
+			<s:HGroup includeIn="lineState,polygonState" width="100%" height="30" gap="4" verticalAlign="middle" paddingLeft="4" paddingRight="4">
+				<s:Label text="符号" width="40" textAlign="center" fontWeight="bold"/>
+				<s:Line width="0" height="100%">
+					<s:stroke>
+						<s:SolidColorStroke color="#7B889C"/>
+					</s:stroke>
+				</s:Line>
+				<s:Label text="线宽" includeIn="lineState,polygonState"/>
+				<s:TextInput text="{symbolLineWidth}" id="inputLineWidth" width="30" height="20" editable="{!readonly}" includeIn="lineState,polygonState"/>
+				<s:Label text="颜色"/>
+				<mx:ColorPicker selectedColor="{symbolLineColor}" id="lineColor" width="30" editable="{!readonly}" enabled="{!readonly}" includeIn="lineState,polygonState"/>
+				<s:Label text="填充" includeIn="polygonState"/>
+				<mx:ColorPicker selectedColor="{symbolFillColor}" includeIn="polygonState" id="fillColor" width="30" height="20" editable="{!readonly}" enabled="{!readonly}"/>
+			</s:HGroup>
+
+			<s:HGroup includeIn="pointState" width="100%" height="30" gap="4" verticalAlign="middle" paddingLeft="4" paddingRight="4">
+				<s:Label text="符号" width="40" textAlign="center" fontWeight="bold"/>
+				<s:Line width="0" height="100%">
+					<s:stroke>
+						<s:SolidColorStroke color="#7B889C"/>
+					</s:stroke>
+				</s:Line>
+				<s:Group width="30" height="30">
+					<s:Image source="{symbolImgSrc}" id="iconImage" verticalCenter="0" horizontalCenter="0"/>
+				</s:Group>
+				<mx:PopUpButton enabled="{!readonly}" label="请选择" id="popupBtn" width="70">
+					<mx:popUp>
+						<s:BorderContainer creationComplete="panel4ImageList_creationCompleteHandler(event)" width="{this.width}" height="250" id="panel4ImageList">
+							<s:layout>
+								<s:TileLayout verticalGap="8" horizontalGap="8" paddingLeft="8" paddingRight="8" paddingBottom="8" paddingTop="8"/>
+							</s:layout>
+						</s:BorderContainer>
+					</mx:popUp>
+				</mx:PopUpButton>
+			</s:HGroup>
+
+			<s:Line width="100%" height="0">
+				<s:stroke>
+					<s:SolidColorStroke color="#7B889C"/>
+				</s:stroke>
+			</s:Line>
+
+			<s:HGroup width="100%" height="100%" gap="4" verticalAlign="middle" paddingLeft="4" paddingRight="4">
+				<s:Label text="内容" width="40" textAlign="center" fontWeight="bold"/>
+				<s:Line width="0" height="100%">
+					<s:stroke>
+						<s:SolidColorStroke color="#7B889C"/>
+					</s:stroke>
+				</s:Line>
+				<s:Group width="100%" height="100%">
+					<s:TextArea id="inputContent" text="{content}" left="0" right="0" top="4" bottom="4" editable="{!readonly}"/>
+				</s:Group>
+			</s:HGroup>
+		</s:NavigatorContent>
+
+		<s:NavigatorContent label="标绘属性">
+			<mx:DataGrid dataProvider="{extAttributes}" editable="true" id="datagridExtParams" selectionColor="0xFFFF00" alternatingItemColors="{[0xFFFFFF]}" width="100%" height="100%"
+						 headerHeight="25" rowHeight="25" borderColor="0x000000" borderVisible="false">
+				<mx:columns>
+					<mx:DataGridColumn sortable="false" headerText="属性名称" dataField="name" editable="false" width="120"/>
+					<mx:DataGridColumn sortable="false" headerText="属性值" dataField="value" editable="true"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</s:NavigatorContent>
+
+		<s:NavigatorContent label="附加图片">
+			<component:Panel4PictureView recordId="{recordId}" readonly="{readonly}" layerId="10000000" pictureTypes="{pictureTypes}" dataProvider="{extPictures}" callFunction="saveToServer"
+										 creationComplete="panel4PictureView_creationCompleteHandler(event)" width="100%" height="100%" id="panel4PictureView"/>
+		</s:NavigatorContent>
+
+		<s:NavigatorContent label="文件管理">
+			<component:Panel4FileManager recordId="{recordId}" readonly="{readonly}" layerId="10000000" callFunction="saveToServer" dataProvider="{extAttachments}"
+										 creationComplete="panel4FileManager_creationCompleteHandler(event)" width="100%" height="100%" id="panel4FileManager"/>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+
+
+</s:BorderContainer>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config>
+	<group name="系统参数">
+		<item name="AppName" title="系统名称" value="广东省交通厅"/>
+		<item name="LogoCaption " title="Logo条上的文字标题" value="广东省交通厅"/>
+		<item name="Copyright" title="版权信息" value="技术支持:广州城市信息研究所有限公司"/>
+		<item name="LogoLeft" title="logo Left坐标" value="0"/>
+		<item name="LogoTop" title="logo Top坐标" value="0"/>
+		<item name="LogoBgUrl" title="工作区头部底图" value="logo_bg_common.png"/>
+		<item name="LogoUrl" title="Logo连接" value="gdsjtt_logo.png"/>
+	</group>
+	<group name="外观参数">
+		<item name="NavigatorControl" title="工作界面导航面板外观" value="Accordion" items="Tree;Accordion;ToolBar"/>
+		<item name="NavigatorWidth" title="导航区域缺省宽度" value="250"/>
+	</group>
+</config>

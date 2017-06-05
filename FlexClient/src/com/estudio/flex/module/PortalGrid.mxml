@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module creationComplete="module1_creationCompleteHandler(event)" name="modulePortalGrid" width="100%" height="100%" backgroundColor="#EBF4FF" creationPolicy="auto" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+		  implements="com.estudio.flex.common.InterfacePortalGrid" xmlns:flexiframe="com.google.code.flexiframe.*" >
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Style source="../client/MainForm.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfacePortalGrid;
+			import com.estudio.flex.utils.IFrameUtils;
+
+			import spark.components.NavigatorContent;
+
+			private var _tabSheet:NavigatorContent=null;
+			private var _isHasJSScript:Boolean=false;
+
+
+			public function get TabSheet():NavigatorContent
+			{
+				return _tabSheet;
+			}
+
+			public function set TabSheet(value:NavigatorContent):void
+			{
+				_tabSheet=value;
+			}
+
+
+			//初始化脚本支持
+			private var htmlStr:String="";
+
+			private function createJavaScript():String
+			{
+				if (htmlStr == "")
+				{
+					var htmlList:Array=[];
+					htmlList.push("<html>");
+					//htmlList.push("<meta http-equiv=\"X-UA-Compatible\" content=\"IE=8\" />");
+					htmlList.push("<head>");
+					htmlList.push("<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>");
+					if (FlexGlobals.topLevelApplication.isRelease)
+					{
+						htmlList.push("<script type='text/javascript' src='../js/release/jquery.min.js?version=" + FlexGlobals.topLevelApplication.appVersion + "'></script>");
+						htmlList.push("<script type='text/javascript' src='../js/release/modal.portal.min.js?version=" + FlexGlobals.topLevelApplication.appVersion + "'></script>");
+					}
+					else
+					{
+						htmlList.push("<script type='text/javascript' src='../js/jslib/jquery/jquery.js?version=" + FlexGlobals.topLevelApplication.appVersion + "'></script>");
+						htmlList.push("<script type='text/javascript' src='../js/jslib/jquery/jquery.json.js?version=" + FlexGlobals.topLevelApplication.appVersion + "'></script>");
+						htmlList.push("<script type='text/javascript' src='../js/jslib/utils.js?version=" + FlexGlobals.topLevelApplication.appVersion + "'></script>");
+						htmlList.push("<script type='text/javascript' src='../js/javascript/client/showgrid_api.js?version=" + FlexGlobals.topLevelApplication.appVersion + "'></script>");
+					}
+					htmlList.push("<script type='text/javascript'>");
+					htmlList.push("  var __portalid__=" + portalGridOptions.portalID + ";");
+					htmlList.push("  function getFrameID(){return '" + getIFrameID() + "';}");
+					htmlList.push(_GLOBAL_DEFINE.JS);
+					htmlList.push("  if(window['ON_PORTAL_INITIALIZE'])ON_PORTAL_INITIALIZE();");
+					htmlList.push("  if(window['EVENT_AFTER_TREE_SELECTED'])EVENT_AFTER_TREE_SELECTED(PORTAL.TREE.getSelectedItem());");
+					htmlList.push("  if(window['EVENT_AFTER_GRID_SELECTED'])EVENT_AFTER_GRID_SELECTED(PORTAL.GRID.getSelectedItem());");
+					htmlList.push("  executeOtherCallmeFunction();");
+					htmlList.push("</script>");
+					htmlList.push("</head>");
+					htmlList.push("<body>");
+					htmlList.push("</body>");
+					htmlList.push("</html>");
+					htmlStr=htmlList.join("\n");
+				}
+				return htmlStr;
+			}
+
+			protected function module1_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (_isHasJSScript)
+				{
+					IFrameUtils.createIFrameByHTML(getIFrameID(), createJavaScript());
+				}
+			}
+
+			public function getIFrameID():String
+			{
+				return "PORTALGRID_" + portalGridOptions.portalID;
+			}
+		]]>
+	</fx:Script>
+	<fx:Script source="PortalGrid.as"/>
+	<fx:Script source="PortalGrid4Control.as"/>
+	<fx:Script source="PortalGrid4Event.as"/>
+	<fx:Script source="PortalGrid4Fun.as"/>
+	<fx:Script source="PortalGrid4Data.as"/>
+	<fx:Script source="PortalGrid4Utils.as"/>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+</s:Module>

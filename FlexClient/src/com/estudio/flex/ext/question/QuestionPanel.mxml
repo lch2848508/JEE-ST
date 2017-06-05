@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow title="{winCaption}" close="titlewindow1_closeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="600" height="400">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.AjaxUtils;
+			
+			import mx.controls.Alert;
+			import mx.controls.RadioButton;
+			import mx.controls.RadioButtonGroup;
+			import mx.controls.Text;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+
+			private static var instance:QuestionPanel=null;
+
+			[Bindable]
+			private var winCaption:String="";
+
+			[Bindable]
+			public var stlx:String=null;
+			[Bindable]
+			public var stnr:String=null;
+			[Bindable]
+			public var stfz:String=null;
+			[Bindable]
+			public var stbh:String=null;
+			[Bindable]
+			public var sfzdwb:int=0;
+			[Bindable]
+			public var sfzq:int=0;
+			[Bindable]
+			public var did:String=null;
+
+			public static var rightAnswer:Object=null;
+
+			public static var returnAnswer:Object={};
+			static var questionInfo:Object={};
+			static var choices:Object={};
+			var myRadioButtonGroup:RadioButtonGroup=new RadioButtonGroup();
+			[Bindable]
+			public var answerParams:Object={};
+
+			[Bindable]
+			private static var label:UIComponent;
+			[Bindable]
+			private static var cell:UIComponent;
+
+			private var f:Function=null;
+			[Bindable]
+			private static var stbh:String=null;
+
+			private var questionAll:Object=null;
+			private var choicesAll:Object=null;
+			private var shitiid:int=0;
+
+			public static function execute(questions:Object, choicess:Object, stid:int, stbh:String, answer:Object, labelparam:UIComponent, fun:Function):void
+			{
+				if (instance == null)
+					instance=new QuestionPanel();
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(instance);
+				//              stbh=question[stid - 1].id;
+				//				var questionInfo:Object=json.questionInfos[id - 1];
+				//				var choices:Object=json.jsonChoices[stbh];
+				instance.questionAll=questions;
+				instance.choicesAll=choicess;
+				instance.shitiid=stid - 1;
+
+				questionInfo=questions[stid - 1];
+				choices=choicess[stbh];
+				label=labelparam;
+				cell=label.owner as UIComponent;
+				returnAnswer=answer;
+				instance.loadFile();
+				instance.f=fun;
+			}
+
+
+			public function loadFile():void
+			{
+				stlx=questionInfo.caption;
+				stnr=questionInfo.question;
+				stfz=questionInfo.score;
+				stbh=questionInfo.id;
+				did=questionInfo.did;
+				//选项信息
+				choiceA.removeAllElements();
+				choiceB.removeAllElements();
+				choiceC.removeAllElements();
+				choiceD.removeAllElements();
+				for (var i:int=0; i < choices.length; i++)
+				{
+					var radio:RadioButton=new RadioButton();
+					var textRadio:Text=new Text();
+					radio.label=choices[i].xxbh + " :";
+					textRadio.left=60;
+					textRadio.width=500;
+					textRadio.setStyle("fontFamily", "YaHei Consolas Hybrid,微软雅黑");
+					textRadio.text=choices[i].xxms;
+					radio.group=myRadioButtonGroup;
+					radio.setStyle("fontFamily", "YaHei Consolas Hybrid,微软雅黑");
+					var zqx:String=choices[i].sfzq;
+					if (zqx == '1')
+					{
+						rightAnswer=choices[i].xxbh + " :";
+					}
+
+					if (i == 0)
+					{
+						radio.x=30;
+						choiceA.addElement(radio);
+						choiceA.addElement(textRadio);
+					}
+					else if (i == 1)
+					{
+						radio.x=30;
+						choiceB.addElement(radio);
+						choiceB.addElement(textRadio);
+					}
+					if (i == 2)
+					{
+						radio.x=30;
+						choiceC.addElement(radio);
+						choiceC.addElement(textRadio);
+					}
+					if (i == 3)
+					{
+						radio.x=30;
+						choiceD.addElement(radio);
+						choiceD.addElement(textRadio);
+					}
+				}
+			}
+
+			public function postResult():void
+			{
+				if (myRadioButtonGroup.selectedValue)
+				{
+					var result:String=myRadioButtonGroup.selectedValue.toString();
+					if (result != null)
+					{
+						label.removeEventListener(MouseEvent.CLICK, f);
+						//label.enabled=false;
+						if (rightAnswer == result)
+						{
+							sfzq=1;
+							cell.setStyle("backgroundColor", "0x3399FF");
+						}
+						else
+						{
+							sfzq=0;
+							cell.setStyle("backgroundColor", "0xFF0000");
+						}
+						answerParams["stbh"]=stbh;
+						answerParams["stfz"]=stfz;
+						answerParams["sfzq"]=sfzq;
+						answerParams["did"]=did;
+						var url="../../servlet/question?o=monthItemResult";
+						AjaxUtils.postData(url, answerParams, function(data:String, token:Object):void
+						{
+						});
+					}
+				}
+				close();
+			}
+
+			public function close():void
+			{
+				PopUpManager.removePopUp(instance);
+			}
+
+			public function preShiTi():void
+			{
+
+				questionInfo=questionAll[shitiid - 1];
+				stbh=questionInfo.id;
+				choices=choicesAll[stbh];
+				shitiid=shitiid - 1;
+				//Alert.show("shitiid="+shitiid);
+				loadFile();
+				if (shitiid == 0)
+				{
+					preST.visible=false;
+				}
+
+//				if(questionInfo.answer==-1){
+//					loadFile();
+//					if(shitiid==0){
+//						preST.visible=false;
+//					}
+//				}else{
+//					preShiTi();
+//					if(shitiid==0){
+//						preST.visible=false;
+//					}
+//				}
+
+			}
+
+			public function nextShiTi():void
+			{
+				questionInfo=questionAll[shitiid + 1];
+				stbh=questionInfo.id;
+				choices=choicesAll[stbh];
+				shitiid=shitiid + 1;
+				if (shitiid == 49)
+				{
+					nextST.visible=false;
+				}
+				loadFile();
+			}
+			
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(instance);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<s:Group id="mainGroup" width="100%" height="100%" verticalCenter="0" horizontalCenter="0" visible="true">
+		<s:VGroup width="100%" height="100%">
+			<s:BorderContainer width="100%" height="10%" borderWeight="0" borderVisible="false">
+				<s:Label  left="15" top="20" text="{'试题类型:'+stlx}">
+
+				</s:Label>
+			</s:BorderContainer>
+			<s:BorderContainer width="100%" height="50%" borderWeight="0" borderVisible="false">
+				<s:Label  left="30" top="10" right="30" text="{'题目: '+stnr+'    '}" width="100%">
+				</s:Label>
+			</s:BorderContainer>
+			<s:BorderContainer id="choiceA" width="100%" height="7.5%" borderWeight="0" borderVisible="false">
+			</s:BorderContainer>
+			<s:BorderContainer id="choiceB" width="100%" height="7.5%" borderWeight="0" borderVisible="false">
+			</s:BorderContainer>
+			<s:BorderContainer id="choiceC" width="100%" height="7.5%" borderWeight="0" borderVisible="false">
+			</s:BorderContainer>
+			<s:BorderContainer id="choiceD" width="100%" height="7.5%" borderWeight="0" borderVisible="false">
+			</s:BorderContainer>
+			<s:BorderContainer width="100%" height="20%" borderWeight="0" borderVisible="false">
+				<s:Button id="preST" left="90" label="上一题" click="preShiTi()"/>
+				<s:Button label="确定" horizontalCenter="0" click="postResult()"/>
+				<s:Button id="nextST" right="90" label="下一题" click="nextShiTi()"/>
+			</s:BorderContainer>
+		</s:VGroup>
+	</s:Group>
+</s:TitleWindow>

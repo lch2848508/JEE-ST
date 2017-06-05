@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx creationComplete="titlewindowex1_creationCompleteHandler(event)" close="titlewindowex1_closeHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:component="com.estudio.flex.component.*" width="640" height="480">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceSWFDialog;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.JSFunUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.managers.SystemManager;
+
+			private var swfInstance:Object=null;
+			public var callFunctionName:String="";
+			public var iframeId:String="";
+
+			public var swfURL:String="";
+
+			[Bindable]
+			public var isSWFModule:Boolean=false;
+			
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			private var _swfParams:Object=null;
+
+			public function set swfParams(value:Object):void
+			{
+				_swfParams=value;
+				if (swfInstance)
+					InterfaceSWFDialog(swfInstance).params=value;
+			}
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			//标题栏上的关闭按钮
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			//下面的关闭按钮
+			protected function btnClose_clickHandler(event:MouseEvent):void
+			{
+				titlewindowex1_closeHandler(null);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			//确定按钮
+			protected function btnOK_clickHandler(event:MouseEvent):void
+			{
+				if (swfInstance != null && (swfInstance is InterfaceSWFDialog) && !StringUtils.isEmpty(callFunctionName))
+				{
+					IFrameUtils.execute(iframeId, callFunctionName, InterfaceSWFDialog(swfInstance).resultObject);
+				}
+				titlewindowex1_closeHandler(null);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////////////////
+			protected function titlewindowex1_creationCompleteHandler(event:FlexEvent):void
+			{
+				swf.load(swfURL);
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////
+			private function event4ApplicatonComplete(event:FlexEvent):void
+			{
+				var app:Object=event.target.application;
+				if (app is InterfaceSWFDialog)
+					swfInstance=app;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			protected function swf_completeHandler(event:Event):void
+			{
+				var obj:SystemManager=swf.content as SystemManager;
+				obj.addEventListener(FlexEvent.APPLICATION_COMPLETE, event4SWFLoaded);
+			}
+
+			private function event4SWFLoaded(event:FlexEvent):void
+			{
+				swfInstance=event.target.application;
+				if (swfInstance is InterfaceSWFDialog)
+					InterfaceSWFDialog(swfInstance).params=_swfParams;
+			}
+		]]>
+	</fx:Script>
+
+	<s:VGroup width="100%" height="100%" gap="0">
+		<!-- SWF -->
+		<s:SWFLoader complete="swf_completeHandler(event)" id="swf" width="100%" height="100%">
+		</s:SWFLoader>
+
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#7B889C"/>
+			</s:stroke>
+		</s:Line>
+
+		<s:Group width="100%" height="40">
+			<s:Button width="75" verticalCenter="0" height="30" label="关闭" right="5" id="btnClose" click="btnClose_clickHandler(event)"/>
+			<s:Button width="75" verticalCenter="0" height="30" label="确定" right="85" id="btnOK" click="btnOK_clickHandler(event)"/>
+		</s:Group>
+	</s:VGroup>
+
+</component:TitleWindowEx>

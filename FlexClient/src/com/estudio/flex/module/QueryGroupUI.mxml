@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module currentState="splitStyle" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.module.component.*" xmlns:component2="com.estudio.flex.component.*" width="100%" height="100%"
+		  implements="com.estudio.flex.common.InterfaceQueryGroup" creationComplete="eventModuleCreateCompleted(event)">
+	<s:states>
+		<s:State name="splitStyle"/>
+		<s:State name="groupStyle"/>
+	</s:states>
+	<fx:Style source="../client/MainForm.css"/>
+	<fx:Script source="QueryGroup4Utils.as">
+	</fx:Script>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.module.component.ToggleLabel;
+			import com.estudio.flex.module.component.ToggleVertline;
+
+			import spark.events.IndexChangeEvent;
+
+			protected function filterPanel1_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (_queryList.length < 2 || currentState == "groupStyle")
+				{
+					firstToolbarContain.removeElementAt(0);
+					firstToolbarContain.removeElementAt(0);
+				}
+			}
+
+			private var allGroupQueryItems:Array=[];
+			private var globalFilterParams:Object={};
+
+			protected function toolbargroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				groupPanel.removeAllElements();
+				for (var i:int=0; i < _queryList.length; i++)
+				{
+					var item:Object=_queryList[i];
+					var label:ToggleLabel=new ToggleLabel();
+					label.text=item.label;
+					groupPanel.addElement(label);
+					if (i != _queryList.length - 1)
+						groupPanel.addElement(new ToggleVertline());
+					if (i == 0)
+						label.selected=true;
+					label.addEventListener(MouseEvent.CLICK, event4GroupItemClick);
+					allGroupQueryItems.push(label);
+				}
+			}
+
+			private function event4GroupItemClick(event:MouseEvent):void
+			{
+				var label:ToggleLabel=event.currentTarget as ToggleLabel;
+				if (label.selected)
+					return;
+				var oldParams:Object=getFilterParams();
+//				trace(JSON.stringify(oldParams));
+				for (var k:String in oldParams)
+					globalFilterParams[k]=oldParams[k];
+
+				var oldSelectedIndex:int=-1;
+				for (var i:int=0; i < allGroupQueryItems.length; i++)
+				{
+					if (allGroupQueryItems[i].selected)
+					{
+						allGroupQueryItems[i].selected=false;
+						oldSelectedIndex=i;
+					}
+				}
+				label.selected=true;
+				var selectedIndex:int=allGroupQueryItems.indexOf(label);
+				comboboxQuerys.selectedIndex=selectedIndex;
+				comboboxQuerys.selectedItem=_queryList[selectedIndex];
+				var e:IndexChangeEvent=new IndexChangeEvent(IndexChangeEvent.CHANGE);
+				//e.currentTarget = comboboxQuerys;
+				e.newIndex=selectedIndex;
+				e.oldIndex=oldSelectedIndex;
+				eventQueryTypeComboboxChange(e);
+				if (_isQueryButtonClicked)
+				{
+					callLater(function():void
+					{
+						setFilterValues(globalFilterParams);
+					});
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:Line width="100%" height="0" id="lineGridBottom">
+			<s:stroke>
+				<s:SolidColorStroke color="0x606976" weight="1" caps="square" id="lineGridBottomColor"/>
+			</s:stroke>
+		</s:Line>
+	</fx:Declarations>
+
+	<s:VGroup x="0" y="0" width="100%" height="100%" gap="0" id="topGroup">
+		<!-- 过滤器工具栏 -->
+		<component:ToolbarGroup bottomBorder="true" id="filterPanel1" width="100%">
+			<s:HGroup gap="4" width="100%" height="100%" verticalAlign="middle" id="firstToolbarContain">
+				<s:Label text="查询方式列表" fontWeight="bold"/>
+				<s:DropDownList creationComplete="filterPanel1_creationCompleteHandler(event)" id="comboboxQuerys" height="22" width="250" dataProvider="{_queryList}" change="eventQueryTypeComboboxChange(event)"/>
+				<s:HGroup width="100%" height="100%" id="groupFilter1" verticalAlign="middle">
+				</s:HGroup>
+			</s:HGroup>
+		</component:ToolbarGroup>
+
+		<component:ToolbarGroup bottomBorder="true" id="filterPanel2" width="100%">
+			<s:HGroup width="100%" height="100%" id="groupFilter2" verticalAlign="middle">
+			</s:HGroup>
+		</component:ToolbarGroup>
+
+		<component:ToolbarGroup bottomBorder="true" id="filterPanel3" width="100%">
+			<s:HGroup width="100%" height="100%" id="groupFilter3" verticalAlign="middle">
+			</s:HGroup>
+		</component:ToolbarGroup>
+
+		<component:ToolbarGroup bottomBorder="true" id="filterPanel4" width="100%">
+			<s:HGroup width="100%" height="100%" id="groupFilter4" verticalAlign="middle">
+			</s:HGroup>
+		</component:ToolbarGroup>
+
+		<component:ToolbarGroup bottomBorder="true" id="filterPanel5" width="100%">
+			<s:HGroup width="100%" height="100%" id="groupFilter5" verticalAlign="middle">
+			</s:HGroup>
+		</component:ToolbarGroup>
+
+		<component:ToolbarGroup bottomBorder="true" height="28" includeIn="groupStyle" width="100%">
+			<s:HGroup creationComplete="toolbargroup1_creationCompleteHandler(event)" width="100%" height="100%" id="groupPanel" verticalAlign="middle" paddingLeft="2" paddingRight="2">
+			</s:HGroup>
+		</component:ToolbarGroup>
+
+
+
+		<!-- 数据列表区域 -->
+		<mx:VDividedBox width="100%" height="100%" borderVisible="false" verticalGap="4" backgroundColor="0xEFEFEF" id="splitContain" borderStyle="none">
+			<s:VGroup width="100%" height="100%" gap="0" id="gridContain">
+				<!--
+				<s:Group width="100%" height="100%" id="gridContain">
+				</s:Group>
+				-->
+				<!--
+
+				-->
+
+
+			</s:VGroup>
+
+
+			<s:VGroup width="100%" height="100%" id="chartContain">
+			</s:VGroup>
+
+		</mx:VDividedBox>
+	</s:VGroup>
+
+
+
+
+</s:Module>

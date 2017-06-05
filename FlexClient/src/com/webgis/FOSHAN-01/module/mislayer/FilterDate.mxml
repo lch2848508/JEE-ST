@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mislayer:FilterControl xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:mislayer="com.webgis.module.mislayer.*" width="100%" xmlns:ns="http://flex.apache.org/experimental/ns">
+	<s:Label text="{comment}" width="{labelWidth}"/>
+	<ns:MaskedTextInput separators=":-" id="textInput1" hideSeparatorInText="false" fontFamily="Courier New" fontStyle="normal" color="0x000000" fontSize="13" maskText="####-##-##'" borderVisible="false"/>
+	<s:Label text="-"/>
+	<ns:MaskedTextInput separators=":-" id="textInput2" hideSeparatorInText="false" fontFamily="Courier New" fontStyle="normal" color="0x000000" fontSize="13" maskText="####-##-##'" borderVisible="false"/>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.StringUtils;
+
+			public override function clear():void
+			{
+				textInput1.text="";
+				textInput2.text="";
+				textInput1.validateNow();
+				textInput2.validateNow();
+			}
+
+			public override function test(record:Object):Boolean
+			{
+				var v1:String=textInput1.text;
+				var v2:String=textInput2.text;
+				if (StringUtils.isEmpty(v1) && StringUtils.isEmpty(v2))
+					return true;
+
+				var v:String=record[fieldName];
+				if (StringUtils.isEmpty(v))
+					return false;
+
+				v1=StringUtils.replace(v1, "-", "");
+				v2=StringUtils.replace(v2, "-", "");
+				if (StringUtils.isEmpty(v1))
+					v1="10000000";
+				if (StringUtils.isEmpty(v2))
+					v2="99999999";
+
+				var vi:Number=Convert.str2Number(StringUtils.replace(v, "-", ""), 0);
+				return vi >= parseFloat(v1) && vi <= parseFloat(v2);
+			}
+		]]>
+	</fx:Script>
+</mislayer:FilterControl>

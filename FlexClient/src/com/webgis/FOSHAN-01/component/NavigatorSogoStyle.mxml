@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx">
+	<fx:Script>
+		<![CDATA[
+			import com.webgis.map.MapControl;
+
+			import mx.core.UIComponent;
+			[Embed(source="/assets/webgis/nbg.png")]
+			[Bindable]
+			public var iNbg:Class;
+
+			[Embed(source="/assets/webgis/nl.png")]
+			[Bindable]
+			public var iNl:Class;
+
+			[Embed(source="/assets/webgis/nlb.png")]
+			[Bindable]
+			public var iNlb:Class;
+
+			[Embed(source="/assets/webgis/nt.png")]
+			[Bindable]
+			public var iNt:Class;
+
+			[Embed(source="/assets/webgis/ntb.png")]
+			[Bindable]
+			public var iNtb:Class;
+
+			[Embed(source="/assets/webgis/nr.png")]
+			[Bindable]
+			public var iNr:Class;
+
+			[Embed(source="/assets/webgis/nrb.png")]
+			[Bindable]
+			public var iNrb:Class;
+
+			[Embed(source="/assets/webgis/nb.png")]
+			[Bindable]
+			public var iNb:Class;
+
+			[Embed(source="/assets/webgis/nbb.png")]
+			[Bindable]
+			public var iNbb:Class;
+
+			[Embed(source="/assets/webgis/nc.png")]
+			[Bindable]
+			public var iNc:Class;
+
+			[Embed(source="/assets/webgis/ncb.png")]
+			[Bindable]
+			public var iNcb:Class;
+
+			[Embed(source="/assets/webgis/nbv.png")]
+			[Bindable]
+			public var iNbv:Class;
+
+			[Embed(source="/assets/webgis/zi.png")]
+			[Bindable]
+			public var iNzi:Class;
+
+			[Embed(source="/assets/webgis/zo.png")]
+			[Bindable]
+			public var iNzo:Class;
+
+			[Embed(source="/assets/webgis/zib.png")]
+			[Bindable]
+			public var iNzib:Class;
+
+			[Embed(source="/assets/webgis/zob.png")]
+			[Bindable]
+			public var iNzob:Class;
+
+			[Embed(source="/assets/webgis/nbv1.png")]
+			[Bindable]
+			public var iNbv1:Class;
+
+			[Embed(source="/assets/webgis/nvbh2.png")]
+			[Bindable]
+			public var iNbh2:Class;
+
+			[Embed(source="/assets/webgis/nvbgh.png")]
+			[Bindable]
+			public var iNvbgh:Class;
+
+			public var map:MapControl=null;
+
+			public function addControl(control:UIComponent):void
+			{
+				containGroup.addElement(control);
+			}
+		]]>
+	</fx:Script>
+	<s:Image source="{iNbg}" left="0" top="0" width="60" height="60"/>
+	<s:Group width="39" height="39" left="5" top="5">
+		<s:Image source="{iNlb}" id="n1" click="{map.panLeft();map.setFocus();}" mouseOver="{n1.source=iNl}" mouseOut="{n1.source=iNlb}" left="0" top="13"/>
+		<s:Image source="{iNtb}" id="n2" click="{map.panUp();map.setFocus();}" mouseOver="{n2.source=iNt}" mouseOut="{n2.source=iNtb}" left="13" top="0"/>
+		<s:Image source="{iNrb}" id="n3" click="{map.panRight();map.setFocus();}" mouseOver="{n3.source=iNr}" mouseOut="{n3.source=iNrb}" right="0" top="13"/>
+		<s:Image source="{iNbb}" id="n4" click="{map.panDown();map.setFocus();}" mouseOver="{n4.source=iNb}" mouseOut="{n4.source=iNbb}" left="13" bottom="0"/>
+		<s:Image source="{iNcb}" id="n5" click="{map.zoomToInitialExtent();map.setFocus();}" mouseOver="{n5.source=iNc}" mouseOut="{n5.source=iNcb}" left="13" top="13"/>
+	</s:Group>
+
+	<s:Image left="0" top="60" source="{iNbv}"/>
+	<s:Image left="0" top="85" source="{iNbv1}"/>
+
+	<s:Image left="6" top="60" id="n6" click="{map.zoomIn();map.setFocus();}" mouseOver="{n6.source=iNzi}" mouseOut="{n6.source=iNzib}" source="{iNzib}"/>
+	<s:Image left="6" top="83" id="n7" click="{map.zoomOut();map.setFocus();}" mouseOver="{n7.source=iNzo}" mouseOut="{n7.source=iNzob}" source="{iNzob}"/>
+
+	<s:Group left="60" top="0" height="34">
+		<s:HGroup gap="0" left="0" top="0" height="100%" verticalAlign="top">
+			<s:Group height="100%" id="containGroup">
+				<s:Rect x="0" y="0" height="100%" width="100%">
+					<s:fill>
+						<s:BitmapFill source="{iNvbgh}"/>
+					</s:fill>
+				</s:Rect>
+			</s:Group>
+			<s:Group height="100%">
+				<s:Image source="{iNbh2}" top="-1"/>
+			</s:Group>
+
+		</s:HGroup>
+	</s:Group>
+</s:Group>

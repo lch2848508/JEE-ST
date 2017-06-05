@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="300" height="200" minWidth="0" minHeight="0" contentBackgroundColor="#FFFFFF" creationComplete="bordercontainer1_creationCompleteHandler(event)"
+				    fontSize="12">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+
+			import spark.events.IndexChangeEvent;
+			[Bindable]
+			public var startYear:int=new Date().getFullYear();
+
+			[Bindable]
+			public var endYear:int=new Date().getFullYear() + 10;
+
+			public var startDate:Date=null;
+			public var enableMultiSelect:Boolean=true;
+
+			private var dayLabels:Array=[];
+			private var dayCells:Array=[];
+			private var cell2Params:Object={};
+			private var selectedCells:Array=[];
+			private var startPoint:Object={col: -1, row: -1};
+			private var mouseStartPoint:Object={col: -1, row: -1};
+			private var mouseStartCursor:Point=null;
+
+			private var isInitialized:Boolean=true;
+
+			//清除所有选择内容
+			public function clearAllSelected():void
+			{
+				for (var i:int=0; i < dayCells.length; i++)
+				{
+					var cell:GridItem=dayCells[i] as GridItem;
+					var p:Object=cell2Params[cell.uid];
+					if (p.selected)
+					{
+						p.selected=false;
+						cell.setStyle("backgroundColor", "#FFFFFF");
+						cell.setStyle("color", "");
+						cell.setStyle("fontWeight", "normal");
+					}
+				}
+
+			}
+
+			//获取选择的日期
+			public function get selectedDate():Array
+			{
+				var result:Array=[];
+				var ym:String=combobox_Year.selectedItem + "-" + StringUtils.lPad(combobox_Month.selectedItem, "0", 2) + "-";
+				for (var i:int=0; i < dayCells.length; i++)
+				{
+					var cell:GridItem=dayCells[i] as GridItem;
+					var p:Object=cell2Params[cell.uid];
+					if (p.selected && p.enabled)
+					{
+						var str:String=ym + StringUtils.lPad(p.day, "0", 2);
+						result.push(str);
+					}
+				}
+
+				return result;
+			}
+
+			//生成年度范围
+			protected function bordercontainer1_creationCompleteHandler(event:FlexEvent):void
+			{
+				for (var index:int=0; index < 42; index++)
+				{
+					var row:int=index / 7 + 1;
+					var col:int=index % 7;
+					var cell:GridItem=(table_Date.getChildAt(row) as UIComponent).getChildAt(col) as GridItem;
+					cell.uid="cell" + String(index);
+					cell2Params[cell.uid]={enabled: false, row: row - 1, col: col, selected: false};
+					dayCells.push(cell);
+
+					var label:Label=new Label();
+					cell.addElement(label);
+					dayLabels.push(label);
+					cell.addEventListener(MouseEvent.CLICK, eventCellClick);
+				}
+
+				var years:Array=[];
+				for (var i:int=startYear; i <= endYear; i++)
+					years.push(i);
+				combobox_Year.dataProvider=new ArrayCollection(years);
+				if (years.length == 0)
+					years.push(new Date().getFullYear());
+
+				var index:int=years.indexOf(new Date().getFullYear());
+				if (index == -1)
+					index=0;
+				combobox_Year.selectedIndex=index;
+
+				combobox_Month.dataProvider=new ArrayCollection([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+				combobox_Month.selectedIndex=new Date().getMonth();
+
+				isInitialized=false;
+
+				combobox_Year_changeHandler(null);
+			}
+
+			//单元格鼠标点击事件
+			private function eventCellClick(event:MouseEvent):void
+			{
+				var cell:GridItem=event.currentTarget as GridItem;
+				var params:Object=cell2Params[cell.uid];
+				if (params.enabled)
+				{
+					if (!enableMultiSelect || (!event.ctrlKey && !event.shiftKey)) //单选
+					{
+						clearAllSelected();
+						setCellSelected(cell, true, true);
+					}
+					else if (event.ctrlKey) //Ctrl 多选
+					{
+						setCellSelected(cell, true, startPoint.col == -1);
+					}
+					else
+					{
+						if (startPoint.col == -1)
+						{
+							setCellSelected(cell, true, true);
+						}
+						else
+						{
+							clearAllSelected();
+							var startIndex:int=startPoint.row * 7 + startPoint.col;
+							var endIndex:int=params.row * 7 + params.col;
+							if (startIndex > endIndex)
+							{
+								var temp:int=startIndex;
+								startIndex=endIndex;
+								endIndex=temp;
+							}
+							for (var i:int=startIndex; i <= endIndex; i++)
+							{
+								cell=dayCells[i] as GridItem;
+								setCellSelected(cell, true, false);
+							}
+						}
+					}
+				}
+			}
+
+
+
+			//选取单元格
+			private function setCellSelected(cell:GridItem, isSelected:Boolean, isStartPoint:Boolean):void
+			{
+				var p:Object=cell2Params[cell.uid];
+				if (p.enabled && p.selected != isSelected)
+				{
+					p.selected=isSelected;
+					cell.setStyle("backgroundColor", "#BB0000");
+					cell.setStyle("color", "#FFFFFF");
+					cell.setStyle("fontWeight", "bold");
+					if (isStartPoint)
+					{
+						startPoint={row: p.row, col: p.col};
+					}
+				}
+			}
+
+			//选择或不选择单元格
+			private function setRowColSelected(row:int, col:int, isSelected:Boolean, isStartPoint:Boolean):void
+			{
+				var cell:GridItem=dayCells[row * 7 + col] as GridItem;
+				setCellSelected(cell, isSelected, isStartPoint);
+
+			}
+
+			//年月选择值发生变化 需要重绘
+			protected function combobox_Year_changeHandler(event:IndexChangeEvent):void
+			{
+				if (isInitialized)
+					return;
+
+				clearAllSelected();
+
+				var year:int=combobox_Year.selectedItem;
+				var month:int=combobox_Month.selectedItem;
+				var startDate:Date=new Date(year, month - 1, 1);
+				var days:int=getMonDays(year, month);
+				var startWeek:int=startDate.getDay();
+
+				for (var i:int=0; i < days; i++)
+				{
+					var index:int=startWeek + i;
+					var label:Label=dayLabels[index] as Label;
+					label.text=String(i + 1);
+
+					var cell:GridItem=dayCells[index] as GridItem;
+					cell2Params[cell.uid].enabled=isDateBigThanStartDate(new Date(year, month - 1, i + 1));
+					cell2Params[cell.uid].day=i + 1;
+					label.setStyle("color", cell2Params[cell.uid].enabled ? "#000000" : "#CCCCCC");
+				}
+
+				for (var i:int=0; i < startWeek; i++)
+				{
+					var label:Label=dayLabels[i] as Label;
+					label.text="";
+					var cell:GridItem=dayCells[i] as GridItem;
+					cell2Params[cell.uid].enabled=false;
+				}
+
+				for (var i:int=startWeek + days; i < 42; i++)
+				{
+					var label:Label=dayLabels[i] as Label;
+					label.text="";
+					var cell:GridItem=dayCells[i] as GridItem;
+					cell2Params[cell.uid].enabled=false;
+				}
+
+				startPoint={col: -1, row: -1};
+			}
+
+			//取得日期
+			private function getMonDays(year:int, month:int):int
+			{
+				switch (month)
+				{
+					case 1:
+					case 3:
+					case 5:
+					case 7:
+					case 8:
+					case 10:
+					case 12:
+						return 31;
+					case 2:
+						return ((year % 100 != 0 && year % 4 == 0) || year % 400 == 0) ? 29 : 28;
+					default:
+						return 30;
+				}
+			}
+
+			private function isDateBigThanStartDate(d:Date):Boolean
+			{
+				return d.time >= startDate.time;
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if (combobox_Year.selectedIndex == 0 && combobox_Month.selectedIndex == 0)
+					return;
+				if (combobox_Month.selectedIndex == 0)
+				{
+					combobox_Month.selectedIndex=11;
+					combobox_Year.selectedIndex=combobox_Year.selectedIndex - 1;
+					callLater(function():void
+					{
+						combobox_Year_changeHandler(null);
+					});
+				}
+				else
+				{
+					combobox_Month.selectedIndex=combobox_Month.selectedIndex - 1;
+					callLater(function():void
+					{
+						combobox_Year_changeHandler(null);
+					});
+				}
+
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////
+			//上一月
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				if (combobox_Year.selectedIndex == 9 && combobox_Month.selectedIndex == 11)
+					return;
+				if (combobox_Month.selectedIndex == 11)
+				{
+					combobox_Month.selectedIndex=0;
+					combobox_Year.selectedIndex=combobox_Year.selectedIndex + 1;
+					callLater(function():void
+					{
+						combobox_Year_changeHandler(null);
+					});
+				}
+				else
+				{
+					combobox_Month.selectedIndex=combobox_Month.selectedIndex + 1;
+					callLater(function():void
+					{
+						combobox_Year_changeHandler(null);
+					});
+				}
+			}
+			//////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:HGroup paddingLeft="4" verticalAlign="middle" left="0" top="0" height="30" gap="5">
+		<s:Label fontWeight="bold">年</s:Label>
+		<s:ComboBox id="combobox_Year" width="80" change="combobox_Year_changeHandler(event)" dropShadowVisible="false">
+		</s:ComboBox>
+		<s:Label fontWeight="bold">月</s:Label>
+		<s:ComboBox id="combobox_Month" width="80" change="combobox_Year_changeHandler(event)" dropShadowVisible="false">
+		</s:ComboBox>
+		<s:Button label="上一月" width="70" height="{combobox_Month.height}" click="button1_clickHandler(event)"/>
+		<s:Button label="下一月" width="70" height="{combobox_Month.height}" click="button2_clickHandler(event)"/>
+	</s:HGroup>
+	<s:Line left="0" top="31" width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="0x606976" weight="1" caps="square"/>
+		</s:stroke>
+	</s:Line>
+	<mx:Grid visible="true" borderVisible="true" borderColor="#000000" backgroundColor="0x606976" left="1" top="32" bottom="1" right="1" horizontalGap="1" verticalGap="1" id="table_Date">
+		<mx:GridRow width="100%" height="28">
+			<mx:GridItem width="100%" height="100%" backgroundColor="#F5F5F5" horizontalAlign="center" verticalAlign="middle">
+				<s:Label fontWeight="bold">日</s:Label>
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#F5F5F5" horizontalAlign="center" verticalAlign="middle">
+				<s:Label fontWeight="bold">一</s:Label>
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#F5F5F5" horizontalAlign="center" verticalAlign="middle">
+				<s:Label fontWeight="bold">二</s:Label>
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#F5F5F5" horizontalAlign="center" verticalAlign="middle">
+				<s:Label fontWeight="bold">三</s:Label>
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#F5F5F5" horizontalAlign="center" verticalAlign="middle">
+				<s:Label fontWeight="bold">四</s:Label>
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#F5F5F5" horizontalAlign="center" verticalAlign="middle">
+				<s:Label fontWeight="bold">五</s:Label>
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#F5F5F5" horizontalAlign="center" verticalAlign="middle">
+				<s:Label fontWeight="bold">六</s:Label>
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" height="100%">
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" height="100%">
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" height="100%">
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" height="100%">
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" height="100%">
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+		</mx:GridRow>
+		<mx:GridRow width="100%" height="100%">
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" backgroundColor="#FFFFFF" horizontalAlign="center" verticalAlign="middle">
+			</mx:GridItem>
+		</mx:GridRow>
+	</mx:Grid>
+	<s:Rect visible="false" id="dragRect" left="10" top="10" width="100" height="100">
+		<s:stroke>
+			<s:SolidColorStroke color="0xEE0000" weight="1" alpha="0.8"/>
+		</s:stroke>
+		<s:fill>
+			<s:SolidColor color="0x00EEEE" alpha="0.5">
+			</s:SolidColor>
+		</s:fill>
+	</s:Rect>
+</s:BorderContainer>

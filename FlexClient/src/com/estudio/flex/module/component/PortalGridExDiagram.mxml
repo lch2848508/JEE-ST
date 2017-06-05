@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:PortalGridExControl creationComplete="portalgridexcontrol1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+							   xmlns:component="com.estudio.flex.module.component.*" width="100%" height="100%" xmlns:workflow="com.estudio.flex.module.component.workflow.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.module.component.workflow.DiagramActionBase;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.ObjectUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.estudio.flex.utils.UIUtils;
+
+			import mx.controls.SWFLoader;
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			import mx.events.ModuleEvent;
+			import mx.managers.SystemManager;
+
+			import spark.modules.ModuleLoader;
+			private var diagramName:String="";
+			public var onActionDblClickFunctionName:String="";
+			private var onEditActionParams:String="";
+			private var parentControlName:String="";
+			private var showFormMode:int=0;
+			private var isLoadedDiagram:Boolean=false;
+			private var extContextMenu:ContextMenu=new ContextMenu();
+			///////////////////////////////////////////////////////////////////////
+			private static var diagramName2Object:Object={};
+
+			///////////////////////////////////////////////////////////////////////
+			override public function initParams(controlParams:Object):void
+			{
+				super.initParams(controlParams);
+				diagramName=controlParams.DiagramName;
+				onActionDblClickFunctionName=controlParams.EventOnActionDblClick;
+				onEditActionParams=controlParams.EventOnEditActionParams;
+				parentControlName=controlParams.ParentControlName;
+				showFormMode=controlParams.ShowFormMode == "弹出表单" ? 0 : 2;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			protected function portalgridexcontrol1_creationCompleteHandler(event:FlexEvent):void
+			{
+				extContextMenu.hideBuiltInItems();
+				var menuItem:ContextMenuItem=new ContextMenuItem("编辑属性");
+				menuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4EditActionMenuClick);
+				extContextMenu.customItems.push(menuItem);
+
+				if (!StringUtils.isEmpty(diagramName))
+					loadDiagram(diagramName);
+				_isCreateCompleted=true;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			public function loadDiagram(diagramName:String):void
+			{
+				if (this.diagramName == diagramName && isLoadedDiagram)
+					return;
+
+				isLoadedDiagram=false;
+				this.diagramName=diagramName;
+				if (diagramName2Object[diagramName])
+				{
+					diagramPanel.diagramJson=diagramName2Object[diagramName];
+					isLoadedDiagram=true;
+				}
+				else
+					AjaxUtils.postData("../client/diagram", {o: "get", diagramName: diagramName}, function(str:String, token:Object):void
+					{
+						var json:Object=JSON.parse(str);
+						if (json && json.r)
+						{
+							diagramName2Object[diagramName]=json.diagram;
+							diagramPanel.diagramJson=diagramName2Object[diagramName];
+							isLoadedDiagram=true;
+						}
+					});
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			private function event4ActionDblClick(actionObject:Object):void
+			{
+				if (!StringUtils.isEmpty(onActionDblClickFunctionName))
+					IFrameUtils.execute(portalInstance.getIFrameID(), onActionDblClickFunctionName, actionObject);
+				else if (actionObject.Forms && actionObject.Forms.length != 0 && !StringUtils.isEmpty(parentControlName))
+				{
+					var formParams:Object=getBindFormParams(actionObject);
+					var extParams:Object={callfrom: "PortalGridEx", controlName: parentControlName};
+					formParams=ObjectUtils.mergeParams(formParams, extParams);
+					formParams.isNew=false;
+					formParams.readonly=portalInstance.readonly;
+					formParams.portalId=portalInstance.getPortalID();
+					formParams.isChild=false;
+					formParams.formCaption="环节:" + actionObject.Caption;
+					FlexGlobals.topLevelApplication.editPortalItemEx(portalInstance, formParams, showFormMode, portalInstance.readonly);
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			private function getBindFormParams(actionObject:Object):Object
+			{
+				var result:Object={};
+				var forms:Array=diagramPanel.diagramJson.Forms;
+				for (var i:int=0; i < forms.length; i++)
+				{
+					var params:Array=forms[i].params;
+					if (!params || params.length == 0)
+						continue;
+					for (var j:int=0; j < params.length; j++)
+					{
+						var param:Object=params[j];
+						if (param.value == "REQ.WORKFLOW_PROCESS_ID")
+							result[param.name]=portalInstance.getSelectedKey(parentControlName);
+					}
+				}
+				forms=actionObject.Forms;
+				result.formIds=[];
+				for (var i:int=0; i < forms.length; i++)
+				{
+					result.formIds.push(forms[i]);
+				}
+				return result;
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			//设置节点背景色
+			public function setActionBackground(actionCaption:String, color:uint):void
+			{
+				diagramPanel.setActionBackground(actionCaption, color);
+			}
+
+			//////////////////////////////////////////////////////////////////////
+			//设置进度
+			public function setActionStep(actionCaption:String, step:String):void
+			{
+				diagramPanel.setActionStep(actionCaption, step);
+			}
+
+			////////////////////////////////////////////////////////////////////////
+			//选中并闪烁节点
+			public function focusActions(actionCaptions:Array):void
+			{
+				diagramPanel.focusActions(actionCaptions);
+			}
+
+			public function setActionSetting(actionCaption:String, bg:uint, step:String):void
+			{
+				diagramPanel.setActionSetting(actionCaption, bg, step);
+			}
+
+			public function batchSetActionSettings(params:Object):void
+			{
+				diagramPanel.batchSetActionSettings(params);
+			}
+
+			public function getActionSettings():Object
+			{
+				return diagramPanel.getActionSettings();
+			}
+
+			////////////////////////////////////////////////////////////////////////
+			private function event4EditActionMenuClick(event:ContextMenuEvent):void
+			{
+				var action:DiagramActionBase=event.contextMenuOwner as DiagramActionBase;
+				WinActionSetting.execute("编辑属性:" + action.caption, function(bg:uint, step:String):void
+				{
+					action.background=bg;
+					action.setSteps(step);
+					action.invalidateDisplayList();
+					if (!StringUtils.isEmpty(onEditActionParams))
+						IFrameUtils.execute(portalInstance.getIFrameID(), onEditActionParams, {action: action.caption, bg: bg, step: step});
+				}, action.background, action.steps);
+			}
+		]]>
+	</fx:Script>
+	<workflow:DiagramPanel diagramContextMenu="{extContextMenu}" actionDblClickCallFunction="{event4ActionDblClick}" id="diagramPanel" width="100%" height="100%"/>
+</component:PortalGridExControl>

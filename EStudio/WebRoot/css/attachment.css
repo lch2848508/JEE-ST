@@ -1,0 +1,22 @@
+@charset "utf-8";
+.table_attachment {
+	font-size: 12px;
+	border-collapse:collapse;
+}
+
+.table_attachment .title{
+	font-weight:bold;
+	background-color:#FFC;
+}
+
+.table_attachment td{
+	padding:2px;
+}
+
+.table_attachment a{
+	font-size: 12px;
+	font-style: normal;
+	font-weight: normal;
+	color: #06F;
+	text-decoration: none;
+}

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+///////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2010-2011 Esri. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+///////////////////////////////////////////////////////////////////////////
+-->
+<s:Group xmlns:s="library://ns.adobe.com/flex/spark" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:esri="http://www.esri.com/2008/ags" xmlns:Navigation="com.webgis.module.navigator.*" creationComplete="group1_creationCompleteHandler(event)">
+
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map; 
+			import com.esri.ags.tools.NavigationTool;
+
+			import mx.events.FlexEvent;
+
+			import spark.events.IndexChangeEvent;
+
+			[Bindable]
+			public var map:Map;
+
+			[Bindable]
+			public var panwheelItem:NavToolItem;
+
+			[Bindable]
+			public var zoomFullextItem:NavToolItem;
+
+			[Bindable]
+			public var panupItem:NavToolItem;
+
+			[Bindable]
+			public var pandownItem:NavToolItem;
+
+			[Bindable]
+			public var panleftItem:NavToolItem;
+
+			[Bindable]
+			public var panrightItem:NavToolItem;
+
+			[Bindable]
+			public var prevextItem:NavToolItem;
+
+			[Bindable]
+			public var nextextItem:NavToolItem;
+
+			[Bindable]
+			public var zoominItem:NavToolItem;
+
+			[Bindable]
+			public var zoomoutItem:NavToolItem;
+
+			[Bindable]
+			public var panItem:NavToolItem;
+
+			private var navigationTool:NavigationTool=new NavigationTool();
+
+			protected function buttonbar1_changeHandler(event:IndexChangeEvent):void
+			{
+				doNavAction(event.currentTarget.dataProvider[event.newIndex].action, event.currentTarget.dataProvider[event.newIndex].label);
+			}
+
+			protected function buttonbar1_valueCommitHandler(event:FlexEvent):void
+			{
+				if (event.currentTarget.selectedIndex != -1)
+				{
+					doNavAction(event.currentTarget.dataProvider[event.currentTarget.selectedIndex].action, event.currentTarget.dataProvider[event.currentTarget.selectedIndex].label);
+				}
+			}
+
+			private function doNavAction(action:String, label:String):void
+			{
+				var data:Object={tool: action, status: label}
+				if (navigationTool.map == null)
+					navigationTool.map=map;
+
+				if (action == "zoomfull")
+					navigationTool.map.zoomToInitialExtent();
+				else if (action == "zoomprevious")
+					navigationTool.zoomToPrevExtent();
+				else if (action == "zoomnext")
+					navigationTool.zoomToNextExtent();
+			}
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.navigationTool.map=map;
+			}
+
+			//平移模式
+			public function activePanMode():void
+			{
+				navigationTool.activate(NavigationTool.PAN);
+			}
+
+			//缩小模式
+			public function activeZoominMode():void
+			{
+				navigationTool.activate(NavigationTool.ZOOM_IN);
+			}
+
+			//放大模式
+			public function activeZoomoutMode():void
+			{
+				navigationTool.activate(NavigationTool.ZOOM_OUT);
+			}
+
+			public function deactive():void
+			{
+				navigationTool.deactivate();
+			}
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:VerticalLayout gap="3" horizontalAlign="center"/>
+	</s:layout>
+	<s:filters>
+		<s:DropShadowFilter alpha="0.5" blurX="10" blurY="10"/>
+	</s:filters>
+	<s:Group visible="{panwheelItem.toolVisible}" enabled="{map.loaded}" includeInLayout="{panwheelItem.toolVisible}" layoutDirection="ltr">
+		<s:Button id="nwButton" x="2" y="2" click="map.panUpperLeft()" skinClass="com.webgis.module.navigator.nwButtonSkin"/>
+		<s:Button id="wButton" x="0" y="19" click="map.panLeft()" skinClass="com.webgis.module.navigator.wButtonSkin" toolTip="{panleftItem.toolName}"/>
+		<s:Button id="swButton" x="2" y="36" click="map.panLowerLeft()" skinClass="com.webgis.module.navigator.swButtonSkin"/>
+		<s:Button id="sButton" x="18" y="43" click="map.panDown()" skinClass="com.webgis.module.navigator.sButtonSkin" toolTip="{pandownItem.toolName}"/>
+		<s:Button id="seButton" x="35" y="35" click="map.panLowerRight()" skinClass="com.webgis.module.navigator.seButtonSkin"/>
+		<s:Button id="eButton" x="43" y="18" click="map.panRight()" skinClass="com.webgis.module.navigator.eButtonSkin" toolTip="{panrightItem.toolName}"/>
+		<s:Button id="neButton" x="35" y="2" click="map.panUpperRight()" skinClass="com.webgis.module.navigator.neButtonSkin"/>
+		<s:Button id="nButton" x="18" y="0" click="map.panUp()" skinClass="com.webgis.module.navigator.nButtonSkin" toolTip="{panupItem.toolName}"/>
+		<Navigation:IconButton id="innerButton" visible="{zoomFullextItem.toolVisible}" x="18" y="18" click="doNavAction('zoomfull',null)" iconUp="{zoomFullextItem.toolIcon}" skinClass="com.webgis.module.navigator.InnerButtonSkin" toolTip="{zoomFullextItem.toolName}"/>
+	</s:Group>
+	<s:HGroup enabled="{map.loaded}" gap="0">
+		<s:Button id="prevExt" visible="{prevextItem.toolVisible}" x="0" y="19" click="doNavAction('zoomprevious', null)" includeInLayout="{prevextItem.toolVisible}" skinClass="com.webgis.module.navigator.wButtonSkin" toolTip="{prevextItem.toolName}"/>
+		<s:Button id="nextExt" visible="{nextextItem.toolVisible}" x="0" y="19" click="doNavAction('zoomnext', null)" includeInLayout="{nextextItem.toolVisible}" skinClass="com.webgis.module.navigator.eButtonSkin" toolTip="{nextextItem.toolName}"/>
+	</s:HGroup>
+	<esri:Navigation top="0" map="{map}" skinClass="com.webgis.module.navigator.NavigationSkin"/>
+</s:Group>

@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:PortalGridExControl creationComplete="portalgridexcontrol1_creationCompleteHandler(event)" currentState="editStatus" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+							   xmlns:component="com.estudio.flex.module.component.*" width="100%" height="100%" xmlns:workflow="com.estudio.flex.module.component.workflow.*" xmlns:component1="com.webgis.component.*">
+	<component:states>
+		<s:State name="editStatus"/>
+		<s:State name="viewStatus"/>
+	</component:states>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.common.InterfacePortalGridEx;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.estudio.flex.utils.UIUtils;
+			import com.webgis.component.WinInputText;
+			import com.webgis.service.MapServiceClient;
+
+			import flash.net.navigateToURL;
+
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.DragEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ListEvent;
+			import mx.events.ModuleEvent;
+			import mx.managers.PopUpManager;
+			import mx.managers.SystemManager;
+
+			import spark.events.IndexChangeEvent;
+
+			///////////////////////////////////////////////////////////////////////
+			private var url:String="../client/attachment_ex";
+			[Bindable]
+			private var fileArrayCollection:ArrayCollection=new ArrayCollection([]);
+			private var _recordId:String="";
+			public var recordPrefix:String="";
+			public var parentControlName:String="";
+
+			///////////////////////////////////////////////////////////////////////
+			public function set recordId(v:String):void
+			{
+				_recordId=v;
+				AjaxUtils.postData(url, {o: "get", recordId: _recordId}, function(text:String, token:Object):void
+				{
+					var json:Object=JSON.parse(text);
+					if (json.r)
+						Content="[" + JSON.stringify(json.attachments) + "]";
+				});
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			public function get recordId():String
+			{
+				return _recordId;
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			public function set Content(v:String):void
+			{
+				selectedItem=null;
+				if (StringUtils.isEmpty(v))
+					fileArrayCollection=new ArrayCollection([{isRoot: true, isFolder: true, caption: "文件列表", children: []}]);
+				else
+					fileArrayCollection=new ArrayCollection(JSON.parse(v) as Array);
+				fileArrayCollection.refresh();
+				if (tree)
+				{
+					tree.invalidateDisplayList();
+					tree.callLater(function():void
+					{
+						tree.expandItem(fileArrayCollection.getItemAt(0), true);
+					});
+				}
+				selectedItem=fileArrayCollection.getItemAt(0);
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			public function get Content():String
+			{
+				return JSON.stringify(fileArrayCollection.source);
+			}
+			
+			public override function resetCurrentState():void
+			{
+				this.currentState=controlParams.IsReadonly || readonly ? "viewStatus" : "editStatus";
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			override public function initParams(controlParams:Object):void
+			{
+				super.initParams(controlParams);
+				readonly=controlParams.IsReadonly || readonly;
+				this.currentState=readonly ? "viewStatus" : "editStatus";
+				this.recordPrefix=StringUtils.nvl(controlParams.RecordPrefix, "");
+				this.parentControlName=StringUtils.nvl(controlParams.ParentControlName, "");
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			protected function btnUpload_clickHandler(event:MouseEvent):void
+			{
+				if (selectedItem == null || !selectedItem.isFolder)
+				{
+					AlertUtils.alert("请首先选择一个文件夹.");
+					return;
+				}
+				WinUploadFilesEx.execute(url, {recordId: recordId, o: "upload", pid: selectedItem.id}, uploadFileCallFunction);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			private function uploadFileCallFunction(json:Object):void
+			{
+				if (!selectedItem.children)
+					selectedItem.children=[];
+				selectedItem.children.push(json);
+				tree.expandItem(selectedItem, true);
+				(selectedItem.children as Array).sort(fileListCompareFunction);
+				fileArrayCollection.refresh();
+				tree.invalidateList();
+			}
+
+			private function fileListCompareFunction(item1:Object, item2:Object):int
+			{
+				var f1:Boolean=item1.isFolder;
+				var f2:Boolean=item2.isFolder;
+				if (f1 == f2)
+					return item1.caption.localeCompare(item2.caption);
+				else if (f1)
+					return -1;
+				else if (f2)
+					return 1;
+				return 0;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////////
+			protected function btnDelete_clickHandler(event:MouseEvent):void
+			{
+				if (selectedItem)
+				{
+					AlertUtils.confirm("确定要删除" + selectedItem.caption + "?", function():void
+					{
+						var files:Array=[];
+						var items:Array=[];
+						ArrayCollectionUtils.TreeData2List([selectedItem], items);
+						var ids:Array=[];
+						for (var j:int=items.length - 1; j >= 0; j--)
+						{
+							var item:Object=items[j];
+							if (item == fileArrayCollection.getItemAt(0))
+								continue;
+							ids.push(item.id);
+							var pItem:Object=tree.getParentItem(item);
+							var pItemArray:Array=pItem.children;
+							ArrayUtils.remove(pItemArray, ArrayUtils.indexOf(pItemArray, item));
+							if (pItemArray.length == 0)
+								delete pItem.children;
+						}
+						tree.invalidateList();
+						tree.callLater(function():void
+						{
+							tree.selectedIndex=0;
+							tree.selectedItem=fileArrayCollection.getItemAt(0);
+							selectedItem=fileArrayCollection.getItemAt(0);
+						});
+						AjaxUtils.postData(url, {o: "rd", id: ids.join(",")}, function(text:String, token:Object):void
+						{
+
+						});
+					});
+
+				}
+			}
+			////////////////////////////////////////////////////////////////////////////////////
+			private var selectedItem:Object=null;
+
+			protected function tree_changeHandler(event:ListEvent):void
+			{
+				selectedItem=tree.selectedItem;
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+			protected function tree_doubleClickHandler(event:MouseEvent):void
+			{
+				if (selectedItem && !selectedItem.isFolder)
+					navigateToURL(new URLRequest(selectedItem.url), "viewWindow");
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////
+
+			protected function btnNewFolder_clickHandler(event:MouseEvent):void
+			{
+				if (selectedItem == null || !selectedItem.isFolder)
+				{
+					AlertUtils.alert("请首先选择一个文件夹.");
+					return;
+				}
+				WinInputText.execute("请输入文件夹名称", "", function(text:String):void
+				{
+					AjaxUtils.postData(url, {o: "md", caption: text, pid: selectedItem.id, recordId: _recordId}, function(responseText:String, token:Object):void
+					{
+						var json:Object=JSON.parse(responseText);
+						var item:Object={caption: text, isFolder: true, id: json.id, userId: json.userId, createDate: json.createDate};
+						if (!selectedItem.children)
+							selectedItem.children=[];
+						selectedItem.children.push(item);
+						(selectedItem.children as Array).sort(fileListCompareFunction);
+						tree.expandItem(selectedItem, true);
+						fileArrayCollection.refresh();
+						tree.invalidateList();
+						tree.callLater(function():void
+						{
+							tree.selectedItem=item;
+							selectedItem=item;
+							tree.callLater(function():void
+							{
+								tree.selectedIndex=tree.getItemIndex(selectedItem);
+								tree.scrollToIndex(tree.getItemIndex(selectedItem));
+							});
+						})
+					});
+				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function btnRenameFolder_clickHandler(event:MouseEvent):void
+			{
+				if (selectedItem == null || selectedItem == fileArrayCollection.getItemAt(0) || !selectedItem.isFolder)
+				{
+					AlertUtils.alert("请首先选择一个文件夹.");
+					return;
+				}
+				WinInputText.execute("请输入文件夹名称", selectedItem.caption, function(text:String):void
+				{
+					AjaxUtils.postData(url, {o: "rename", id: selectedItem.id, caption: text}, function(responseText:String, token:Object):void
+					{
+						selectedItem.caption=text;
+						var pItem:Object=tree.getParentItem(selectedItem);
+						(pItem.children as Array).sort(fileListCompareFunction);
+						fileArrayCollection.refresh();
+						tree.invalidateList();
+					});
+				});
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function tree_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (fileArrayCollection.length != 0)
+					tree.expandChildrenOf(fileArrayCollection.getItemAt(0), true);
+				_isCreateCompleted=true;
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function btnSearch_clickHandler(event:MouseEvent):void
+			{
+				var filterStr:String=StringUtils.trim(text.text).toLowerCase();
+				if (StringUtils.isEmpty(filterStr))
+					return;
+				var list:Array=[];
+				ArrayCollectionUtils.TreeData2List(fileArrayCollection.source, list);
+				var index:int=tree.selectedItem ? ArrayUtils.indexOf(list, tree.selectedItem) : 0;
+				var isFound:Boolean=false;
+				for (var i:int=index + 1; i < list.length; i++)
+				{
+					var item:Object=list[i];
+					if (item.caption.indexOf(filterStr) != -1)
+					{
+						var pItems:Array=[];
+						var pItem:Object=tree.getParentItem(item);
+						while (pItem != null)
+						{
+							pItems.push(pItem);
+							pItem=tree.getParentItem(pItem);
+						}
+						for (var j:int=pItems.length - 1; j >= 0; j--)
+							tree.expandItem(pItems[j], true);
+						tree.callLater(function():void
+						{
+							tree.selectedItem=item;
+							tree.callLater(function():void
+							{
+								tree.scrollToIndex(tree.selectedIndex);
+							});
+						});
+						isFound=true;
+						break;
+					}
+				}
+
+				if (!isFound)
+				{
+					for (var i:int=0; i < index; i++)
+					{
+						var item:Object=list[i];
+						if (item.caption.indexOf(filterStr) != -1)
+						{
+							var pItems:Array=[];
+							var pItem:Object=tree.getParentItem(item);
+							while (pItem != null)
+							{
+								pItems.push(pItem);
+								pItem=tree.getParentItem(pItem);
+							}
+							for (var j:int=pItems.length - 1; j >= 0; j--)
+								tree.expandItem(pItems[j], true);
+							tree.callLater(function():void
+							{
+								tree.selectedItem=item;
+								tree.callLater(function():void
+								{
+									tree.scrollToIndex(tree.selectedIndex);
+								});
+							});
+							isFound=true;
+							break;
+						}
+					}
+				}
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			protected function text_enterHandler(event:FlexEvent):void
+			{
+				btnSearch_clickHandler(null);
+			}
+
+			//////////////////////////////////////////////////////////////////////////////////////
+			private var contextMenuItems:Array=[];
+
+			protected function portalgridexcontrol1_creationCompleteHandler(event:FlexEvent):void
+			{
+				if (!readonly)
+				{
+					var event4MenuItemSelect=function(event:ContextMenuEvent):void
+					{
+						var index:int=ArrayUtils.indexOf(contextMenuItems, event.currentTarget);
+						if (index == 0)
+							btnUpload_clickHandler(null);
+						else if (index == 1)
+							btnNewFolder_clickHandler(null);
+						else if (index == 2)
+							btnRenameFolder_clickHandler(null);
+						else if (index == 3)
+							btnDelete_clickHandler(null);
+					};
+					var contextMenu:ContextMenu=new ContextMenu();
+					contextMenu.hideBuiltInItems();
+
+					var contentMenuItem:ContextMenuItem=new ContextMenuItem("上传文件");
+					contextMenu.customItems.push(contentMenuItem);
+					contextMenuItems.push(contentMenuItem);
+					contentMenuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4MenuItemSelect);
+
+					contentMenuItem=new ContextMenuItem("新建文件夹");
+					contextMenu.customItems.push(contentMenuItem);
+					contextMenuItems.push(contentMenuItem);
+					contentMenuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4MenuItemSelect);
+
+					contentMenuItem=new ContextMenuItem("重命名");
+					contextMenu.customItems.push(contentMenuItem);
+					contextMenuItems.push(contentMenuItem);
+					contentMenuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4MenuItemSelect);
+
+					contentMenuItem=new ContextMenuItem("删除文件(文件夹)");
+					contextMenu.customItems.push(contentMenuItem);
+					contextMenuItems.push(contentMenuItem);
+					contentMenuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4MenuItemSelect);
+
+					tree.contextMenu=contextMenu;
+				}
+				this._isCreateCompleted=true;
+			}
+		]]>
+	</fx:Script>
+
+	<component:ToolbarGroup width="100%" height="30" bottomBorder="true">
+		<s:HGroup gap="2" paddingLeft="2" paddingRight="2" height="28" width="100%" verticalAlign="middle">
+			<s:Label text="查找" fontWeight="bold"/>
+			<s:TextInput enter="text_enterHandler(event)" width="100%" height="23" id="text"/>
+			<component1:ToolbarButton click="btnSearch_clickHandler(event)" selected="false" id="btnSearch" toolTip="查找" icon="@Embed('/assets/common/search.png')"/>
+			<component1:ToolbarButton includeIn="editStatus" click="btnNewFolder_clickHandler(event)" selected="false" id="btnNewFolder" toolTip="新建目录" icon="@Embed('/assets/common/folder.png')"/>
+			<component1:ToolbarButton includeIn="editStatus" click="btnRenameFolder_clickHandler(event)" selected="false" id="btnRenameFolder" toolTip="重命名目录" icon="@Embed('/assets/webgis/folder-rename.png')"/>
+			<component1:ToolbarButton includeIn="editStatus" click="btnUpload_clickHandler(event)" selected="false" id="btnUpload" toolTip="上传文件" icon="@Embed('/assets/common/upload.png')"/>
+			<component1:ToolbarButton includeIn="editStatus" click="btnDelete_clickHandler(event)" selected="false" id="btnDelete" toolTip="删除文件或目录" icon="@Embed('/assets/common/delete.png')"/>
+		</s:HGroup>
+	</component:ToolbarGroup>
+
+
+	<s:Line width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#DDE1E5"/>
+		</s:stroke>
+	</s:Line>
+
+	<mx:Tree dragEnabled="false" dropEnabled="false" dragMoveEnabled="false" creationComplete="tree_creationCompleteHandler(event)" labelField="caption" itemRenderer="com.estudio.flex.module.component.TreeItemRender4FileManager" dataProvider="{fileArrayCollection}" doubleClickEnabled="true"
+			 id="tree" doubleClick="tree_doubleClickHandler(event)" change="tree_changeHandler(event)" width="100%" height="100%" borderVisible="false"/>
+
+</component:PortalGridExControl>

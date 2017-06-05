@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup creationComplete="hgroup1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" gap="2" verticalAlign="middle">
+	<fx:Script>
+		<![CDATA[
+			import mx.core.FlexGlobals;
+			import mx.events.FlexEvent;
+			public var fileItem:Object=null;
+			
+			protected function hgroup1_creationCompleteHandler(event:FlexEvent):void
+			{
+				chk.selected = false;
+				img.source = "../images/filetype_images/16x16/" + fileItem.fileext + ".png";
+				lab.text = fileItem.caption;
+			}
+			
+			protected function lab_mouseOverHandler(event:MouseEvent):void
+			{
+				lab.setStyle("color","#0000FF");
+			}
+			
+			protected function lab_mouseOutHandler(event:MouseEvent):void
+			{
+				lab.setStyle("color","#000000");
+			}
+			
+			protected function lab_clickHandler(event:MouseEvent):void
+			{
+				var url:String=fileItem.url;
+				FlexGlobals.topLevelApplication.viewAttachmentWindow(fileItem.pid,fileItem.type,fileItem.id,url);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:CheckBox id="chk" width="12"/>
+	<s:Image id="img"/>
+	<s:Label paddingTop="2" id="lab" width="100%" mouseChildren="false" buttonMode="true" useHandCursor="true" click="lab_clickHandler(event)" mouseOver="lab_mouseOverHandler(event)" mouseOut="lab_mouseOutHandler(event)"/>
+</s:HGroup>

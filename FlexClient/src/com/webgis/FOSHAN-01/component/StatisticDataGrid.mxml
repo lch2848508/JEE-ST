@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group visible="false" creationComplete="group1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" bottom="0" right="0" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="250" xmlns:component="com.webgis.component.*"
+		 xmlns:component1="com.estudio.flex.module.component.*" xmlns:client="com.estudio.flex.client.*">
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.Geometry;
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.map.MapControl;
+			import com.webgis.service.MapServiceClient;
+
+			import flash.net.navigateToURL;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.events.FlexEvent;
+
+			[Bindable]
+			public var caption:String="";
+
+			[Bindable]
+			public var focusColumns:ArrayCollection=null;
+
+			public var resizeCallFunction:Function=null;
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			protected function datagrid_doubleClickHandler(event:MouseEvent):void
+			{
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////////
+			public function setMinStatus():void
+			{
+				btnPanel.visible=true;
+				groupMain.visible=false;
+				this.width=80;
+				this.height=25;
+				if (resizeCallFunction != null)
+					resizeCallFunction(false);
+			}
+
+			public function setMaxStatus():void
+			{
+				btnPanel.visible=false;
+				groupMain.visible=true;
+				this.percentWidth=100;
+				this.height=250;
+				if (resizeCallFunction != null)
+					resizeCallFunction(true);
+			}
+
+			protected function group1_creationCompleteHandler(event:FlexEvent):void
+			{
+				setMinStatus();
+			}
+
+			public function setDataGridColumnsAndRecords(str1:String, str2:String):void
+			{
+				if (excelPanel)
+				{
+					excelPanel.setDataGridColumnsAndRecords(str1, str2);
+					excelPanel.datagrid.editable="false"
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:Group width="100%" height="100%" id="groupMain">
+		<s:layout>
+			<s:VerticalLayout gap="0">
+
+			</s:VerticalLayout>
+		</s:layout>
+
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="0xCCCCCC"/>
+			</s:stroke>
+		</s:Line>
+		<s:BorderContainer width="100%" borderVisible="false" backgroundAlpha="0.90" height="28" backgroundColor="#F8F8F8">
+			<s:Label verticalCenter="0" color="#155DB4" left="4" text="{caption}" fontWeight="bold"/>
+			<s:HGroup height="100%" gap="2" right="3" top="0" verticalAlign="middle">
+				<component:ToolbarButton toolTip="导出到Excel" icon="@Embed('/assets/common/importexcel.png')" tag="export_excel"/>
+				<component:ToolbarButton selected="true" icon="@Embed('/assets/common/delete.png')" click="{setMinStatus();}"/>
+			</s:HGroup>
+		</s:BorderContainer>
+		<s:Line width="100%" height="0">
+			<s:stroke>
+				<s:SolidColorStroke color="0xCCCCCC"/>
+			</s:stroke>
+		</s:Line>
+		<client:ExcelPanel isStatisticChartGrid="true" focusColumns="{focusColumns}" dragEnabled="false" alpha="0.9" width="100%" height="100%" id="excelPanel"/>
+	</s:Group>
+	<s:BorderContainer id="btnPanel" backgroundColor="0x0000CC" backgroundAlpha="0.5" width="80" height="25" right="0" bottom="0" click="{setMaxStatus();}">
+		<s:Label text="统计数据" fontWeight="bold" color="0xFFFF00" fontSize="14" verticalCenter="0" horizontalCenter="0"/>
+	</s:BorderContainer>
+</s:Group>

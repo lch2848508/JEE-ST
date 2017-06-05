@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ns:Map extentChange="map1_extentChangeHandler(event)" creationComplete="map1_creationCompleteHandler(event)" doubleClickZoomEnabled="false" doubleClickEnabled="false" scrollWheelZoomEnabled="true" mapClick="event4MapClickHandler(event)"
+		xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:ns="http://www.esri.com/2008/ags" logoVisible="false" zoomSliderVisible="false">
+	<fx:Style>
+
+	</fx:Style>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Map;
+			import com.esri.ags.components.supportClasses.DoubleField;
+			import com.esri.ags.events.DrawEvent;
+			import com.esri.ags.events.ExtentEvent;
+			import com.esri.ags.events.LayerEvent;
+			import com.esri.ags.events.MapMouseEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.portal.PopUpRenderer;
+			import com.esri.ags.portal.supportClasses.PopUpFieldFormat;
+			import com.esri.ags.portal.supportClasses.PopUpFieldInfo;
+			import com.esri.ags.portal.supportClasses.PopUpInfo;
+			import com.esri.ags.utils.GraphicUtil;
+			import com.esri.ags.utils.WebMercatorUtil;
+			import com.estudio.flex.utils.AlertUtils;
+			
+			import mx.controls.Alert;
+			import mx.events.DragEvent;
+			import mx.events.EffectEvent;
+
+			[Bindable]
+			public var lonlatVisible:Boolean = false;
+			public var isDegress:Boolean = false;
+			[Bindable]
+			public var mapLayerManager:Object=null;
+			public var baseMapIndex:int=0;
+			public var baseMapIndex2SubLayerIndex:Array=[];
+			public var mapApp:Object=null;
+			public var navigatorAreaId:String="-1";
+			public var isFocused:Boolean=false;
+			public var mapServiceClient:MapServiceClient=null;
+			private var _userMapExtent:Extent=null;
+
+			//private var tempLayer:GraphicsLayer=new GraphicsLayer;
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			public function set userMapExtent(value:Extent):void
+			{
+				if (value)
+				{
+					this.extent=value;
+					_userMapExtent=value;
+				}
+			}
+
+			protected function map1_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.infoWindow.addEventListener(flash.events.Event.CLOSE, function(event:Event):void
+				{
+					clearFeature();
+				});
+				this.addEventListener(MouseEvent.MOUSE_MOVE, mouseMouseEvent4Map);
+
+				var contextMenu:ContextMenu=new ContextMenu();
+				contextMenu.hideBuiltInItems();
+				var menuItems:Array=["获取当前坐标","获取流量数据"];
+				for (var i:int=0; i < menuItems.length; i++)
+				{
+					var menuItem:ContextMenuItem=new ContextMenuItem(menuItems[i]);
+					menuItem.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, event4ContextMenuItemClick);
+					contextMenu.customItems.push(menuItem);
+				}
+				this.contextMenu=contextMenu;
+			}
+
+			private var lastMousePosition:Array=[];
+
+			private function mouseMouseEvent4Map(event:MouseEvent):void
+			{
+				lastMousePosition[0]=event.stageX;
+				lastMousePosition[1]=event.stageY;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			private function event4ContextMenuItemClick(event:ContextMenuEvent):void
+			{
+				if ((event.currentTarget as ContextMenuItem).caption == "获取当前坐标")
+				{
+					var mapLocalPixelPoint:Point=globalToLocal(new Point(lastMousePosition[0], lastMousePosition[1]));
+					var mapPoint:MapPoint=toMap(mapLocalPixelPoint);
+					if (mapPoint.x >= -180 && mapPoint.x <= 180 && mapPoint.y >= -90 && mapPoint.y <= 90)
+					{
+						var x:String=WebGISUtils.number2DFM(mapPoint.x);
+						var y:String=WebGISUtils.number2DFM(mapPoint.y);
+						System.setClipboard(x + "," + y + "(" + Math.round(mapPoint.x * 10000) / 10000 + "," + Math.round(mapPoint.y * 10000) / 10000 + ")");
+						AlertUtils.alert("11当前坐标:" + x + "," + y + "(" + Math.round(mapPoint.x * 10000) / 10000 + "," + Math.round(mapPoint.y * 10000) / 10000 + ")已经复制到粘贴板.");
+					}
+					else
+					{
+						var p:MapPoint=WebMercatorUtil.webMercatorToGeographic(mapPoint) as MapPoint;
+						var x:String=WebGISUtils.number2DFM(p.x);
+						var y:String=WebGISUtils.number2DFM(p.y);
+						System.setClipboard(x + "," + y + "(" + Math.round(p.x * 10000) / 10000 + "," + Math.round(p.y * 10000) / 10000 + ")");
+						AlertUtils.alert("11当前坐标:" + x + "," + y + "(" + Math.round(p.x * 10000) / 10000 + "," + Math.round(p.y * 10000) / 10000 + ")已经复制到粘贴板.");
+					}
+				}
+				if((event.currentTarget as ContextMenuItem).caption=="获取流量数据")
+				{
+					AlertUtils.alert("hahha");
+				}
+			}
+
+
+			///////////////////////////////////////////////////////////////////////////////
+			public function getBaseLayers():Array
+			{
+				return mapLayerManager.getBaseLayers();
+			}
+
+			public function changeBaseMap(index:int, subIndex:int=-1):void
+			{
+				if (baseMapIndex != index || baseMapIndex2SubLayerIndex[index] != subIndex)
+				{
+					var layer:Layer=layers.source[0];
+					this.removeLayer(layer);
+					var layerInfo:Object=getBaseLayers()[index];
+					if (subIndex != -1 && subIndex != 0)
+						layerInfo=layerInfo.layers[subIndex - 1];
+
+					var newLayer:Layer=createLayer(layerInfo.type, layerInfo.url, layerInfo);
+					newLayer.id="Layer" + 0;
+					this.addLayer(newLayer, 0);
+					if (newLayer is TianDiTuLayer || newLayer is TianDiTuLayerMercator)
+					{
+						baseLayerLoadEvent(new LayerEvent(LayerEvent.LOAD, newLayer));
+					}
+					else
+					{
+						newLayer.addEventListener(LayerEvent.LOAD, baseLayerLoadEvent);
+					}
+					baseMapIndex=index;
+					var event:MapModeEvent=new MapModeEvent(MapModeEvent.CHANGEBASELAYER);
+					event.map=this;
+					FlexGlobals.topLevelApplication.dispatchEvent(event);
+					initLabelLayers(layerInfo);
+					baseMapIndex2SubLayerIndex[index]=subIndex;
+				}
+
+			}
+
+			private function baseLayerLoadEvent(event:LayerEvent):void
+			{
+				for (var i:int=1; i < layers.source.length; i++)
+				{
+					var dynamicLayer:Layer=layers.source[i];
+					if (dynamicLayer is TileDynamicMapServiceLayer)
+					{
+						TileDynamicMapServiceLayer(dynamicLayer).buildTileInfo();
+						dynamicLayer.refresh();
+					}
+				}
+				this.lods=(event.layer as TiledMapServiceLayer).tileInfo.lods;
+				event.layer.removeEventListener(LayerEvent.LOAD, baseLayerLoadEvent);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////////////
+			protected function map1_extentChangeHandler(event:ExtentEvent):void
+			{
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			public function executeTest():void
+			{
+			}
+
+			override public function zoomToInitialExtent():void
+			{
+				if (!this.loaded)
+					return;
+				var layer:Layer=this.layers.getItemAt(0);
+				if (layer.hasOwnProperty("fullExtent"))
+					this.extent=layer["fullExtent"];
+				else
+					super.zoomToInitialExtent();
+
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			public function popupControlAt(p:MapPoint, control:UIComponent, caption:String="", width:int=0, height:int=0):void
+			{
+				control.visible=true;
+				control.width=width == 0 ? 350 : width;
+				control.height=height == 0 ? this.height * 0.75 : height;
+				this.infoWindowContent=control; //contentNavigator;
+				this.infoWindow.label=caption;
+				this.infoWindow.show(p);
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			public function closePopupControl():void
+			{
+				this.infoWindow.hide();
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			public function sortDynamicLayers(compareFunction:Function):void
+			{
+				//var layers:ArrayCollection=this.layers as ArrayCollection;
+				//layers.source.sort(compareFunction);
+				//layers.refresh();
+				//this.layers=layers;
+			}
+			////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<fx:Script source="MapControlFun.as"/>
+	<fx:Declarations>
+		<ns:GraphicsLayer id="commonGraphicsLayer"/>
+		<ns:GraphicsLayer id="measureGraphicsLayer"/>
+		<ns:GeometryService id="geometryService" method="POST" concurrency="last" showBusyCursor="true"/>
+		<ns:NavigationTool map="{this}" id="navigationTool"/>
+		<ns:DrawTool map="{this}" drawStart="drawTool_drawStartHandler(event)" drawEnd="event4DrawEnd(event)" id="drawTool" graphicsLayer="{measureGraphicsLayer}" markerSymbol="{sms}" lineSymbol="{sls}" fillSymbol="{sfs}"/>
+
+		<ns:SimpleLineSymbol id="sls" style="dash" color="0xFF0000" width="4"/>
+		<ns:SimpleFillSymbol id="sfs" color="#FF0000">
+			<ns:SimpleLineSymbol width="3" color="#FF0000"/>
+		</ns:SimpleFillSymbol>
+		<ns:SimpleMarkerSymbol id="sms" style="circle" color="0xFF0000" size="15"/>
+		<ns:SimpleMarkerSymbol id="locationSymbol" style="circle" color="0xFF0000" size="40"/>
+
+
+
+		<mx:Glow id="glow" target="{commonGraphicsLayer}" alphaFrom="1.0" alphaTo="0" blurXFrom="0.0" blurXTo="20.0" blurYFrom="0.0" blurYTo="20.0" color="0xFF0000" duration="500" repeatCount="10" repeatDelay="0"/>
+
+		<!--
+		<ns:ContentNavigator labelText="详细信息" width="300" height="400" id="contentNavigator" close="eventContentNavigatorCloseHandler(event)">
+		</ns:ContentNavigator>
+		-->
+
+		<mx:DataGrid id="datagrid4featureAttributes" borderVisible="true" headerHeight="25" rowHeight="25" width="300" height="400" verticalScrollPolicy="auto">
+			<mx:columns>
+				<mx:DataGridColumn dataField="name" width="120" headerText="属性名称"/>
+				<mx:DataGridColumn showDataTips="true" dataField="value" width="200" headerText="属性值"/>
+			</mx:columns>
+		</mx:DataGrid>
+
+		<s:BorderContainer height="25" minHeight="25" id="labelLayerContain" fontWeight="bold" fontSize="14" color="#0000EE" backgroundColor="#F5F5F5" borderColor="#DDE1E5" top="-1" right="-1">
+			<s:layout>
+				<s:HorizontalLayout gap="8" verticalAlign="middle" paddingLeft="5" paddingRight="5"/>
+			</s:layout>
+		</s:BorderContainer>
+	</fx:Declarations>
+</ns:Map>

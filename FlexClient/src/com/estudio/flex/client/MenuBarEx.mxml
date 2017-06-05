@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:MenuBar fontWeight="bold" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" menuBarItemRenderer="com.estudio.flex.client.MenuBarItemEx" backgroundSkin="com.estudio.flex.client.NoBorderMenuBarSkin">
+    <fx:Script>
+        <![CDATA[
+            import mx.controls.Image;
+            import mx.controls.Menu;
+
+            public override function getMenuAt(index:int):Menu
+            {
+                var menu:Menu = super.getMenuAt (index);
+                menu.itemRenderer = new ClassFactory (MenuItemRendererEx);
+                menu.iconFunction = getIcon;
+                return menu;
+            }
+
+            private function getIcon(data:Object):Object
+            {
+                return Image;
+            }
+        ]]>
+    </fx:Script>
+</mx:MenuBar>

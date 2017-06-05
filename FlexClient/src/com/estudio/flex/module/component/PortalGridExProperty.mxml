@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:PortalGridExControl creationComplete="portalgridexcontrol1_creationCompleteHandler(event)" currentState="editStatus" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark"
+							   xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.module.component.*" width="100%" height="100%" xmlns:workflow="com.estudio.flex.module.component.workflow.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.common.InterfaceFormUI;
+			import com.estudio.flex.utils.AjaxUtils;
+			import com.estudio.flex.utils.AlertUtils;
+			import com.estudio.flex.utils.StringUtils;
+			import com.estudio.flex.utils.UIUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.SWFLoader;
+			import mx.events.DataGridEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ItemClickEvent;
+			import mx.events.ModuleEvent;
+			import mx.managers.SystemManager;
+			///////////////////////////////////////////////////////////////////////
+			private var url:String="../client/attachment_ex";
+			[Bindable]
+			private var attributes:ArrayCollection=new ArrayCollection([]);
+			private var _recordId:String="";
+			public var recordPrefix:String="";
+			public var parentControlName:String="";
+			private var isModified:Boolean=false;
+
+			///////////////////////////////////////////////////////////////////////
+			public function set recordId(v:String):void
+			{
+				if (isModified)
+				{
+					var tempRecordId:String=_recordId;
+					callLater(function():void
+					{
+						AjaxUtils.postData(url, {o: "saveProperty", property: Content, recordId: tempRecordId}, function(text:String, token:Object):void
+						{
+						});
+					});
+				}
+				_recordId=v;
+				AjaxUtils.postData(url, {o: "getProperty", recordId: _recordId}, function(text:String, token:Object):void
+				{
+					var json:Object=JSON.parse(text);
+					if (json.r)
+						Content=json.property;
+				});
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			public function get recordId():String
+			{
+				return _recordId;
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			public function set Content(v:String):void
+			{
+				if (StringUtils.isEmpty(v))
+					v="[]";
+				attributes=new ArrayCollection(JSON.parse(v) as Array);
+				attributes.refresh();
+				if (datagrid)
+					datagrid.invalidateDisplayList();
+				if (attributes.length != 0)
+					datagrid.selectedIndex=0;
+				isModified=false;
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			public function get Content():String
+			{
+				return JSON.stringify(attributes.source);
+			}
+
+			///////////////////////////////////////////////////////////////////////
+			public override function resetCurrentState():void
+			{
+				this.currentState=controlParams.IsReadonly || readonly ? "viewStatus" : "editStatus";
+			}
+			override public function initParams(controlParams:Object):void
+			{
+				super.initParams(controlParams);
+				readonly=controlParams.IsReadonly || readonly;
+				this.currentState=readonly ? "viewStatus" : "editStatus";
+				this.recordPrefix=StringUtils.nvl(controlParams.RecordPrefix, "");
+				this.parentControlName=StringUtils.nvl(controlParams.ParentControlName, "");
+			}
+
+			////////////////////////////////////////////////////////////////////////
+			protected function linkbar1_itemClickHandler(event:ItemClickEvent):void
+			{
+				if (event.index == 0)
+				{
+					var item:Object={name: "", value: ""};
+					attributes.addItem(item);
+					attributes.refresh();
+					datagrid.invalidateDisplayList();
+					datagrid.callLater(function():void
+					{
+						datagrid.selectedItem=item;
+						datagrid.selectedIndex=attributes.length - 1;
+					});
+					isModified=true;
+				}
+				else if (event.index == 1)
+				{
+					var index:int=datagrid.selectedIndex;
+					if (index != -1)
+					{
+						attributes.removeItemAt(index);
+						attributes.refresh();
+						datagrid.invalidateDisplayList();
+						datagrid.callLater(function():void
+						{
+							if (attributes.length == index)
+								index--;
+							if (index != -1)
+							{
+								datagrid.selectedItem=attributes.getItemAt(index);
+								datagrid.selectedIndex=index;
+							}
+						});
+						isModified=true;
+					}
+
+				}
+				else if (event.index == 2)
+				{
+					var index:int=datagrid.selectedIndex;
+					if (index > 0)
+					{
+						var item:Object=attributes.getItemAt(index);
+						attributes.removeItemAt(index);
+						attributes.refresh();
+						attributes.addItemAt(item, index - 1);
+						attributes.refresh();
+						datagrid.invalidateDisplayList();
+						datagrid.callLater(function():void
+						{
+							datagrid.selectedIndex=index - 1;
+							datagrid.selectedItem=item;
+						});
+						isModified=true;
+					}
+				}
+				else if (event.index == 3)
+				{
+					var index:int=datagrid.selectedIndex;
+					if (index < attributes.length - 1)
+					{
+						var item:Object=attributes.getItemAt(index);
+						attributes.removeItemAt(index);
+						attributes.refresh();
+						attributes.addItemAt(item, index + 1);
+						attributes.refresh();
+						datagrid.invalidateDisplayList();
+						datagrid.callLater(function():void
+						{
+							datagrid.selectedIndex=index + 1;
+							datagrid.selectedItem=item;
+						});
+						isModified=true;
+					}
+				}
+				else if (event.index == 4)
+				{
+					if (!isModified)
+						return;
+					AjaxUtils.postData(url, {o: "saveProperty", property: Content, recordId: _recordId}, function(text:String, token:Object):void
+					{
+						isModified=false;
+						AlertUtils.msnMessage("属性", "成功保存属性!", false);
+					});
+				}
+			}
+
+			////////////////////////////////////////////////////////////////////////
+			protected function portalgridexcontrol1_creationCompleteHandler(event:FlexEvent):void
+			{
+				this._isCreateCompleted=true;
+			}
+
+			////////////////////////////////////////////////////////////////////////
+
+			protected function datagrid_itemEditEndHandler(event:DataGridEvent):void
+			{
+				this.isModified=true;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<fx:Array id="toolbarItems">
+			<fx:Object id="toolbarAdd" label="增加" icon="@Embed('assets/common/new.png')"/>
+			<fx:Object id="toolbarDelete" label="删除" icon="@Embed('assets/common/delete.png')"/>
+			<fx:Object id="toolbarMoveUp" label="上移" icon="@Embed('assets/common/up_01.png')"/>
+			<fx:Object id="toolbarMoveDown" label="下移" icon="@Embed('assets/common/down_01.png')"/>
+			<fx:Object id="toolbarSave" label="保存" icon="@Embed('assets/common/save.png')"/>
+		</fx:Array>
+	</fx:Declarations>
+	<component:states>
+		<s:State name="viewStatus"/>
+		<s:State name="editStatus"/>
+	</component:states>
+
+	<component:ToolbarGroup includeIn="editStatus" width="100%" height="30">
+		<mx:LinkBar itemClick="linkbar1_itemClickHandler(event)" enabled="{!(readonly)}" contentBackgroundAlpha="0.0" dataProvider="{toolbarItems}" left="0" verticalAlign="middle" verticalCenter="0"/>
+	</component:ToolbarGroup>
+	<s:Line includeIn="editStatus" width="100%" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#7B889C"/>
+		</s:stroke>
+	</s:Line>
+
+	<mx:DataGrid dataProvider="{attributes}" editable="{!(readonly)}" id="datagrid" alternatingItemColors="{[0xFFFFFF]}" width="100%" height="100%" headerHeight="25" rowHeight="25" borderColor="0x000000" borderVisible="false"
+				 itemEditEnd="datagrid_itemEditEndHandler(event)">
+		<mx:columns>
+			<mx:DataGridColumn sortable="false" headerText="属性名称" dataField="name" editable="true" width="120"/>
+			<mx:DataGridColumn sortable="false" headerText="属性值" dataField="value" editable="true"/>
+		</mx:columns>
+	</mx:DataGrid>
+</component:PortalGridExControl>

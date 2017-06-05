@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:ResizableTitleWindow skinClass="com.estudio.flex.component.ResizableTitleWindowSkin" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.component.*" width="400" height="300"
+								close="titlewindow1_closeHandler(event)" title="系统后台错误日志信息(双击可复制)">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.AlertUtils;
+
+			import flash.sampler.NewObjectSample;
+
+			import mx.containers.GridItem;
+			import mx.containers.GridRow;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.managers.PopUpManager;
+
+			import spark.components.Label;
+
+//            private function moveMe(e:Event):void
+//            {
+//                var target:UIComponent = e.target as UIComponent;
+//                var targetX:Number = target.x;
+//                var targetY:Number = target.y;
+//                var appWidth:Number = FlexGlobals.topLevelApplication.width;
+//                var appHeight:Number = FlexGlobals.topLevelApplication.height;
+//
+//                if (targetX + this.width > appWidth)
+//                    target.x = appWidth - this.width;
+//                if (targetX < 0)
+//                    target.x = 0;
+//
+//                if (targetY + this.height > appHeight)
+//                    target.y = appHeight - this.height;
+//                if (targetY < 0)
+//                    target.y = 0;
+//            }
+
+
+			private static var instance:ErrorLoggerWindow=null;
+			private static var isShow:Boolean=false;
+			private static var loggerHistory:Array=[];
+			private static var hasErrorMsg=false;
+
+
+
+
+			private static function initInstance():void
+			{
+				if (!instance)
+				{
+					instance=new ErrorLoggerWindow();
+					instance.setStyle("skinClass", ResizableTitleWindowSkin);
+					instance.width=(FlexGlobals.topLevelApplication as DisplayObject).width - 40;
+					instance.height=(FlexGlobals.topLevelApplication as DisplayObject).height - 40;
+				}
+				if (instance.width > (FlexGlobals.topLevelApplication as DisplayObject).width - 40)
+				{
+					instance.width=(FlexGlobals.topLevelApplication as DisplayObject).width - 40;
+				}
+				if (instance.height > (FlexGlobals.topLevelApplication as DisplayObject).height - 40)
+				{
+					instance.height=(FlexGlobals.topLevelApplication as DisplayObject).height - 40;
+				}
+			}
+
+			public static function show():void
+			{
+				if (!hasErrorMsg)
+				{
+					//AlertUtils.alert("系统尚无错误信息!");
+					return;
+				}
+				if (!isShow)
+				{
+					initInstance();
+					FlexGlobals.topLevelApplication.showPopupWindow(instance, true);
+
+					//PopUpManager.centerPopUp(instance);
+					isShow=true;
+				}
+			}
+
+
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+				if (isShow)
+				{
+					FlexGlobals.topLevelApplication.closePopupWindow(instance);
+
+					isShow=false;
+				}
+			}
+
+			private static function getCurrentTime():String
+			{
+				var formatter:DateFormatter=new DateFormatter();
+				formatter.formatString="YYYY-MM-DD JJ:NN:SS";
+				return formatter.format(new Date());
+			}
+
+			public static function logger(msg:String):void
+			{
+				hasErrorMsg=true;
+				initInstance();
+				if (instance.GridLogger)
+				{
+					instance.createGridItem(getCurrentTime(), msg);
+				}
+				else
+				{
+					loggerHistory.push([getCurrentTime(), msg]);
+				}
+			}
+
+			protected function gridrow1_creationCompleteHandler(event:FlexEvent):void
+			{
+				for (var i:int=0; i < loggerHistory.length; i++)
+				{
+					createGridItem(loggerHistory[i][0], loggerHistory[i][1]);
+				}
+
+			}
+
+			private function createGridItem(timeStr:String, msg:String):void
+			{
+				var tr:GridRow=new GridRow();
+				tr.height=25;
+				tr.percentWidth=100;
+				GridLogger.addChild(tr);
+
+				var td:GridItem=new GridItem();
+				td.percentWidth=100;
+				td.setStyle("backgroundColor", "#F3F781");
+				td.setStyle("paddingLeft", 4);
+				td.setStyle("paddingRight", 4);
+				td.setStyle("paddingTop", 2);
+				td.setStyle("paddingBottom", 2);
+				tr.addChild(td);
+
+				var label:Label=new Label();
+				label.text=timeStr;
+				label.height=25;
+				label.setStyle("fontWeight", "bold");
+				label.setStyle("verticalAlign", "middle");
+				label.setStyle("color", "0xEE0000");
+				label.setStyle("color", "0xEE0000");
+				label.left=2;
+				label.top=2;
+				td.addChild(label);
+
+				tr=new GridRow();
+				tr.minHeight=25;
+				tr.percentWidth=100;
+				instance.GridLogger.addChild(tr);
+
+				td=new GridItem();
+				td.setStyle("paddingLeft", 4);
+				td.setStyle("paddingRight", 4);
+				td.setStyle("paddingTop", 2);
+				td.setStyle("paddingBottom", 2);
+				td.percentWidth=100;
+				td.addEventListener(MouseEvent.MOUSE_OVER, griditem1_mouseOverHandler);
+				td.addEventListener(MouseEvent.MOUSE_OUT, griditem1_mouseOutHandler);
+				tr.addChild(td);
+
+				label=new Label();
+				label.text=msg;
+				label.minHeight=25;
+				label.left=2;
+				label.top=2;
+				label.setStyle("fontFamily", "Courier New");
+				label.setStyle("verticalAlign", "middle");
+				label.doubleClickEnabled=true;
+				label.percentWidth=100;
+				label.useHandCursor=true;
+				label.mouseChildren=false;
+				label.buttonMode=true;
+				label.addEventListener(MouseEvent.DOUBLE_CLICK, griditem1_doubleClickHandler);
+				td.addChild(label);
+			}
+
+
+			protected function griditem1_mouseOverHandler(event:MouseEvent):void
+			{
+				(event.currentTarget as UIComponent).setStyle("backgroundColor", "#F7F8E0");
+			}
+
+			protected function griditem1_mouseOutHandler(event:MouseEvent):void
+			{
+				(event.currentTarget as UIComponent).setStyle("backgroundColor", "#FFFFFF");
+			}
+
+			protected function griditem1_doubleClickHandler(event:MouseEvent):void
+			{
+				var str:String=(event.currentTarget as Label).text;
+				System.setClipboard(str);
+			}
+		]]>
+	</fx:Script>
+	<s:Scroller x="0" y="0" width="100%" height="100%">
+		<s:VGroup width="100%" height="100%" contentBackgroundColor="#FFFFFF">
+			<mx:Grid id="GridLogger" left="0" top="0" width="100%" borderColor="#8C1E1E" borderVisible="true" focusColor="#B71111" horizontalGap="0" verticalGap="0" creationComplete="gridrow1_creationCompleteHandler(event)">
+			</mx:Grid>
+		</s:VGroup>
+	</s:Scroller>
+</component:ResizableTitleWindow>

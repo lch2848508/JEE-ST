@@ -1,0 +1,164 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<config>
+	<category type="RuntimeConfig">
+		<version>26</version>
+		<release>0</release>
+		<newUserRegister>0</newUserRegister>
+		<forgetPassword>0</forgetPassword>
+	</category>
+	<category type="JSCompress">
+		<compress>1</compress>
+		<merge>1</merge>
+	</category>
+
+	<category type="JMS">
+		<enabled>0</enabled>
+		<serverurl>tcp://localhost:61616</serverurl>
+		<connectionContextName>java:comp/env/jms/ConnectionFactory
+		</connectionContextName>
+		<topicContextName>java:comp/env/jms/topic/blazeds</topicContextName>
+		<queueContextName>java:comp/env/jms/queue/blazeds</queueContextName>
+		<icqEnabled>1</icqEnabled>
+		<saveICQHistroy>1</saveICQHistroy>
+		<icqDatabaseURL>
+		</icqDatabaseURL>
+	</category>
+
+	<!-- Oracle 配置 -->
+	<category type="RDMS">
+		<dbtype>Oracle</dbtype>
+	</category>
+   	  <!--
+	<category type="ORACLE">
+		<server>192.168.200.100</server>
+		<port>1521</port>
+		<sid>orcl</sid>
+		<user>prjdbgdsjtt</user>
+		<password>prjdbgdsjtt</password>
+		<maxconnection>50</maxconnection>
+		<monitor>0</monitor>
+	</category>  
+
+	<category type="ORACLE">
+		<server>192.168.200.135</server>
+		<port>1521</port>
+		<sid>orcl</sid>
+		<user>prjdbch</user>
+		<password>prjdbch</password>
+		<maxconnection>50</maxconnection>
+		<monitor>0</monitor>
+	</category>
+	 --> 
+    <!-- --> 
+	<category type="ORACLE">
+		<server>127.0.0.1</server>
+		<port>1521</port>
+		<sid>orcl</sid>
+		<user>prjdbgdsjtt</user>
+		<password>prjdbgdsjtt</password>
+		<maxconnection>50</maxconnection>
+		<monitor>0</monitor>
+	</category>
+	
+   
+	<!-- MySQL配置 -->
+	<!-- <category type="RDMS"> <dbtype>MySQL</dbtype> </category> <cdategory 
+		type="MySQL"> <server>localhost</server> <port>3306</port> <database>tour_db</database> 
+		<user>tour_db</user> <password>tour_db</password> <maxconnection>50</maxconnection> 
+		</category> -->
+
+	<!-- SQLServer 配置 -->
+	<!-- <category type="RDMS"> <dbtype>SQLServer</dbtype> </category> <category 
+		type="SQLSERVER"> <server>localhost</server> <port>1433</port> <sid>kjb_f5000</sid> 
+		<user>sa</user> <password>sa@123456</password> <maxconnection>50</maxconnection> 
+		</category> 
+	-->
+
+	<category type="ATTACHMENT">
+		<serverType>File</serverType>
+		<!-- 文件服务器类型 目前支持 File Ftp -->
+		<server>localhost</server>
+		<!-- FTP服务器的IP地址 -->
+		<user>admin</user>
+		<password>admin123456</password>
+		<port>21</port>
+		<path>C:/JEE/SourceCode/ST/attachment/</path>
+		<url>../../attachment_estudio/</url>
+	</category>
+
+	<!-- 富文本编辑器  -->
+	<category type="HTMLEditor">
+		<baseDir>C:/JEE/SourceCode/ST/attachment/estudio/CKFindFiles/</baseDir>
+		<url>/attachment/estudio/CKFindFiles/</url>
+	</category>
+
+	<category type="WEBGIS">
+		<enabled>1</enabled>
+		<dynamicCacheDirectory>C:/JEE/SourceCode\ST\WebGISCacheDirectory\
+		</dynamicCacheDirectory>
+		<dynamicCacheUrl>/WebGISProxyCache/</dynamicCacheUrl>
+		<cacheEnabled>1</cacheEnabled>
+		<daemonThread>1</daemonThread> 
+		<tablespace></tablespace>
+		<cityname>江门市</cityname>
+		<!-- 102113 坐标系  <spatialWKID>3785</spatialWKID>
+		 
+		<spatialWKID>3785</spatialWKID>
+		<spatialExtent>-20037508,-20037508,20037508,20037508</spatialExtent>
+		<spatialTolerance>0.10</spatialTolerance>
+		<spatialSimplify>2.5</spatialSimplify>
+		<spatialUnit>meter</spatialUnit>
+		-->
+		<!-- 4326 坐标系 -->
+		<spatialWKID>4326</spatialWKID>
+		<spatialExtent>-90,-180,90,180</spatialExtent>
+		<spatialTolerance>0.01</spatialTolerance>
+		<spatialSimplify>2.5</spatialSimplify>
+		<spatialUnit>degrees</spatialUnit>
+ 	   	
+	</category>
+
+	<category type="WordPress">
+		<enabled>0</enabled>
+		<url>http://192.173.23.2/portal/xmlrpc.php</url>
+		<user>admin</user>
+		<password>520geok.</password>
+		<sleepTimes>5</sleepTimes>
+	</category>
+
+	<category type="FileConvert">
+		<enabled>0</enabled>
+		<openOfficePath>D:/OpenOffice 4</openOfficePath>
+	</category>
+
+	<category type="UTILS">
+		<grapicMagicPath>C:/JEE/SourceCode/ST/GraphicsMagick-1.3.23-Q8
+		</grapicMagicPath>
+	</category>
+	  <!--
+	<category type="lineref">
+    	<enabled>1</enabled>
+    	<url>http://localhost:14365/WebServiceLineRef.asmx?wsdl</url>
+    	<server>192.168.200.135</server>
+    	<user>sdedbjtt</user>
+    	<password>sdedbjtt</password>
+    	<sdeversion>SDE.DEFAULT</sdeversion>
+    	<port>5151</port>
+    	<sdename>localsde</sdename>
+     </category>
+	-->
+	 <category type="lineref">
+    	<enabled>0</enabled>
+    	<daemonThread>0</daemonThread> 
+        <!--<url>http://127.0.0.1:88/WebServiceLineRef.asmx?wsdl</url> -->
+        <url>http://127.0.0.1:88/WebServiceLineRef.asmx?wsdl</url>
+     	<server>127.0.0.1</server>
+    	<user>sde</user>
+    	<password>sde</password>
+    	<sdeversion>SDE.DEFAULT</sdeversion>
+    	<port>5151</port>
+    	<sdeinstance>sde:oracle11g:orcl</sdeinstance> <!-- 用于直连SDE数据库   sde:oracle11g:orcl-->
+    	<sdename>localsde</sdename>
+     </category>
+      
+</config>

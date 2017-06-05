@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup gap="0" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.IFrameUtils;
+			import com.estudio.flex.utils.StringUtils;
+			public var controlName:String="";
+			public var controlComment:String="";
+			public var parentControlParams:Array=[];
+			public var controlParams:Array=[];
+			public var childControls:Array=[];
+			public var sqlParams:Array=[];
+			public var toolbars:Array=[];
+			public var relationFields:Array=[];
+			public var bindForms:Object=null;
+			public var portalInstance:Object=null;
+			
+			protected var _isCreateCompleted:Boolean=false;
+			public function get isCreateCompleted():Boolean
+			{
+				return _isCreateCompleted;
+			}
+
+			[Bindable]
+			public var readonly:Boolean=false;
+
+			public var controlOptions:Object=null;
+
+			protected function generalToolbarItem(controlOptions:Object, btnType:String, tipPropName:String, iconPropName:String, hrefName:String, isSupportRight:Boolean=true, items:Array=null):void
+			{
+				if (Convert.object2Boolean(controlOptions[btnType]))
+					toolbars.push({type: (items == null ? "btn" : "btnCombobox"), items: items, supportRight: isSupportRight, controlName: controlName, id: hrefName, href: hrefName, icon: StringUtils.replace(controlOptions[iconPropName], ".bmp", ".png"), text: "", title: controlOptions[tipPropName]});
+			}
+
+			protected function generalToolbarSplit():void
+			{
+				var lastBarItem:Object=toolbars.length == 0 ? null : toolbars[toolbars.length - 1];
+				if (lastBarItem && lastBarItem.type != "sep")
+					toolbars.push({type: "sep"});
+			}
+
+			public function initParams(controlParams:Object):void
+			{
+				readonly=portalInstance.readonly;
+				childControls=controlParams.childControls;
+				parentControlParams=controlParams.parentParams;
+				relationFields=controlParams.relationFields;
+				bindForms=controlParams.bindforms;
+				controlOptions=controlParams.options;
+			}
+
+			public function getRelationFieldValues():Object
+			{
+				return {};
+			}
+
+			public function getRecordFieldValue(fieldName:String, isNew:Boolean, isChild:Boolean):String
+			{
+				return "";
+			}
+
+			public function IsSelectedItemSupportOperation(operation:String):Boolean
+			{
+				return true;
+			}
+
+			public function getConformMsg():String
+			{
+				return "确定要删除选择的记录？";
+			}
+
+			public function getSelectedKeys():String
+			{
+				return "";
+			}
+
+			public function deleteSelectedItems():void
+			{
+
+			}
+
+			public function getExchangeRecordKeys(isMoveUp:Boolean):Array
+			{
+				return null;
+			}
+
+			public function exchangeRecordIndex(isMoveUp:Boolean):void
+			{
+
+			}
+
+			public function refreshData():void
+			{
+
+			}
+
+			public function getShowFormType():int
+			{
+				return 0;
+			}
+
+			public function isInnerEditor():Boolean
+			{
+				return false;
+			}
+
+			protected function callJSEvent(eventName:String, record:Object):Boolean
+			{
+				var funName:String=controlOptions[eventName];
+				if (!StringUtils.isEmpty(funName))
+				{
+					IFrameUtils.execute(portalInstance.getIFrameID(), funName, record);
+					return true;
+				}
+				return false;
+			}
+			//////////////////////////////////////////////////////////////////////////////
+			public function resetCurrentState():void
+			{
+				
+			}
+			/////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+</s:VGroup>

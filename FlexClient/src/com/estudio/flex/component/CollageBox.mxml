@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer backgroundColor="#EFFBFF" minWidth="25" creationPolicy="all" maxWidth="25" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" width="25" height="100%">
+    <fx:Declarations>
+        <!-- 将非可视元素（例如服务、值对象）放在此处 -->
+    </fx:Declarations>
+    <fx:Script>
+        <![CDATA[
+            import mx.core.UIComponent;
+            [Bindable]
+            public var title:String = "";
+
+            public var panel:PanelEx = null;
+
+            protected function image1_clickHandler(event:MouseEvent):void
+            {
+                var p:UIComponent = this.parent as UIComponent;
+                var index:int = p.getChildIndex (this);
+                p.removeChildAt (index);
+                p.addChildAt (panel , index);
+            }
+        ]]>
+    </fx:Script>
+    <s:Image source="@Embed('/assets/common/right_arrow.png')" left="8" top="8" click="image1_clickHandler(event)" mouseChildren="false" useHandCursor="true" buttonMode="true">
+    </s:Image>
+    <s:Image source="@Embed('/assets/common/users.png')" left="4" top="24" rotation="90" click="image1_clickHandler(event)">
+    </s:Image>
+    <s:Label left="4" top="46" fontWeight="bold" rotation="90" text="{title}" id="labelTitle">
+    </s:Label>
+</s:BorderContainer>

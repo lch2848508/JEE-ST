@@ -1,0 +1,730 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group width="100%" height="100%" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:component="com.estudio.flex.module.component.*">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.ArrayCollectionUtils;
+			import com.estudio.flex.utils.ArrayUtils;
+			import com.estudio.flex.utils.Convert;
+			import com.estudio.flex.utils.JSFunUtils;
+			import com.estudio.flex.utils.StringUtils;
+
+			import mx.collections.ArrayCollection;
+			import mx.collections.Grouping;
+			import mx.collections.GroupingCollection;
+			import mx.collections.GroupingCollection2;
+			import mx.collections.GroupingField;
+			import mx.collections.HierarchicalData;
+			import mx.collections.SummaryField;
+			import mx.collections.SummaryRow;
+			import mx.controls.DataGrid;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumn;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridColumnGroup;
+			import mx.controls.advancedDataGridClasses.AdvancedDataGridRendererProvider;
+			import mx.core.FlexGlobals;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+
+			//----------------------------------------------------------------------------
+			private var _portalInstance:Object=null;
+
+			private var _lockColumnCount:int=0; //冻结的列
+
+			private var _groupColumnList:Array=[]; //可分组数据列
+
+			private var _groupFieldNames:Array=[];
+
+			private var _column2SpecialStyle:Object={}; //数据列对象专题图定义
+			private var _funName2AdvancedGridColumn:Object={};
+
+			private var _firstNormalFieldNames:String="";
+
+			private var _isGroupAble:Boolean=false;
+
+			private var _flatArrayCollection:ArrayCollection=null; //平面数据
+			private var _planDataGridRecords:Array=null;
+
+			private var _isGridMultiSelectedAble:Boolean=false; //是否允许多选
+
+			private var _oldGroupFieldName:String="";
+
+			private static var _INSTANCE_INDEX:int=0;
+
+			private var _customizColumns:Array=[];
+
+			public var allFieldColumns:Array=[];
+
+			public var doubleClickFunction:Function=null;
+
+			private var specialFunctionCodes:Array=[];
+
+			[Bindable]
+			public var alphaValue:Number=1;
+
+			[Embed(source="assets/common/expand.png")] //新建
+			[Bindable]
+			public var imgExpend:Class;
+
+			[Embed(source="assets/common/collopse.png")] //新建
+			[Bindable]
+			public var imgCollopse:Class;
+
+			public function get custonizColumns():ArrayCollection
+			{
+				return new ArrayCollection(_customizColumns);
+			}
+
+			public function get isGridMultiSelectedAble():Boolean
+			{
+				return _isGridMultiSelectedAble;
+			}
+
+			public function set isGridMultiSelectedAble(v:Boolean):void
+			{
+				_isGridMultiSelectedAble=v;
+				DataGrid.allowMultipleSelection=v;
+			}
+
+			//----------------------------------------------------------------------------
+			public function get selectedStepID():String
+			{
+				return (DataGrid.selectedItem && DataGrid.selectedItem.__key__) ? DataGrid.selectedItem.__key__ : "-1";
+			}
+
+			//分组字段列表
+			public function get groupFields():Array
+			{
+				return _groupFieldNames;
+			}
+
+			//数据列定义
+			private var _columnDefine:Object=null;
+
+			public function get columnDefine():Object
+			{
+				return _columnDefine;
+			}
+
+			public function set columnDefine(v:Object):void
+			{
+				_columnDefine=v;
+			}
+
+
+			public function get isGroupAble():Boolean
+			{
+				return _isGroupAble;
+			}
+
+			public function set isGroupAble(v:Boolean):void
+			{
+				_isGroupAble=v;
+			}
+
+
+			//-------------------------------------------------------------------------------
+			//是否包含CheckBox选择列
+			private var _includeCheckBox:Boolean=false;
+
+			public function get isIncludeCheckBoxColumn():Boolean
+			{
+				return _includeCheckBox;
+			}
+
+			public function set isIncludeCheckBoxColumn(v:Boolean):void
+			{
+				_includeCheckBox=v;
+			}
+
+			//------------------------------------------------------------------------------
+			public function createColumns(portalInstance:Object):void
+			{
+				this._portalInstance=portalInstance;
+				var columns:ArrayCollection=new ArrayCollection();
+				var column:AdvancedDataGridColumn=null;
+				var render:ClassFactory=null;
+				var groupColumns:Array=[columns];
+				var groupColumnItems:Array=[];
+
+				var groupDepth:int=0;
+				//设计的列
+				for (var i:int=0; i < _columnDefine.length; i++)
+				{
+					var columnUIDefine:Object=_columnDefine[i];
+					column=null;
+					var columnCaption:String=StringUtils.trim(columnUIDefine.caption);
+					if (StringUtils.startWith(columnCaption, "#")) //分组列
+					{
+						if (StringUtils.startWith(columnCaption, "#B"))
+						{
+							var groupColumn:AdvancedDataGridColumnGroup=new AdvancedDataGridColumnGroup();
+							groupColumn.headerText=columnCaption.substring(2);
+							groupColumn.draggable=false;
+							groupColumns.push(new ArrayCollection());
+							groupColumnItems.push(groupColumn);
+							column=groupColumn;
+							groupColumn.headerRenderer=new ClassFactory(AdvDataGridColumnGroupHeaderRenderEx);
+							groupDepth++;
+						}
+						else if (StringUtils.startWith(columnCaption, "#E"))
+						{
+							groupColumnItems[groupColumnItems.length - 1].children=groupColumns[groupColumns.length - 1].toArray();
+							ArrayUtils.remove(groupColumnItems, groupColumnItems.length - 1);
+							ArrayUtils.remove(groupColumns, groupColumns.length - 1);
+							groupDepth--;
+						}
+					} //特殊列
+					else //普通列
+					{
+						column=new AdvancedDataGridColumn();
+
+						column.dataField=StringUtils.between(columnUIDefine.name, "[", "]"); //字段;
+						if (StringUtils.isEmpty(column.dataField))
+							column.dataField="__F" + i + "__";
+						column.headerText=columnCaption; //标题
+						column.minWidth=0; //FlexGlobals.topLevelApplication.measureTextWidth(column.headerText) + 20;
+						column.resizable=!columnUIDefine.fixsize; //宽度固定		
+						column.showDataTips=columnUIDefine.datatip;
+						column.editable=false;
+						if (column.resizable)
+						{
+							column.headerWordWrap=false;
+							column.wordWrap=false;
+						}
+
+						column.setStyle("textAlign", columnUIDefine.align); //对齐方式
+						//column.headerRenderer = new ClassFactory(AdvDataGrid);
+						column.width=Math.max(column.minWidth, Convert.str2int(columnUIDefine.width, 150));
+						if (column.width <= 0)
+							column.visible=false;
+						column.headerRenderer=new ClassFactory(AdvDataGridColumnHeaderRenderEx);
+
+						if (columnUIDefine.group && _isGroupAble) //是否可以分组
+						{
+							_groupColumnList.push(column);
+							_groupFieldNames.push(column.dataField);
+							if (_groupColumnList.length == 1) //第一个分组列
+								column.visible=false;
+						}
+
+						var columnDefaultStyle:Object={};
+						//外观
+						var columnStyle:Object=columnUIDefine.style;
+						if (columnStyle != null && !(columnStyle is String))
+						{
+							if (columnStyle.viewType == 0) //显示为文本
+							{
+								var defaultStyleStr:String="{" + columnStyle.defaultStyle + "}";
+								columnDefaultStyle=flash.external.ExternalInterface.call("__str2json__", defaultStyleStr);
+								for (var k:String in columnDefaultStyle)
+									column.setStyle(k, columnDefaultStyle[k]);
+
+								if (columnStyle.special && columnStyle.specialItems.length != 0) //专题图
+								{
+									_funName2AdvancedGridColumn[createJSSpecialFunction4Text(columnStyle.specialItems, columnStyle.defaultStyle)]=column;
+									column.styleFunction=setColumnSpecialStyle;
+								}
+							}
+							else //显示为图片 增加图片渲染器
+							{
+								render=new ClassFactory(AdvDataGridColumnGridImageRender);
+								if (columnStyle.special && columnStyle.specialItems.length != 0) //专题图
+								{
+									var funName:String=createJSSpecialFunction4Image(columnStyle.specialItems);
+									_funName2AdvancedGridColumn[funName]=column;
+									render.properties={JSFun: funName};
+								}
+								column.itemRenderer=render;
+							}
+						}
+
+						//超级连接
+						var urls:Object=columnUIDefine.url;
+						if (urls is Array) //超级连接 目前超链接只支持文本 超链接不支持专题图 以后应提供支持
+						{
+							render=new ClassFactory(AdvDataGridColumnHrefRender);
+							render.properties={align: columnUIDefine.align, portalGrid: portalInstance, columnStyle: columnDefaultStyle};
+							column.itemRenderer=render;
+						}
+						else //fix 不居中对齐
+						{
+
+						}
+					} // end if 普通列
+
+					if (column != null)
+					{
+						if (column is AdvancedDataGridColumnGroup)
+							groupColumns[groupColumns.length - 2].addItem(column);
+						else
+						{
+							groupColumns[groupColumns.length - 1].addItem(column);
+							if (!StringUtils.isEmpty(column.dataField))
+								allFieldColumns.push(column)
+							if (columnUIDefine.custom) //是否支持自定义列
+							{
+								var extLabel:String=columnUIDefine.caption;
+								for (var level:int=groupColumnItems.length - 1; level >= 0; level--)
+								{
+									var obj:Object=groupColumnItems[level];
+									extLabel=obj.headerText + "|" + extLabel;
+								}
+								_customizColumns.push({label: extLabel, column: column, selected: true});
+							}
+						}
+					}
+				}
+
+
+
+				//创建选择列
+				if (_includeCheckBox)
+				{
+					column=new AdvancedDataGridColumn();
+					column.width=28;
+					column.minWidth=28;
+					column.resizable=false;
+					column.headerRenderer=new ClassFactory(AdvDataGridColumnCheckBoxHeaderRender);
+					column.dataField="__chk__";
+					var itemEditor:ClassFactory=new ClassFactory(AdvDataGridColumnCheckBoxRender);
+					column.itemRenderer=itemEditor;
+					column.rendererIsEditor=true;
+					column.editable=true;
+					columns.addItemAt(column, _isGroupAble && _groupColumnList.length != 0 ? 1 : 0);
+				}
+
+				_isGroupAble=_isGroupAble && _groupColumnList.length != 0;
+
+				if (_isGroupAble)
+				{
+					var groupRender:AdvancedDataGridRendererProvider=new AdvancedDataGridRendererProvider();
+					groupRender.columnIndex=0;
+					groupRender.columnSpan=0;
+					groupRender.renderer=new ClassFactory(AdvancedDataGridGroupItemRendererEx);
+					groupRender.dataField="__group__";
+					DataGrid.rendererProviders=[groupRender];
+
+					column=new AdvancedDataGridColumn();
+					column.width=-1;
+					column.minWidth=-1;
+					column.resizable=false;
+					column.dataField="__group__";
+					columns.addItemAt(column, 0);
+				}
+
+				//DataGrid.
+				DataGrid.groupedColumns=columns.toArray();
+				DataGrid.invalidateList();
+
+				if (specialFunctionCodes.length != 0)
+					ExternalInterface.call("__dynamicCreateJSFunction__", specialFunctionCodes.join("\n"));
+
+				generateCustomColumnTree();
+			}
+
+
+			private function generateCustomColumnTree():void
+			{
+				var items:Array=[];
+				var caption2item:Object={};
+				for (var i:int=0; i < _customizColumns.length; i++)
+				{
+					var columnItem:Object=_customizColumns[i];
+					var label:String=columnItem.label;
+					var cc:Array=label.split("|");
+					var pItems:Array=items;
+					var tempStr:String="";
+					for (var j:int=0; j < cc.length - 1; j++)
+					{
+						tempStr=tempStr + "->" + cc[j];
+						var item:Object=caption2item[tempStr];
+						if (!item)
+						{
+							item={label: cc[j], selected: true, children: []};
+							pItems.push(item);
+							caption2item[tempStr]=item;
+						}
+						pItems=item.children;
+					}
+					pItems.push(columnItem);
+				}
+			}
+			//----------------------------------------------------------------------------------------------------
+			//创建JS函数
+			private var special_fun_index:int=0;
+
+			private function createJSSpecialFunction4Text(specialStyles:Array, defaultStyle:String):String
+			{
+				var functionName:String="special_" + StringUtils.createUID();
+				var functionBody:String="window." + functionName + "=function(RECORD) {\n  try {\n RECORD=RECORD[0];\n";
+				for (var i:int=0; i < specialStyles.length; i++)
+				{
+					if (i == 0)
+						functionBody+="    if(" + specialStyles[i].code + ") return {" + specialStyles[i].style + "};\n";
+					else
+						functionBody+="    else if(" + specialStyles[i].code + ") return {" + specialStyles[i].style + "};\n";
+				}
+				functionBody+=" } catch(e) {}\n  return {" + defaultStyle + "};\n"
+				functionBody+="}\n";
+				////(functionBody);
+				specialFunctionCodes.push(functionBody);
+				return functionName;
+			}
+
+			private function createJSSpecialFunction4Image(specialStyles:Array):String
+			{
+				var functionName:String="special" + StringUtils.createUID();
+				var functionBody:String="window." + functionName + "=function(RECORD) {\n  try {\n RECORD=RECORD[0];\n";
+				for (var i:int=0; i < specialStyles.length; i++)
+				{
+					if (i == 0)
+						functionBody+="    if(" + specialStyles[i].code + ") return \"" + specialStyles[i].url + "\";\n";
+					else
+						functionBody+="    else if(" + specialStyles[i].code + ") return \"" + specialStyles[i].url + "\";\n";
+				}
+				functionBody+=" } catch(e) {}\n  return \"\";\n"
+				functionBody+="}\n";
+				//(functionBody);
+				specialFunctionCodes.push(functionBody);
+				return functionName;
+			} //----------------------------------------------------------------------------------------------------
+
+			//专题图
+			private function setColumnSpecialStyle(data:Object, column:AdvancedDataGridColumn):Object
+			{
+				for (var k:String in _funName2AdvancedGridColumn)
+				{
+					if (_funName2AdvancedGridColumn[k] === column)
+					{
+						var styleResult:Object=JSFunUtils.JSFun(k, data) as Object;
+						return styleResult;
+					}
+				}
+				return null;
+			}
+
+			//-----------------------------------------------------------------------------------------------------
+			protected function eventDataGridCreateCompleted(event:FlexEvent):void
+			{
+			}
+
+			//----------------------------------------------------------------------------------------------------
+			//设置数据 将普通数据转换为
+			public function initData(records:Array, groupFieldName:String=null):void
+			{
+				_planDataGridRecords=records;
+				if (_groupFieldNames.length == 0)
+				{
+					_flatArrayCollection=new ArrayCollection(records);
+					DataGrid.dataProvider=_flatArrayCollection;
+				}
+				else
+				{
+					if (StringUtils.isEmpty(groupFieldName))
+						groupFieldName=_groupFieldNames[0];
+
+					_flatArrayCollection=new ArrayCollection(ArrayCollectionUtils.FlatToHierarchData(records, groupFieldName));
+
+					for (var i:int=0; i < _groupColumnList.length; i++)
+						_groupColumnList[i].visible=!StringUtils.equal(_groupColumnList[i].dataField, groupFieldName);
+
+					DataGrid.dataProvider=new HierarchicalData(_flatArrayCollection);
+					DataGrid.validateNow();
+					DataGrid.callLater(function():void
+					{
+						DataGrid.expandAll();
+						selectFirstRecord();
+					});
+
+				}
+				bestColumnWidth();
+			}
+
+			private function bestColumnWidth():void
+			{
+				for (var i:int=0; i < allFieldColumns.length; i++)
+				{
+					var column:AdvancedDataGridColumn=allFieldColumns[i] as AdvancedDataGridColumn;
+					if (column.resizable)
+					{
+						var columnWidth:int=FlexGlobals.topLevelApplication.measureTextWidth(column.headerText) + 20;
+						for (var j:int=0; j < _planDataGridRecords.length; j++)
+						{
+							var str:String=_planDataGridRecords[j][column.dataField];
+							var w:int=0;
+							if (StringUtils.contain(str, "<"))
+								w=FlexGlobals.topLevelApplication.measureHTMLTextWidth(str) + 30;
+							else
+								w=FlexGlobals.topLevelApplication.measureTextWidth(str) + 30;
+							columnWidth=Math.max(w, columnWidth);
+						}
+						column.width=Math.min(400, columnWidth);
+					}
+				}
+			}
+
+			//选择第一条记录
+			public function selectFirstRecord():void
+			{
+				var index:int=-1;
+				var datasource:Array=_flatArrayCollection.source;
+				if (datasource.length)
+					index=isGroupAble ? 1 : 0;
+				DataGrid.selectedIndex=index;
+			}
+
+			//选择最后一条记录
+			public function selectLastRecord():void
+			{
+				var index:int=0;
+				var source:Array=_flatArrayCollection.source;
+				if (isGroupAble)
+				{
+					for (var i:int=0; i < source.length; i++)
+						index+=(source[i].children.length + 1);
+				}
+				else
+				{
+					index=source.length;
+				}
+				if (index != 0)
+					DataGrid.selectedIndex=index - 1;
+			}
+
+			//--------------------------------------------------------------------------------------------
+			public function getIDS():Array
+			{
+				var ids:Array=[];
+				var source:Array=_flatArrayCollection.source;
+				var i:int=0;
+				var j:int=0;
+				if (isGroupAble)
+				{
+					for (i=0; i < source.length; i++)
+						for (j=0; j < source[i].children.length; j++)
+							ids.push(source[i].children[j].__key__);
+				}
+				else
+				{
+					for (i=0; i < source.length; i++)
+						ids.push(source[i].__key__);
+				}
+				return ids;
+			}
+
+			//--------------------------------------------------------------------------------------------
+			//获取选择的案件步骤列表ID
+			public function getSelectedIDS(forceIncludeCurrentItem:Boolean=false):Array
+			{
+				var source:Array=_flatArrayCollection.source;
+				var i:int=0;
+				var j:int=0;
+				var ids:Array=[];
+				if (isIncludeCheckBoxColumn)
+				{
+					if (isGroupAble)
+					{
+						for (i=0; i < source.length; i++)
+						{
+							for (j=0; j < source[i].children.length; j++)
+							{
+								if (source[i].children[j].__chk__)
+									ids.push(source[i].children[j].__key__);
+							}
+						}
+					}
+					else
+					{
+						for (i=0; i < source.length; i++)
+						{
+							if (source[i].__chk__)
+								ids.push(source[i].__key__);
+						}
+					}
+
+				}
+				else if (isGridMultiSelectedAble && DataGrid.selectedItems)
+				{
+					var items:Array=DataGrid.selectedItems;
+					for (i=0; i < items.length; i++)
+						if (items[i].__key__)
+							ids.push(items[i].__key__);
+				}
+				else if (DataGrid.selectedItem && DataGrid.selectedItem.__key__)
+					ids.push(DataGrid.selectedItem.__key__);
+
+
+				if (forceIncludeCurrentItem && isIncludeCheckBoxColumn && DataGrid.selectedItem && DataGrid.selectedItem.__key__ && !DataGrid.selectedItem.__chk__)
+				{
+					ids.push(DataGrid.selectedItem.__key__);
+				}
+				return ids;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////
+			//获取选定的数据
+			public function getSelectedItems(forceIncludeCurrentItem:Boolean=false):Array
+			{
+				var source:Array=_flatArrayCollection.source;
+				var i:int=0;
+				var j:int=0;
+				var returnItems:Array=[];
+				if (isIncludeCheckBoxColumn)
+				{
+					if (isGroupAble)
+					{
+						for (i=0; i < source.length; i++)
+						{
+							for (j=0; j < source[i].children.length; j++)
+							{
+								if (source[i].children[j].__chk__)
+									returnItems.push(source[i].children[j]);
+							}
+						}
+					}
+					else
+					{
+						for (i=0; i < source.length; i++)
+						{
+							if (source[i].__chk__)
+								returnItems.push(source[i]);
+						}
+					}
+
+				}
+				else if (isGridMultiSelectedAble && DataGrid.selectedItems)
+				{
+					var items:Array=DataGrid.selectedItems;
+					for (i=0; i < items.length; i++)
+						if (items[i].__key__)
+							returnItems.push(items[i]);
+				}
+				else if (DataGrid.selectedItem && DataGrid.selectedItem.__key__)
+					returnItems.push(DataGrid.selectedItem);
+
+				if (forceIncludeCurrentItem && isIncludeCheckBoxColumn && DataGrid.selectedItem && DataGrid.selectedItem.__key__ && !DataGrid.selectedItem.__chk__)
+				{
+					returnItems.push(DataGrid.selectedItem);
+				}
+				return returnItems;
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////
+			public function selectRecordByKeyValue(keyValue:String):int
+			{
+				var result:int=-1;
+				var source:Array=_flatArrayCollection.source;
+				var i:int=0, j:int=0;
+				if (isGroupAble)
+				{
+					var index:int=0;
+					for (i=0; i < source.length; i++)
+					{
+						index++;
+						for (j=0; j < source[i].children.length; j++)
+						{
+							if (StringUtils.equal(source[i].children[j].__key__, keyValue))
+							{
+								DataGrid.selectedIndex=index;
+								DataGrid.callLater(function():void
+								{
+									DataGrid.selectedIndex=index;
+								});
+								i=source.length + 1;
+								result=index;
+								break;
+							}
+							index++;
+						}
+					}
+				}
+				else
+				{
+					for (i=0; i < source.length; i++)
+					{
+						if (StringUtils.equal(source[i].__key__, keyValue))
+						{
+							DataGrid.selectedIndex=index;
+							DataGrid.callLater(function():void
+							{
+								DataGrid.selectedIndex=index;
+							});
+							result=index;
+							break;
+						}
+					}
+				}
+				return result;
+			}
+
+			protected function DataGrid_doubleClickHandler(event:MouseEvent):void
+			{
+				if (doubleClickFunction != null)
+					doubleClickFunction();
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
+			//回复选择的数据
+			public function restoreSelectedItems(items:Array):void
+			{
+				var i:int=0;
+				var keys:Array=[];
+				for (i=0; i < items.length; i++)
+					keys.push(items[i].__key__);
+
+				var source:Array=_flatArrayCollection.source;
+				var j:int=0;
+				var returnItems:Array=[];
+				var selectedItems:Array=[];
+				if (isGroupAble)
+				{
+					for (i=0; i < source.length; i++)
+					{
+						for (j=0; j < source[i].children.length; j++)
+						{
+							if (ArrayUtils.indexOf(keys, source[i].children[j].__key__) != -1)
+							{
+								if (isIncludeCheckBoxColumn)
+									source[i].children[j].__chk__=true;
+								selectedItems.push(source[i].children[j]);
+							}
+						}
+					}
+				}
+				else
+				{
+					for (i=0; i < source.length; i++)
+					{
+						if (ArrayUtils.indexOf(keys, source[i].__key__) != -1)
+						{
+							if (isIncludeCheckBoxColumn)
+								source[i].__chk__=true;
+							selectedItems.push(source[i]);
+						}
+					}
+				}
+				callLater(function():void
+				{
+					DataGrid.validateDisplayList();
+					DataGrid.validateNow();
+				});
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////
+			public function findRecordByID(id:String):Boolean
+			{
+				return selectRecordByKeyValue(id) != -1;
+			}
+			////////////////////////////////////////////////////////////////////////////////////////////////
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<!-- groupItemRenderer="{new ClassFactory(AdvancedDataGridGroupItemRendererEx)}" -->
+
+	<mx:AdvancedDataGrid alpha="{alphaValue}" contentBackgroundAlpha="{alphaValue}" id="DataGrid" x="0" y="0" width="100%" height="100%" borderStyle="none" paddingTop="0" verticalAlign="middle" doubleClickEnabled="true" horizontalScrollPolicy="auto" verticalScrollPolicy="auto"
+						 creationComplete="eventDataGridCreateCompleted(event)" doubleClick="DataGrid_doubleClickHandler(event)" sortableColumns="false" disclosureClosedIcon="{imgCollopse}" disclosureOpenIcon="{imgExpend}" draggableColumns="false" folderClosedIcon="{null}" folderOpenIcon="{null}"
+						 defaultLeafIcon="{null}" headerHeight="28" rowHeight="25" alternatingItemColors="[0xFFFFFF]" sortExpertMode="true">
+	</mx:AdvancedDataGrid>
+
+</s:Group>

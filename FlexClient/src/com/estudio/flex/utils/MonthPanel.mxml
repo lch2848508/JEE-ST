@@ -1,0 +1,402 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Grid verticalGap="0" horizontalGap="0" borderStyle="solid" borderColor="0x000000" fontFamily="Courier New" backgroundAlpha="0" minWidth="160" minHeight="160" backgroundColor="0xFFFFFF" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+
+			private var dayMap:Object=null;
+			private var day2Cell:Object=null;
+			private var week2Cell:Array=[];
+
+			//获取月天数
+			private function getMonthDay(year:int, month:int):int
+			{
+				var result:int=30;
+				if (month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12)
+					result=31;
+				else if (month == 2)
+					result=(year % 4 == 0 && year % 100 != 0) ? 29 : 28;
+				return result;
+			}
+
+			public function setYearAndMonth(year:int, month:int):void
+			{
+				dayMap={};
+				day2Cell={};
+				week2Cell=[];
+				month=month - 1;
+				var i:int=0;
+				var j:int=0;
+				for (i=0; i < 7; i++)
+				{
+					week2Cell.push([]);
+				}
+				for (i=2; i < 8; i++)
+				{
+					var row:GridRow=this.getElementAt(i) as GridRow;
+					for (j=0; j < 7; j++)
+					{
+						var cell:GridItem=row.getElementAt(j) as GridItem;
+						var label:Label=cell.getElementAt(0) as Label;
+						label.text="";
+						label.mouseChildren=true;
+						label.buttonMode=false;
+						label.useHandCursor=false;
+						cell.setStyle("backgroundColor", 0xFFFFFF);
+							//cell.setStyle("color", 0x000000);
+					}
+				}
+				var days:int=getMonthDay(year, month + 1);
+				var index:int=new Date(year, month, 1).day;
+				for (i=0; i < days; i++)
+				{
+					var r:int=index / 7;
+					var c:int=index % 7;
+
+					var row:GridRow=this.getElementAt(r + 2) as GridRow;
+					var cell:GridItem=row.getElementAt(c) as GridItem;
+					var label:Label=cell.getElementAt(0) as Label;
+					label.mouseChildren=false;
+					label.useHandCursor=true;
+					label.buttonMode=true;
+					label.text=String(i + 1);
+					index++;
+					dayMap[label.text]=false;
+					day2Cell[label.text]=cell;
+					week2Cell[c].push(cell);
+				}
+
+
+			}
+
+			public function selectedDays(days:Array)
+			{
+				for (var i=0; i < days.length; i++)
+				{
+					var cell:UIComponent=day2Cell[days[i]];
+					dayMap[String(days[i])]=true;
+					cell.setStyle("backgroundColor", 0x3399FF);
+						//cell.setStyle("color", 0xFFFFFF);
+				}
+			}
+
+			public function selectWeek(ws:Array)
+			{
+				for (var i:int=0; i < ws.length; i++)
+				{
+					var cells:Array=week2Cell[ws[i]] as Array;
+					for (var j:int=0; j < cells.length; j++)
+					{
+						var cell:GridItem=cells[j] as GridItem;
+						var label:Label=cell.getElementAt(0) as Label;
+						dayMap[label.text]=true;
+						cell.setStyle("backgroundColor", dayMap[label.text] ? 0x3399FF : 0xFFFFFF);
+							//cell.setStyle("color", dayMap[label.text] ? 0xFFFFFF : 0x000000);
+					}
+				}
+			}
+
+			public function unSelectWeek(ws:Array)
+			{
+				for (var i:int=0; i < ws.length; i++)
+				{
+					var cells:Array=week2Cell[ws[i]] as Array;
+					for (var j:int=0; j < cells.length; j++)
+					{
+						var cell:GridItem=cells[j] as GridItem;
+						var label:Label=cell.getElementAt(0) as Label;
+						dayMap[label.text]=false;
+						cell.setStyle("backgroundColor", dayMap[label.text] ? 0x3399FF : 0xFFFFFF);
+							//cell.setStyle("color", dayMap[label.text] ? 0xFFFFFF : 0x000000);
+					}
+				}
+			}
+
+			protected function event4LabelClick(event:MouseEvent):void
+			{
+				var label:Label=event.currentTarget as Label;
+				if (!StringUtils.isEmpty(label.text))
+				{
+					var cell:UIComponent=label.owner as UIComponent;
+					dayMap[label.text]=!dayMap[label.text];
+					cell.setStyle("backgroundColor", dayMap[label.text] ? 0x3399FF : 0xFFFFFF);
+						//cell.setStyle("color", dayMap[label.text] ? 0xFFFFFF : 0x000000);
+				}
+			}
+
+			public function getDays():Array
+			{
+				var result:Array=[];
+				for (var i:int=1; i <= 31; i++)
+				{
+					if (dayMap[String(i)])
+						result.push(i);
+				}
+				return result;
+			}
+		]]>
+	</fx:Script>
+	<mx:GridRow width="100%"  fontSize="12" fontWeight="bold" height="100%" backgroundColor="#CCCCCC">
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" text="日" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" text="一" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" text="二" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" text="三" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" text="四" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" text="五" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" text="六" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+	</mx:GridRow>
+	<mx:GridRow width="100%" height="1">
+		<mx:GridItem colSpan="7">
+			<mx:HRule width="100%" height="1" x="0" y="0">
+
+			</mx:HRule>
+		</mx:GridItem>
+	</mx:GridRow>
+	<mx:GridRow width="100%" height="100%">
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+	</mx:GridRow>
+	<mx:GridRow width="100%" height="100%">
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+	</mx:GridRow>
+	<mx:GridRow width="100%" height="100%">
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+	</mx:GridRow>
+	<mx:GridRow width="100%" height="100%">
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+	</mx:GridRow>
+	<mx:GridRow width="100%" height="100%">
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+	</mx:GridRow>
+	<mx:GridRow width="100%" height="100%">
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+
+		<mx:GridItem backgroundAlpha="0.8" backgroundColor="0xFFFFFF" width="100%" height="100%">
+			<s:Label click="event4LabelClick(event)" verticalAlign="middle" width="100%" height="100%" textAlign="center">
+			</s:Label>
+		</mx:GridItem>
+	</mx:GridRow>
+</mx:Grid>

@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component:TitleWindowEx title="公式编辑器" close="titlewindowex1_closeHandler(event)" creationComplete="titlewindowex1_creationCompleteHandler(event)" xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark" xmlns:mx="library://ns.adobe.com/flex/mx"
+						 xmlns:component="com.estudio.flex.component.*" width="800" height="400">
+	<fx:Script>
+		<![CDATA[
+			import com.estudio.flex.utils.StringUtils;
+			import com.webgis.service.MapServiceClient;
+			
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+
+			private static var instance:WinFormulaEditor=null;
+
+			public static function execute(client:MapServiceClient, fieldList:Array, formula:String, cap:String, callFunction:Function):void
+			{
+				if (instance == null)
+					instance=new WinFormulaEditor();
+				instance.formula=formula;
+				instance.cap = cap;
+				instance.mapServiceClient=client;
+				instance.fieldList=fieldList;
+				instance.callFunction=callFunction;
+				if (instance.textArea4Content)
+					instance.initFunListAndFieldList();
+				PopUpManager.addPopUp(instance, FlexGlobals.topLevelApplication as DisplayObject, true);
+				PopUpManager.centerPopUp(instance);
+			}
+
+			[Bindable]
+			private var formula:String="";
+			[Bindable]
+			private var cap:String="";
+			
+			private var fieldList:Array=null;
+			private var callFunction:Function=null;
+			private var fieldLabel2Name:Object={};
+			private var fieldLabel2Caption:Object = {};
+			public var mapServiceClient:MapServiceClient=null;
+			private var formulaList:Array=null;
+			private var funList:Array=null;
+
+			protected function titlewindowex1_creationCompleteHandler(event:FlexEvent):void
+			{
+				mapServiceClient.spatialAnaly({o: "getSpatialAnalyTemplate"}, function(json:Object):void
+				{
+					formulaList=json.formulas;
+					funList=json.functions;
+					initFunListAndFieldList();
+				});
+
+			}
+
+			private function initFunListAndFieldList():void
+			{
+				fieldLabel2Name={};
+				fieldLabel2Caption = {};
+				var index:int=0;
+				var htmlContent:String="<textformat leftmargin='6' rightmargin='6' topmargin='6' bottommargin='6' leading='6'>";
+
+				//预定义函数
+				htmlContent+="<font color='#000000' size='14'><b>预定义公式</b></font><br>";
+				htmlContent+="<textformat leftmargin='16'><font color='#0000FF' size='12'>";
+				if (formulaList)
+				{
+					for (var i:int=0; i < formulaList.length; i++)
+					{
+						htmlContent+="<a href='event:idx:" + index + "'>" + StringUtils.str2HTML(formulaList[i].caption) + "</a>  ";
+						fieldLabel2Name[index]=formulaList[i].content;
+						fieldLabel2Caption[index] = formulaList[i].caption;
+						index++;
+					}
+				}
+				htmlContent+="</font></textformat>";
+				htmlContent+="<br>";
+
+				//运算符
+				htmlContent+="<font color='#000000' size='14'><b>运算符</b></font><br>";
+				htmlContent+="<textformat leftmargin='16'><font color='#0000FF' size='12'>";
+				htmlContent+="<a href='event:+'>＋</a>  <a href='event:-'>－</a>  <a href='event:*'>×</a>  <a href='event:/'>÷</a> <a href='event:('>（</a> <a href='event:)'>）</a>";
+				htmlContent+="</font></textformat>";
+				htmlContent+="<br>";
+
+				//函数
+				htmlContent+="<font color='#000000' size='14'><b>可使用函数</b></font><br>";
+				htmlContent+="<textformat leftmargin='16'><font color='#0000FF' size='12'>";
+				if (funList)
+				{
+					for (var i:int=0; i < funList.length; i++)
+					{
+						htmlContent+="<a href='event:idx:" + index + "'>" + StringUtils.str2HTML(funList[i].caption) + "</a>  ";
+						fieldLabel2Name[index]=funList[i].content;
+						index++;
+					}
+
+				}
+				htmlContent+="</font></textformat>";
+				htmlContent+="<br>";
+
+				//字段
+				htmlContent+="<font color='#000000' size='14'><b>可使用字段(<font color='#0000FF'>数字</font> <font color='#DC143C'>日期时间</font> <font color='#FF0000'>字符串</font>)</b></font><br>";
+				htmlContent+="<textformat leftmargin='16'><font size='12'>";
+				for (var i:int=0; i < fieldList.length; i++)
+				{
+					var item:Object=fieldList[i];
+					var datatype:String=item.datatype;
+					if (datatype == "数字")
+						htmlContent+="<font color='#0000FF'><a href='event:" + item.name + "'>" + item.title + "</a>  </font>";
+					else if (datatype == "日期时间")
+						htmlContent+="<font color='#DC143C'><a href='event:" + item.name + "'>" + item.title + "</a>  </font>";
+					else if (datatype == "字符串")
+						htmlContent+="<font color='#FF0000'><a href='event:" + item.name + "'>" + item.title + "</a>  </font>";
+				}
+				htmlContent+="<font color='#0000FF'><a href='event:LAYER_GEOMETRY_LENGTH'>地理要素长度</a>  <a href='event:LAYER_GEOMETRY_AREA'>地理要素面积</a>  <a href='event:BUF_GEOMETRY_LENGTH'>空间范围长度</a>  <a href='event:BUF_GEOMETRY_AREA'>空间范围面积</a></font>"
+				htmlContent+="</font></textformat>";
+				htmlContent+="<br>";
+
+				htmlContent+="</textformat>";
+
+				textArea4Content.htmlText=htmlContent;
+			}
+
+			protected function titlewindowex1_closeHandler(event:CloseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+				callFunction(StringUtils.trim(editFormula.text),StringUtils.trim(editCaption.text));
+			}
+
+			protected function textArea4Content_linkHandler(event:TextEvent):void
+			{
+				var str:String=event.text;
+				if (str.indexOf("idx:") == 0)
+				{
+					str=str.substr(4);
+					var idx:int = parseInt(str);
+					var cap:String = fieldLabel2Caption[idx];
+					if(!StringUtils.isEmpty(cap))editCaption.text = cap;
+					str=fieldLabel2Name[idx];
+				}
+				str=" " + str;
+				editFormula.text=StringUtils.trim(editFormula.text + str);
+				editFormula.setFocus();
+				editFormula.selectRange(editFormula.text.length, editFormula.text.length);
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup width="100%" left="5" top="5" right="5" verticalAlign="middle">
+		<s:Label text="公式"/>
+		<s:TextInput width="100%" id="editFormula" text="{formula}"/>
+		<s:Label text="标题"/>
+		<s:TextInput width="120" id="editCaption" text="{cap}"/>		
+	</s:HGroup>
+	<mx:TextArea link="textArea4Content_linkHandler(event)" editable="false" left="5" top="{editFormula.height+10}" right="5" bottom="40" id="textArea4Content"/>
+	<s:Line left="2" right="2" bottom="35" height="0">
+		<s:stroke>
+			<s:SolidColorStroke color="#7B889C"/>
+		</s:stroke>
+	</s:Line>
+	<s:Button width="70" height="25" right="80" bottom="5" label="确定" click="button2_clickHandler(event)"/>
+	<s:Button width="70" height="25" right="5" bottom="5" label="关闭" click="button1_clickHandler(event)"/>
+</component:TitleWindowEx>
